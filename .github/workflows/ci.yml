@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - development
+
+  pull_request:
+    branches:
+      - development
+      - main
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore SmartHome.sln
+
+      - name: Build
+        run: dotnet build SmartHome.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test SmartHome.sln --configuration Release --no-build
