@@ -72,6 +72,8 @@ jobs:
             exit $LASTEXITCODE
           }
 
+          exit 0
+
       - name: Deploy API
         shell: powershell
         run: |
@@ -83,6 +85,8 @@ jobs:
           if ($LASTEXITCODE -ge 8) {
             exit $LASTEXITCODE
           }
+
+          exit 0
 
       - name: Start SmartHome API
         shell: powershell
