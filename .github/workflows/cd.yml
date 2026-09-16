@@ -1,0 +1,38 @@
+name: CD
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-publish:
+    name: Build and Publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore SmartHome.sln
+
+      - name: Build
+        run: dotnet build SmartHome.sln --configuration Release --no-restore
+
+      - name: Publish application
+        run: dotnet publish SmartHomeApplication/SmartHomeApplication.csproj --configuration Release --output ./publish/application --no-build
+
+      - name: Publish API
+        run: dotnet publish SmartHomeApplicationAPI/SmartHomeApplicationAPI.csproj --configuration Release --output ./publish/api --no-build
+
+      - name: Upload deployment artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: smarthome-release
+          path: ./publish
