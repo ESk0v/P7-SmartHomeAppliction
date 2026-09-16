@@ -29,7 +29,7 @@ jobs:
         run: dotnet publish SmartHomeApplication/SmartHomeApplication.csproj --configuration Release --output ./publish/application --no-build
 
       - name: Publish API
-        run: dotnet publish SmartHomeApplicationAPI/SmartHomeApplicationAPI.csproj --configuration Release --output ./publish/api --no-build --runtime win-x64 --self-contained false
+        run: dotnet publish SmartHomeApplicationAPI/SmartHomeApplicationAPI.csproj --configuration Release --output ./publish/api --runtime win-x64 --self-contained false
 
       - name: Upload deployment artifact
         uses: actions/upload-artifact@v4
