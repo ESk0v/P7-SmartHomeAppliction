@@ -36,3 +36,61 @@ jobs:
         with:
           name: smarthome-release
           path: ./publish
+
+  deploy:
+    name: Deploy to SmartHome Server
+    needs: build-and-publish
+    runs-on: [self-hosted, Windows, X64]
+
+    steps:
+      - name: Download deployment artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: smarthome-release
+          path: ./publish
+
+      - name: Stop SmartHome API
+        shell: powershell
+        run: |
+          Stop-Service -Name "SmartHomeApi" -ErrorAction SilentlyContinue
+
+      - name: Stop SmartHome IIS site
+        shell: powershell
+        run: |
+          Import-Module WebAdministration
+          Stop-Website -Name "SmartHome" -ErrorAction SilentlyContinue
+
+      - name: Deploy frontend
+        shell: powershell
+        run: |
+          $source = Join-Path $env:GITHUB_WORKSPACE "publish\application"
+          $destination = "C:\Users\Administrator\Desktop\ActiveServers\SmartHome\Frontend"
+
+          robocopy $source $destination /MIR /R:3 /W:5
+
+          if ($LASTEXITCODE -ge 8) {
+            exit $LASTEXITCODE
+          }
+
+      - name: Deploy API
+        shell: powershell
+        run: |
+          $source = Join-Path $env:GITHUB_WORKSPACE "publish\api"
+          $destination = "C:\Users\Administrator\Desktop\ActiveServers\SmartHome\API"
+
+          robocopy $source $destination /MIR /R:3 /W:5
+
+          if ($LASTEXITCODE -ge 8) {
+            exit $LASTEXITCODE
+          }
+
+      - name: Start SmartHome API
+        shell: powershell
+        run: |
+          Start-Service -Name "SmartHomeApi"
+
+      - name: Start SmartHome IIS site
+        shell: powershell
+        run: |
+          Import-Module WebAdministration
+          Start-Website -Name "SmartHome"

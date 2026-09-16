@@ -1,0 +1,33 @@
+name: Runner Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Test SmartHome Server Runner
+    runs-on: [self-hosted, Windows, X64]
+
+    steps:
+      - name: Show runner information
+        shell: powershell
+        run: |
+          Write-Host "Runner is working."
+          Write-Host "Computer: $env:COMPUTERNAME"
+          Write-Host "User: $env:USERNAME"
+          Write-Host "Workspace: $env:GITHUB_WORKSPACE"
+
+      - name: Check SmartHome folders
+        shell: powershell
+        run: |
+          Write-Host "Frontend:"
+          Test-Path "C:\Users\Administrator\Desktop\ActiveServers\SmartHome\Frontend"
+
+          Write-Host "API:"
+          Test-Path "C:\Users\Administrator\Desktop\ActiveServers\SmartHome\API"
+
+      - name: Check NSSM service
+        shell: powershell
+        run: |
+          Get-Service -Name "SmartHomeApi" |
+            Select-Object Name, Status, StartType
