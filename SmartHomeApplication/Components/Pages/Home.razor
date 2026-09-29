@@ -1,7 +1,33 @@
 ﻿@page "/"
+@rendermode InteractiveServer
+@inject HttpClient Http
+@using Utilities.Models
 
 <PageTitle>Home</PageTitle>
 
 <h1>Hello, world!</h1>
 
 Welcome to your new app.
+
+<div style="margin-top: 20px;">
+    <button @onclick="LoadUsers">Get Users</button>
+
+    @if (users is not null)
+    {
+        <ul>
+            @foreach (var user in users)
+            {
+                <li>@user.Username</li>
+            }
+        </ul>
+    }
+</div>
+
+@code {
+    private List<User>? users;
+
+    private async Task LoadUsers()
+    {
+        users = await Http.GetFromJsonAsync<List<User>>("api/User");
+    }
+}
