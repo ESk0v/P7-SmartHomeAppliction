@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @inject HttpClient Http
 @using Utilities.Models
+@inject ILogger<Dashboard> Logger
 
 <PageTitle>Home</PageTitle>
 
@@ -28,6 +29,7 @@ Welcome to your new app.
 
     private async Task LoadUsers()
     {
+        Logger.LogInformation("TEST log");
         users = await Http.GetFromJsonAsync<List<User>>("api/User");
     }
 }
