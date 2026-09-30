@@ -15,4 +15,4 @@
 # macOS
 .DS_Store
 SmartHomeApplicationAPI/appsettings.Development.json
-SmartHomeApplicationAPI/appsettings.json
+SmartHomeApplication/appsettings.Development.json
