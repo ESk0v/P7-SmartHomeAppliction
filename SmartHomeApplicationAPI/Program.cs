@@ -5,9 +5,12 @@ using SmartHomeApplicationAPI.Service;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var secretsPath = Environment.GetEnvironmentVariable("SECRETS_PATH")
-                  ?? @"C:\Secrets\SmartHome\secrets.json";
-builder.Configuration.AddJsonFile(secretsPath, optional: false, reloadOnChange: true);
+if (!builder.Environment.IsDevelopment())
+{
+    var secretsPath = Environment.GetEnvironmentVariable("SECRETS_PATH")
+                      ?? @"C:\Secrets\SmartHome\secrets.json";
+    builder.Configuration.AddJsonFile(secretsPath, optional: false, reloadOnChange: true);
+}
 
 var smartHomeConn = builder.Configuration.GetConnectionString("SmartHome");
 if (string.IsNullOrWhiteSpace(smartHomeConn))
