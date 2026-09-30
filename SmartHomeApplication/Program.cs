@@ -1,11 +1,13 @@
-using Microsoft.VisualBasic;
 using SmartHomeApplication.Components;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var apiBaseUrl = builder.Configuration["ApiBaseUrl"]
+    ?? throw new InvalidOperationException("ApiBaseUrl is missing");
+
 builder.Services.AddScoped(sp => new HttpClient
 {
-    BaseAddress = new Uri("https://localhost:7100/") // match your API's actual port
+    BaseAddress = new Uri(apiBaseUrl)
 });
 
 // Add services to the container.
