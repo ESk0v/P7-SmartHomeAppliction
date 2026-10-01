@@ -52,13 +52,25 @@ jobs:
       - name: Stop SmartHome API
         shell: powershell
         run: |
-          Stop-Service -Name "SmartHomeApi" -ErrorAction SilentlyContinue
+          $svc = Get-Service -Name "SmartHomeApi" -ErrorAction SilentlyContinue
+          if ($svc -and $svc.Status -ne 'Stopped') {
+            Stop-Service -Name "SmartHomeApi" -Force
+            $svc.WaitForStatus('Stopped', [TimeSpan]::FromSeconds(60))
+          }
+          Start-Sleep -Seconds 3
 
       - name: Stop SmartHome IIS site
         shell: powershell
         run: |
           Import-Module WebAdministration
+          $pool = (Get-Website -Name "SmartHome").applicationPool
           Stop-Website -Name "SmartHome" -ErrorAction SilentlyContinue
+          if ((Get-WebAppPoolState -Name $pool).Value -ne 'Stopped') { Stop-WebAppPool -Name $pool }
+          $deadline = (Get-Date).AddSeconds(60)
+          while ((Get-WebAppPoolState -Name $pool).Value -ne 'Stopped' -and (Get-Date) -lt $deadline) {
+            Start-Sleep -Seconds 1
+          }
+          if ((Get-WebAppPoolState -Name $pool).Value -ne 'Stopped') { throw "App pool did not stop" }
 
       - name: Deploy frontend
         shell: powershell
@@ -92,9 +104,22 @@ jobs:
         shell: powershell
         run: |
           Start-Service -Name "SmartHomeApi"
+          $deadline = (Get-Date).AddSeconds(30)
+          do {
+            Start-Sleep -Seconds 2
+            $up = (Test-NetConnection -ComputerName 127.0.0.1 -Port 6200 -WarningAction SilentlyContinue).TcpTestSucceeded
+          } until ($up -or (Get-Date) -gt $deadline)
+          if (-not $up) {
+            Get-Service -Name "SmartHomeApi" | Format-List Name, Status
+            Get-WinEvent -FilterHashtable @{LogName='Application'; StartTime=(Get-Date).AddMinutes(-5)} -MaxEvents 20 -ErrorAction SilentlyContinue |
+              Where-Object { $_.LevelDisplayName -eq 'Error' } | Format-List TimeCreated, ProviderName, Message
+            throw "API is not listening on port 6200"
+          }
 
       - name: Start SmartHome IIS site
         shell: powershell
         run: |
           Import-Module WebAdministration
+          $pool = (Get-Website -Name "SmartHome").applicationPool
+          Start-WebAppPool -Name $pool
           Start-Website -Name "SmartHome"
