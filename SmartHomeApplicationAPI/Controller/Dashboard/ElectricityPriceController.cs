@@ -18,6 +18,6 @@ public class ElectricityPriceController : ControllerBase
     [HttpGet("dashboard-showcase")]
     public async Task<ActionResult<List<HourPriceDto>>> getElectricityPrices([FromQuery] string areaCode)
     {
-        return await _service.GetPricesForDateAsync();
+        return await _service.GetPricesForDateAsync(areaCode);
     }
 }

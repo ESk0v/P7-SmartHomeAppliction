@@ -5,6 +5,8 @@ namespace SmartHomeApplicationAPI.Infrastructure.Models;
 
 public partial class DayAheadPrice
 {
+    public int Id { get; set; }
+
     public DateTime Time { get; set; }
 
     public string PriceArea { get; set; } = null!;

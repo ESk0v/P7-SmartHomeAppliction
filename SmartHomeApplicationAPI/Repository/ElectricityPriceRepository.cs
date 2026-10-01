@@ -13,10 +13,10 @@ public class ElectricityPriceRepository : IElectricityPriceRepository
         _db = db;
     }
 
-    public async Task<List<HourPriceDto>> GetPricesForDateAsync(DateTime date)
+    public async Task<List<HourPriceDto>> GetPricesForDateAsync(string areaCode, DateTime date)
     {
         return await _db.DayAheadPrices
-            .Where(p => p.Time >= date)
+            .Where(p => p.Time >= date && p.PriceArea == areaCode)
             .OrderBy(p => p.Time)
             .Select(p => new HourPriceDto(p.Time, p.Price))
             .ToListAsync();

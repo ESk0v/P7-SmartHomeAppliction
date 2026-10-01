@@ -4,5 +4,5 @@ namespace SmartHomeApplicationAPI.Repository;
 
 public interface IElectricityPriceRepository
 {
-    Task<List<HourPriceDto>> GetPricesForDateAsync(DateTime date);
+    Task<List<HourPriceDto>> GetPricesForDateAsync(string areaCode, DateTime date);
 }

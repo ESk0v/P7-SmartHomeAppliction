@@ -18,10 +18,13 @@ public partial class SmartHomeDbContext : DbContext
     {
         modelBuilder.Entity<DayAheadPrice>(entity =>
         {
-            entity
-                .HasNoKey()
-                .ToTable("day_ahead_price");
+            entity.HasKey(e => e.Id).HasName("day_ahead_price_pkey");
 
+            entity.ToTable("day_ahead_price");
+
+            entity.Property(e => e.Id)
+                .UseIdentityAlwaysColumn()
+                .HasColumnName("id");
             entity.Property(e => e.IsPredicted)
                 .HasDefaultValue(false)
                 .HasColumnName("is_predicted");
@@ -32,7 +35,7 @@ public partial class SmartHomeDbContext : DbContext
                 .HasMaxLength(3)
                 .HasColumnName("price_area");
             entity.Property(e => e.Time)
-                .HasColumnType("timestamp without time zone")
+                .HasColumnType("timestamp(0) without time zone")
                 .HasColumnName("time");
         });
 

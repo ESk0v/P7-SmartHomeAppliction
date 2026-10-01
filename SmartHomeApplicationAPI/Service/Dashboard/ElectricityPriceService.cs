@@ -11,10 +11,10 @@ public class ElectricityPriceService : IElectricityPriceService
     {
         _repository = repository;
     }
-    public async Task<List<HourPriceDto>> GetPricesForDateAsync()
+    public async Task<List<HourPriceDto>> GetPricesForDateAsync(string areaCode)
     {
         DateTime date = DateTime.Now;
-        return await _repository.GetPricesForDateAsync(date);
+        return await _repository.GetPricesForDateAsync(areaCode, date);
         
     }
 }
