@@ -18,7 +18,7 @@
     {
         <p>The API answered, but returned no prices.</p>
     }
-    
+
     <div class="chart">
         @foreach (var p in prices)
         {
@@ -43,7 +43,7 @@
         try
         {
             prices = await Http.GetFromJsonAsync<List<HourPriceDto>>(
-                "api/ElectricityPrice/dashboard-showcase?areaCode=DK1") ?? new();
+                "api/electricity-price-controller/dashboard-showcase?areaCode=DK1") ?? new();
             maxPrice = prices.Count > 0 ? prices.Max(p => p.Price) : 0;
         }
         catch (Exception ex)
