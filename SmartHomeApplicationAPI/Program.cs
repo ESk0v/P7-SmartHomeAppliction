@@ -1,5 +1,5 @@
 using Microsoft.EntityFrameworkCore;
-using SmartHomeApplicationAPI.Infrastructure.Data;
+using SmartHomeApplicationAPI.Infrastructure;
 using SmartHomeApplicationAPI.Repository;
 using SmartHomeApplicationAPI.Service;
 
@@ -27,8 +27,8 @@ builder.Services.AddCors(options =>
 builder.Services.AddDbContext<SmartHomeDbContext>(options =>
     options.UseNpgsql(smartHomeConn));
 
-builder.Services.AddScoped<IUserRepository, UserRepository>();
-builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IElectricityPriceService, ElectricityPriceService>();
+builder.Services.AddScoped<IElectricityPriceRepository, ElectricityPriceRepository>();
 
 builder.Services.AddControllers();
 
