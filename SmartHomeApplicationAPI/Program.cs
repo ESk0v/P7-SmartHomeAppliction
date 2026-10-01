@@ -31,10 +31,7 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddDbContext<SmartHomeDbContext>(options =>
 {
-    if (builder.Environment.IsDevelopment())
-        options.UseInMemoryDatabase("SmartHome");
-    else
-        options.UseNpgsql(smartHomeConn);
+    options.UseNpgsql(smartHomeConn);
 });
 
 builder.Services.AddHangfire(config =>
@@ -42,12 +39,9 @@ builder.Services.AddHangfire(config =>
     config.UseSimpleAssemblyNameTypeSerializer()
         .UseRecommendedSerializerSettings();
 
-    if (builder.Environment.IsDevelopment())
-        config.UseInMemoryStorage();
-    else
-        config.UsePostgreSqlStorage(
-            o => o.UseNpgsqlConnection(smartHomeConn),
-            new PostgreSqlStorageOptions { PrepareSchemaIfNecessary = true });
+    config.UsePostgreSqlStorage(
+        o => o.UseNpgsqlConnection(smartHomeConn),
+        new PostgreSqlStorageOptions { PrepareSchemaIfNecessary = true });
 });
 
 //builder.Services.AddHangfireServer();
@@ -66,7 +60,7 @@ app.UseCors("AllowBlazor");
 
 app.UseHangfireDashboard("/hangfire");
 
-Jobs.Register();
+//Jobs.Register();
 
 app.MapControllers();
 
