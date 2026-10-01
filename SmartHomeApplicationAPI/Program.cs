@@ -2,6 +2,11 @@ using Microsoft.EntityFrameworkCore;
 using SmartHomeApplicationAPI.Infrastructure;
 using SmartHomeApplicationAPI.Repository;
 using SmartHomeApplicationAPI.Service;
+using Hangfire;
+using Hangfire.PostgreSql;
+using SmartHomeApplicationAPI.Hangfire;
+using SmartHomeApplicationAPI.Hangfire.Repository;
+using SmartHomeApplicationAPI.Hangfire.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,6 +32,19 @@ builder.Services.AddCors(options =>
 builder.Services.AddDbContext<SmartHomeDbContext>(options =>
     options.UseNpgsql(smartHomeConn));
 
+builder.Services.AddHangfire(configuration =>
+{
+    configuration
+        .UseSimpleAssemblyNameTypeSerializer()
+        .UseRecommendedSerializerSettings()
+        .UsePostgreSqlStorage(smartHomeConn);
+});
+
+builder.Services.AddHangfireServer();
+
+builder.Services.AddScoped<IElectricityPriceImportRepository, ElectricityPriceImportRepository>();
+builder.Services.AddHttpClient<IElectricityPriceImportService, ElectricityPriceImportService>();
+
 builder.Services.AddScoped<IElectricityPriceService, ElectricityPriceService>();
 builder.Services.AddScoped<IElectricityPriceRepository, ElectricityPriceRepository>();
 
@@ -35,6 +53,10 @@ builder.Services.AddControllers();
 var app = builder.Build();
 
 app.UseCors("AllowBlazor");
+
+app.UseHangfireDashboard("/hangfire");
+
+Jobs.Register();
 
 app.MapControllers();
 
