@@ -7,6 +7,7 @@ using Hangfire.PostgreSql;
 using SmartHomeApplicationAPI.Hangfire;
 using SmartHomeApplicationAPI.Hangfire.Repository;
 using SmartHomeApplicationAPI.Hangfire.Services;
+using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,6 +21,13 @@ if (!builder.Environment.IsDevelopment())
 var smartHomeConn = builder.Configuration.GetConnectionString("SmartHome");
 if (string.IsNullOrWhiteSpace(smartHomeConn))
     throw new InvalidOperationException("ConnectionStrings:SmartHome is missing");
+
+smartHomeConn = new NpgsqlConnectionStringBuilder(smartHomeConn)
+{
+    Timeout = 60,
+    CommandTimeout = 60,
+    KeepAlive = 30
+}.ConnectionString;
 
 builder.Services.AddCors(options =>
 {
