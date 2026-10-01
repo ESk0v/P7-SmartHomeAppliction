@@ -8,5 +8,8 @@
   <ItemGroup>
     <Compile Include="..\Utilities\**\*.cs" LinkBase="Utilities" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Hangfire.InMemory" Version="1.0.0" />
+  </ItemGroup>
 
 </Project>

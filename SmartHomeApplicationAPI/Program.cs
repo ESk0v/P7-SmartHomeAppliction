@@ -30,14 +30,22 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddDbContext<SmartHomeDbContext>(options =>
-    options.UseNpgsql(smartHomeConn));
-
-builder.Services.AddHangfire(configuration =>
 {
-    configuration
-        .UseSimpleAssemblyNameTypeSerializer()
-        .UseRecommendedSerializerSettings()
-        .UsePostgreSqlStorage(smartHomeConn);
+    if (builder.Environment.IsDevelopment())
+        options.UseInMemoryDatabase("SmartHome");
+    else
+        options.UseNpgsql(smartHomeConn);
+});
+
+builder.Services.AddHangfire(config =>
+{
+    config.UseSimpleAssemblyNameTypeSerializer()
+          .UseRecommendedSerializerSettings();
+
+    if (builder.Environment.IsDevelopment())
+        config.UseInMemoryStorage();
+    else
+        config.UsePostgreSqlStorage(o => o.UseNpgsqlConnection(smartHomeConn));
 });
 
 builder.Services.AddHangfireServer();
