@@ -15,7 +15,7 @@ public static class Jobs
         RecurringJob.AddOrUpdate<IElectricityPriceImportService>(
             ElectricityPriceImport,
             service => service.StartImportAsync(),
-            Cron.Daily(15, 5),
+            Cron.Daily(15, 30),
             new RecurringJobOptions
             {
                 TimeZone = TimeZoneInfo.FindSystemTimeZoneById(
