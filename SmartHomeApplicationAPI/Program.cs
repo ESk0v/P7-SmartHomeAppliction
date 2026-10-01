@@ -50,7 +50,7 @@ builder.Services.AddHangfire(config =>
             new PostgreSqlStorageOptions { PrepareSchemaIfNecessary = false });
 });
 
-builder.Services.AddHangfireServer();
+//builder.Services.AddHangfireServer();
 
 builder.Services.AddScoped<IElectricityPriceImportRepository, ElectricityPriceImportRepository>();
 builder.Services.AddHttpClient<IElectricityPriceImportService, ElectricityPriceImportService>();
