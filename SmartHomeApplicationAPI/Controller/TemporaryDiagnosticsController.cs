@@ -1,7 +1,9 @@
 using Hangfire;
 using Hangfire.Storage;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using SmartHomeApplicationAPI.Infrastructure;
+using System.Data.Common;
 
 namespace SmartHomeApplicationAPI.Controller;
 
@@ -36,9 +38,15 @@ public class TemporaryDiagnosticsController : ControllerBase
         {
             result.DatabaseCanConnect = await _db.Database.CanConnectAsync(
                 cancellationToken);
+
+            if (result.DatabaseCanConnect == true)
+            {
+                await ReadDatabaseDetailsAsync(result, cancellationToken);
+            }
         }
         catch (Exception exception)
         {
+            result.DatabaseDetailsError = Describe(exception);
             result.DatabaseError = Describe(exception);
             _logger.LogError(exception, "Temporary database diagnostics failed.");
         }
@@ -56,6 +64,7 @@ public class TemporaryDiagnosticsController : ControllerBase
         }
         catch (Exception exception)
         {
+            result.HangfireCanConnect = false;
             result.HangfireError = Describe(exception);
             _logger.LogError(exception, "Temporary Hangfire diagnostics failed.");
         }
@@ -65,6 +74,96 @@ public class TemporaryDiagnosticsController : ControllerBase
             result.HangfireCanConnect == true;
 
         return Ok(result);
+    }
+
+    private async Task ReadDatabaseDetailsAsync(
+        TemporaryDiagnosticsResult result,
+        CancellationToken cancellationToken)
+    {
+        var connection = _db.Database.GetDbConnection();
+
+        await connection.OpenAsync(cancellationToken);
+
+        result.DatabaseUser = await ExecuteScalarAsync(
+            connection,
+            "SELECT current_user");
+
+        result.DatabaseName = await ExecuteScalarAsync(
+            connection,
+            "SELECT current_database()");
+
+        result.DatabaseServer = await ExecuteScalarAsync(
+            connection,
+            """
+            SELECT COALESCE(inet_server_addr()::text, 'local')
+                   || ':' ||
+                   COALESCE(inet_server_port()::text, 'unknown')
+            """);
+
+        result.HangfireSchemaExists = await ExecuteBooleanAsync(
+            connection,
+            """
+            SELECT EXISTS (
+                SELECT 1
+                FROM information_schema.schemata
+                WHERE schema_name = 'hangfire'
+            )
+            """);
+
+        result.HangfireJobTableExists = await ExecuteBooleanAsync(
+            connection,
+            """
+            SELECT EXISTS (
+                SELECT 1
+                FROM information_schema.tables
+                WHERE table_schema = 'hangfire'
+                  AND table_name = 'job'
+            )
+            """);
+
+        result.HangfireLockTableExists = await ExecuteBooleanAsync(
+            connection,
+            """
+            SELECT EXISTS (
+                SELECT 1
+                FROM information_schema.tables
+                WHERE table_schema = 'hangfire'
+                  AND table_name = 'lock'
+            )
+            """);
+
+        result.HangfireJobSelectAllowed = await ExecuteBooleanAsync(
+            connection,
+            """
+            SELECT has_table_privilege(
+                current_user,
+                'hangfire.job',
+                'SELECT'
+            )
+            """);
+
+        await connection.CloseAsync();
+    }
+
+    private static async Task<string?> ExecuteScalarAsync(
+        DbConnection connection,
+        string sql)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = sql;
+
+        var value = await command.ExecuteScalarAsync();
+
+        return value?.ToString();
+    }
+
+    private static async Task<bool> ExecuteBooleanAsync(
+        DbConnection connection,
+        string sql)
+    {
+        var value = await ExecuteScalarAsync(connection, sql);
+
+        return bool.TryParse(value, out var result) && result;
     }
 
     private static string Describe(Exception exception)
@@ -94,6 +193,22 @@ public sealed class TemporaryDiagnosticsResult
     public bool? DatabaseCanConnect { get; set; }
 
     public string? DatabaseError { get; set; }
+
+    public string? DatabaseUser { get; set; }
+
+    public string? DatabaseName { get; set; }
+
+    public string? DatabaseServer { get; set; }
+
+    public string? DatabaseDetailsError { get; set; }
+
+    public bool? HangfireSchemaExists { get; set; }
+
+    public bool? HangfireJobTableExists { get; set; }
+
+    public bool? HangfireLockTableExists { get; set; }
+
+    public bool? HangfireJobSelectAllowed { get; set; }
 
     public bool? HangfireCanConnect { get; set; }
 

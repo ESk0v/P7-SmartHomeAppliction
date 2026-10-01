@@ -33,6 +33,33 @@ else if (diagnostics is not null)
         <dt>Database connection</dt>
         <dd>@Status(diagnostics.DatabaseCanConnect)</dd>
 
+        <dt>Database user</dt>
+        <dd>@diagnostics.DatabaseUser</dd>
+
+        <dt>Database name</dt>
+        <dd>@diagnostics.DatabaseName</dd>
+
+        <dt>Database server</dt>
+        <dd>@diagnostics.DatabaseServer</dd>
+
+        <dt>Hangfire schema exists</dt>
+        <dd>@Status(diagnostics.HangfireSchemaExists)</dd>
+
+        <dt>Hangfire job table exists</dt>
+        <dd>@Status(diagnostics.HangfireJobTableExists)</dd>
+
+        <dt>Hangfire lock table exists</dt>
+        <dd>@Status(diagnostics.HangfireLockTableExists)</dd>
+
+        <dt>Hangfire job SELECT permission</dt>
+        <dd>@Status(diagnostics.HangfireJobSelectAllowed)</dd>
+
+        @if (diagnostics.DatabaseDetailsError is not null)
+        {
+            <dt>Database details error</dt>
+            <dd><pre>@diagnostics.DatabaseDetailsError</pre></dd>
+        }
+
         @if (diagnostics.DatabaseError is not null)
         {
             <dt>Database error</dt>
@@ -97,6 +124,22 @@ else if (diagnostics is not null)
         public bool? DatabaseCanConnect { get; set; }
 
         public string? DatabaseError { get; set; }
+
+        public string? DatabaseUser { get; set; }
+
+        public string? DatabaseName { get; set; }
+
+        public string? DatabaseServer { get; set; }
+
+        public string? DatabaseDetailsError { get; set; }
+
+        public bool? HangfireSchemaExists { get; set; }
+
+        public bool? HangfireJobTableExists { get; set; }
+
+        public bool? HangfireLockTableExists { get; set; }
+
+        public bool? HangfireJobSelectAllowed { get; set; }
 
         public bool? HangfireCanConnect { get; set; }
 
