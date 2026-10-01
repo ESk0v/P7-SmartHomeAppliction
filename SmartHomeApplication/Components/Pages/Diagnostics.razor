@@ -1,0 +1,109 @@
+@page "/temporary-diagnostics"
+@rendermode InteractiveServer
+@using System.Net.Http.Json
+@inject HttpClient Http
+
+<!-- TODO: TEMPORARY SERVER DIAGNOSTICS. Remove this page and its navigation link after troubleshooting. -->
+<PageTitle>Temporary diagnostics</PageTitle>
+
+<h1>Temporary diagnostics</h1>
+
+@if (isLoading)
+{
+    <p>Checking the API and Hangfire connection...</p>
+}
+else if (loadError is not null)
+{
+    <p class="diagnostic-error">The diagnostics request failed:</p>
+    <pre>@loadError</pre>
+}
+else if (diagnostics is not null)
+{
+    <p class="@(diagnostics.IsHealthy ? "diagnostic-success" : "diagnostic-error")">
+        Overall status: @(diagnostics.IsHealthy ? "Healthy" : "Failure detected")
+    </p>
+
+    <dl>
+        <dt>Environment</dt>
+        <dd>@diagnostics.Environment</dd>
+
+        <dt>Checked at UTC</dt>
+        <dd>@diagnostics.CheckedAtUtc</dd>
+
+        <dt>Database connection</dt>
+        <dd>@Status(diagnostics.DatabaseCanConnect)</dd>
+
+        @if (diagnostics.DatabaseError is not null)
+        {
+            <dt>Database error</dt>
+            <dd><pre>@diagnostics.DatabaseError</pre></dd>
+        }
+
+        <dt>Hangfire connection</dt>
+        <dd>@Status(diagnostics.HangfireCanConnect)</dd>
+
+        @if (diagnostics.HangfireError is not null)
+        {
+            <dt>Hangfire error</dt>
+            <dd><pre>@diagnostics.HangfireError</pre></dd>
+        }
+
+        <dt>Recurring jobs found</dt>
+        <dd>@diagnostics.HangfireRecurringJobCount</dd>
+
+        <dt>Recurring job IDs</dt>
+        <dd>@string.Join(", ", diagnostics.HangfireRecurringJobIds)</dd>
+    </dl>
+}
+
+@code {
+    private TemporaryDiagnosticsResponse? diagnostics;
+    private string? loadError;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            diagnostics = await Http.GetFromJsonAsync<TemporaryDiagnosticsResponse>(
+                "api/temporary-diagnostics");
+        }
+        catch (Exception exception)
+        {
+            loadError = $"{exception.GetType().Name}: {exception.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private static string Status(bool? value) => value switch
+    {
+        true => "Connected",
+        false => "Failed",
+        _ => "Not checked"
+    };
+
+    // TODO: TEMPORARY SERVER DIAGNOSTICS. Keep in sync with the API response until removed.
+    private sealed class TemporaryDiagnosticsResponse
+    {
+        public DateTime CheckedAtUtc { get; set; }
+
+        public string Environment { get; set; } = string.Empty;
+
+        public bool IsHealthy { get; set; }
+
+        public bool? DatabaseCanConnect { get; set; }
+
+        public string? DatabaseError { get; set; }
+
+        public bool? HangfireCanConnect { get; set; }
+
+        public int? HangfireRecurringJobCount { get; set; }
+
+        public List<string> HangfireRecurringJobIds { get; set; } = [];
+
+        public string? HangfireError { get; set; }
+    }
+}
