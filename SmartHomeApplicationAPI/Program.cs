@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using SmartHomeApplicationAPI.Infrastructure;
 using SmartHomeApplicationAPI.Repository;
 using SmartHomeApplicationAPI.Service;
@@ -7,14 +8,13 @@ using Hangfire.PostgreSql;
 using SmartHomeApplicationAPI.Hangfire;
 using SmartHomeApplicationAPI.Hangfire.Repository;
 using SmartHomeApplicationAPI.Hangfire.Services;
-using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
 if (!builder.Environment.IsDevelopment())
 {
     var secretsPath = Environment.GetEnvironmentVariable("SECRETS_PATH")
-                      ?? @"C:\Secrets\SmartHome\secrets.json";
+        ?? @"C:\Secrets\SmartHome\secrets.json";
     builder.Configuration.AddJsonFile(secretsPath, optional: false, reloadOnChange: true);
 }
 
@@ -29,12 +29,14 @@ smartHomeConn = new NpgsqlConnectionStringBuilder(smartHomeConn)
     KeepAlive = 30
 }.ConnectionString;
 
+var hangfireEnabled = false; // TEMP: testing production without Hangfire
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowBlazor", policy =>
         policy.WithOrigins("https://localhost:7100")
-              .AllowAnyMethod()
-              .AllowAnyHeader());
+            .AllowAnyMethod()
+            .AllowAnyHeader());
 });
 
 builder.Services.AddDbContext<SmartHomeDbContext>(options =>
@@ -45,20 +47,23 @@ builder.Services.AddDbContext<SmartHomeDbContext>(options =>
         options.UseNpgsql(smartHomeConn);
 });
 
-builder.Services.AddHangfire(config =>
+if (hangfireEnabled)
 {
-    config.UseSimpleAssemblyNameTypeSerializer()
-          .UseRecommendedSerializerSettings();
+    builder.Services.AddHangfire(config =>
+    {
+        config.UseSimpleAssemblyNameTypeSerializer()
+            .UseRecommendedSerializerSettings();
 
-    if (builder.Environment.IsDevelopment())
-        config.UseInMemoryStorage();
-    else
-        config.UsePostgreSqlStorage(
-            o => o.UseNpgsqlConnection(smartHomeConn),
-            new PostgreSqlStorageOptions { PrepareSchemaIfNecessary = false });
-});
+        if (builder.Environment.IsDevelopment())
+            config.UseInMemoryStorage();
+        else
+            config.UsePostgreSqlStorage(
+                o => o.UseNpgsqlConnection(smartHomeConn),
+                new PostgreSqlStorageOptions { PrepareSchemaIfNecessary = false });
+    });
 
-builder.Services.AddHangfireServer();
+    builder.Services.AddHangfireServer();
+}
 
 builder.Services.AddScoped<IElectricityPriceImportRepository, ElectricityPriceImportRepository>();
 builder.Services.AddHttpClient<IElectricityPriceImportService, ElectricityPriceImportService>();
@@ -72,9 +77,11 @@ var app = builder.Build();
 
 app.UseCors("AllowBlazor");
 
-app.UseHangfireDashboard("/hangfire");
-
-Jobs.Register();
+if (hangfireEnabled)
+{
+    app.UseHangfireDashboard("/hangfire");
+    Jobs.Register();
+}
 
 app.MapControllers();
 
