@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Npgsql;
 using SmartHomeApplicationAPI.Infrastructure;
 using SmartHomeApplicationAPI.Repository;
 using SmartHomeApplicationAPI.Service;
@@ -22,15 +21,6 @@ var smartHomeConn = builder.Configuration.GetConnectionString("SmartHome");
 if (string.IsNullOrWhiteSpace(smartHomeConn))
     throw new InvalidOperationException("ConnectionStrings:SmartHome is missing");
 
-smartHomeConn = new NpgsqlConnectionStringBuilder(smartHomeConn)
-{
-    Timeout = 60,
-    CommandTimeout = 60,
-    KeepAlive = 30
-}.ConnectionString;
-
-var hangfireEnabled = false; // TEMP: testing production without Hangfire
-
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowBlazor", policy =>
@@ -47,23 +37,20 @@ builder.Services.AddDbContext<SmartHomeDbContext>(options =>
         options.UseNpgsql(smartHomeConn);
 });
 
-if (hangfireEnabled)
+builder.Services.AddHangfire(config =>
 {
-    builder.Services.AddHangfire(config =>
-    {
-        config.UseSimpleAssemblyNameTypeSerializer()
-            .UseRecommendedSerializerSettings();
+    config.UseSimpleAssemblyNameTypeSerializer()
+        .UseRecommendedSerializerSettings();
 
-        if (builder.Environment.IsDevelopment())
-            config.UseInMemoryStorage();
-        else
-            config.UsePostgreSqlStorage(
-                o => o.UseNpgsqlConnection(smartHomeConn),
-                new PostgreSqlStorageOptions { PrepareSchemaIfNecessary = false });
-    });
+    if (builder.Environment.IsDevelopment())
+        config.UseInMemoryStorage();
+    else
+        config.UsePostgreSqlStorage(
+            o => o.UseNpgsqlConnection(smartHomeConn),
+            new PostgreSqlStorageOptions { PrepareSchemaIfNecessary = false });
+});
 
-    builder.Services.AddHangfireServer();
-}
+builder.Services.AddHangfireServer();
 
 builder.Services.AddScoped<IElectricityPriceImportRepository, ElectricityPriceImportRepository>();
 builder.Services.AddHttpClient<IElectricityPriceImportService, ElectricityPriceImportService>();
@@ -77,10 +64,15 @@ var app = builder.Build();
 
 app.UseCors("AllowBlazor");
 
-if (hangfireEnabled)
+app.UseHangfireDashboard("/hangfire");
+
+try
 {
-    app.UseHangfireDashboard("/hangfire");
     Jobs.Register();
+}
+catch (Exception ex)
+{
+    app.Logger.LogError(ex, "Hangfire job registration failed");
 }
 
 app.MapControllers();
