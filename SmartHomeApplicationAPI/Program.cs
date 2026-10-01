@@ -66,18 +66,7 @@ app.UseCors("AllowBlazor");
 
 app.UseHangfireDashboard("/hangfire");
 
-// TODO: TEMPORARY SERVER DIAGNOSTICS. Keep the API alive so the diagnostics endpoint
-// can report Hangfire connection failures instead of terminating the process.
-try
-{
-    Jobs.Register();
-}
-catch (Exception exception)
-{
-    app.Logger.LogCritical(
-        exception,
-        "TODO TEMPORARY: Hangfire recurring-job registration failed during startup.");
-}
+Jobs.Register();
 
 app.MapControllers();
 
