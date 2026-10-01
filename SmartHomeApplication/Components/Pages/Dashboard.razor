@@ -10,6 +10,15 @@
 <div class="chart-card">
     <h3>Electricity price per hour</h3>
 
+    @if (error is not null)
+    {
+        <p style="color:red">@error</p>
+    }
+    else if (loaded && prices.Count == 0)
+    {
+        <p>The API answered, but returned no prices.</p>
+    }
+    
     <div class="chart">
         @foreach (var p in prices)
         {
@@ -26,19 +35,25 @@
 @code {
     private List<HourPriceDto> prices = new();
     private decimal maxPrice;
+    private string? error;
+    private bool loaded;
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
             prices = await Http.GetFromJsonAsync<List<HourPriceDto>>(
-                "api/electricity-price-controller/dashboard-showcase?areaCode=DK1") ?? new();
-
+                "api/ElectricityPrice/dashboard-showcase?areaCode=DK1") ?? new();
             maxPrice = prices.Count > 0 ? prices.Max(p => p.Price) : 0;
         }
         catch (Exception ex)
         {
+            error = $"{ex.GetType().Name}: {ex.Message} (base address: {Http.BaseAddress})";
             Logger.LogError(ex, "Failed to load electricity prices");
+        }
+        finally
+        {
+            loaded = true;
         }
     }
 }
