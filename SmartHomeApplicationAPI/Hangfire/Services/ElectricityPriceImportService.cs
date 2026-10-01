@@ -33,13 +33,31 @@ public class ElectricityPriceImportService
         var danishNow = TimeZoneInfo.ConvertTimeFromUtc(
             DateTime.UtcNow,
             DanishTimeZone);
-
-        return ImportAttemptAsync(danishNow.Date, 0);
+    
+        var today = danishNow.Date;
+        var tomorrow = today.AddDays(1);
+    
+        var retryWindowEnds = today.AddHours(14);
+    
+        BackgroundJob.Enqueue<IElectricityPriceImportService>(
+            service => service.ImportAttemptAsync(
+                today,
+                retryWindowEnds,
+                0));
+    
+        BackgroundJob.Enqueue<IElectricityPriceImportService>(
+            service => service.ImportAttemptAsync(
+                tomorrow,
+                retryWindowEnds,
+                0));
+    
+        return Task.CompletedTask;
     }
 
     [AutomaticRetry(Attempts = 3)]
     public async Task ImportAttemptAsync(
         DateTime targetDate,
+        DateTime retryWindowEnds,
         int attempt)
     {
         var prices = await DownloadPricesAsync(targetDate);
@@ -64,24 +82,21 @@ public class ElectricityPriceImportService
         var danishNow = TimeZoneInfo.ConvertTimeFromUtc(
             DateTime.UtcNow,
             DanishTimeZone);
-
-        var retryWindowEnds = targetDate.Date
-            .AddDays(-1)
-            .AddHours(14);
-
+        
         if (danishNow.AddMinutes(5) >= retryWindowEnds)
         {
             _logger.LogWarning(
                 "Day-ahead import stopped for {Date}. Stored {Count} records.",
                 targetDate,
                 storedCount);
-
+        
             return;
         }
-
+        
         BackgroundJob.Schedule<IElectricityPriceImportService>(
             service => service.ImportAttemptAsync(
                 targetDate,
+                retryWindowEnds,
                 attempt + 1),
             TimeSpan.FromMinutes(5));
 
