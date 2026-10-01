@@ -8,5 +8,6 @@ public interface IElectricityPriceImportService
 
     Task ImportAttemptAsync(
         DateTime targetDate,
+        DateTime retryWindowEnds,
         int attempt);
 }
