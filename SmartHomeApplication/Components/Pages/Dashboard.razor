@@ -1,35 +1,65 @@
 ﻿@page "/"
 @rendermode InteractiveServer
 @inject HttpClient Http
-@using Utilities.Models
 @inject ILogger<Dashboard> Logger
+@using System.Globalization
+@using Utilities.Models
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Dashboard</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="chart-card">
+    <h3>Electricity price per hour</h3>
 
-Welcome to your new app.
-
-<div style="margin-top: 20px;">
-    <button @onclick="LoadUsers">Get Users</button>
-
-    @if (users is not null)
+    @if (loading)
     {
-        <ul>
-            @foreach (var user in users)
+        <p>Loading...</p>
+    }
+    else if (prices.Count == 0)
+    {
+        <p>No prices available.</p>
+    }
+    else
+    {
+        <div class="chart">
+            @foreach (var p in prices)
             {
-                <li>@user.Username</li>
+                <div class="bar-col" title="@p.Hour.Hour:00 - @p.Price.ToString("0.00", CultureInfo.CurrentCulture) kr/kWh">
+                    <div class="bar-area">
+                        <div class="bar" style="height:@BarHeight(p.Price)%"></div>
+                    </div>
+                    <span class="bar-label">@p.Hour.Hour</span>
+                </div>
             }
-        </ul>
+        </div>
     }
 </div>
 
 @code {
-    private List<User>? users;
+    private List<HourPriceDto> prices = new();
+    private decimal maxPrice;
+    private bool loading = true;
 
-    private async Task LoadUsers()
+    protected override async Task OnInitializedAsync()
     {
-        Logger.LogInformation("TEST log");
-        users = await Http.GetFromJsonAsync<List<User>>("api/User");
+        try
+        {
+            prices = await Http.GetFromJsonAsync<List<HourPriceDto>>(
+                "api/electricity-price-controller/dashboard-showcase?areaCode=DK1") ?? new();
+            maxPrice = prices.Count > 0 ? prices.Max(p => p.Price) : 0;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to load electricity prices");
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private string BarHeight(decimal price)
+    {
+        var pct = maxPrice > 0 ? price / maxPrice * 100 : 0;
+        return pct.ToString("0.##", CultureInfo.InvariantCulture);
     }
 }
