@@ -41,7 +41,7 @@ builder.Services.AddHangfire(config =>
 
     config.UsePostgreSqlStorage(
         o => o.UseNpgsqlConnection(smartHomeConn),
-        new PostgreSqlStorageOptions { PrepareSchemaIfNecessary = true });
+        new PostgreSqlStorageOptions { PrepareSchemaIfNecessary = false });
 });
 
 builder.Services.AddHangfireServer();
