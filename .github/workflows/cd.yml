@@ -101,20 +101,39 @@ jobs:
           exit 0
 
       - name: Start SmartHome API
+        id: start_api
         shell: powershell
         run: |
-          Start-Service -Name "SmartHomeApi"
-          $deadline = (Get-Date).AddSeconds(30)
-          do {
-            Start-Sleep -Seconds 2
-            $up = (Test-NetConnection -ComputerName 127.0.0.1 -Port 6200 -WarningAction SilentlyContinue).TcpTestSucceeded
-          } until ($up -or (Get-Date) -gt $deadline)
-          if (-not $up) {
-            Get-Service -Name "SmartHomeApi" | Format-List Name, Status
-            Get-WinEvent -FilterHashtable @{LogName='Application'; StartTime=(Get-Date).AddMinutes(-5)} -MaxEvents 20 -ErrorAction SilentlyContinue |
-              Where-Object { $_.LevelDisplayName -eq 'Error' } | Format-List TimeCreated, ProviderName, Message
-            throw "API is not listening on port 6200"
+          $ErrorActionPreference = 'Stop'
+          $diagnosticDir = Join-Path $env:RUNNER_TEMP "smarthome-diagnostics-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          New-Item -ItemType Directory -Force -Path $diagnosticDir | Out-Null
+          (Get-Date).ToUniversalTime().ToString('o') |
+            Set-Content -LiteralPath (Join-Path $diagnosticDir 'api-started-at-utc.txt') -Encoding UTF8
+
+          function Test-ApiPort {
+            $client = New-Object System.Net.Sockets.TcpClient
+            try {
+              $pending = $client.ConnectAsync('127.0.0.1', 6200)
+              if (-not $pending.Wait(1000)) { return $false }
+              return $client.Connected
+            }
+            catch { return $false }
+            finally { $client.Dispose() }
           }
+
+          Start-Service -Name 'SmartHomeApi' -ErrorAction Stop
+          # Observation window only: this does NOT change any Hangfire/DB timeout.
+          $deadline = (Get-Date).AddSeconds(120)
+          $up = $false
+          do {
+            $up = Test-ApiPort
+            if (-not $up) { Start-Sleep -Seconds 2 }
+          } until ($up -or (Get-Date) -ge $deadline)
+
+          if (-not $up) {
+            throw 'API is not listening on port 6200. See Collect API startup diagnostics.'
+          }
+          Write-Output 'API accepts TCP connections on port 6200 (not a Hangfire health check).'
 
       - name: Start SmartHome IIS site
         shell: powershell
@@ -123,3 +142,129 @@ jobs:
           $pool = (Get-Website -Name "SmartHome").applicationPool
           Start-WebAppPool -Name $pool
           Start-Website -Name "SmartHome"
+
+      - name: Collect API startup diagnostics
+        if: ${{ always() && steps.start_api.outcome == 'failure' }}
+        continue-on-error: true
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $diagnosticDir = Join-Path $env:RUNNER_TEMP "smarthome-diagnostics-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          New-Item -ItemType Directory -Force -Path $diagnosticDir | Out-Null
+          $report = New-Object System.Text.StringBuilder
+
+          function Add-Report([string]$text) {
+            [void]$report.AppendLine($text)
+          }
+
+          function Protect-LogText([string]$text) {
+            if ([string]::IsNullOrEmpty($text)) { return '' }
+            # Best-effort whole-line removal, not a guarantee of complete redaction.
+            # Do not read secrets.json, dump environment variables, or print command lines.
+            $pattern = '(?im)^.*(?:(?:password|pwd|secret|token)["'']?\s*[:=]|authorization\s*:|postgres(?:ql)?://).*$'
+            return ($text -replace $pattern, '[REDACTED: possible credential-bearing line]')
+          }
+
+          $since = (Get-Date).AddMinutes(-10)
+          $marker = Join-Path $diagnosticDir 'api-started-at-utc.txt'
+          if (Test-Path -LiteralPath $marker) {
+            try {
+              $startedAt = [DateTimeOffset]::Parse((Get-Content -LiteralPath $marker -Raw).Trim())
+              $since = $startedAt.LocalDateTime.AddSeconds(-2)
+            }
+            catch {
+              Add-Report 'Could not parse the startup marker; using the last ten minutes.'
+            }
+          }
+          # Allow immediately preceding crash events to reach the event log.
+          Start-Sleep -Seconds 3
+          $until = Get-Date
+          Add-Report ('GitHub run: {0}, attempt: {1}, commit: {2}' -f $env:GITHUB_RUN_ID, $env:GITHUB_RUN_ATTEMPT, $env:GITHUB_SHA)
+          Add-Report ('Event window UTC: {0} to {1}' -f $since.ToUniversalTime().ToString('o'), $until.ToUniversalTime().ToString('o'))
+          Add-Report ('Server time zone: {0}' -f [TimeZoneInfo]::Local.Id)
+          Add-Report 'This report is a snapshot; service status and port acceptance do not prove Hangfire health.'
+
+          Add-Report "`r`n=== SmartHomeApi Windows service ==="
+          try {
+            $svc = Get-CimInstance -ClassName Win32_Service -Filter "Name='SmartHomeApi'" -ErrorAction Stop
+            if ($null -eq $svc) {
+              Add-Report 'Service not found.'
+            }
+            else {
+              Add-Report ('Name={0}; State={1}; StartMode={2}; StartName={3}; ProcessId={4}; ExitCode={5}; ServiceSpecificExitCode={6}' -f $svc.Name, $svc.State, $svc.StartMode, $svc.StartName, $svc.ProcessId, $svc.ExitCode, $svc.ServiceSpecificExitCode)
+              # Retrieve the executable path from the live process, not the command line.
+              if ($svc.ProcessId -gt 0) {
+                $wrapper = Get-CimInstance -ClassName Win32_Process -Filter "ProcessId=$($svc.ProcessId)" -ErrorAction Stop
+                if ($null -ne $wrapper) {
+                  Add-Report ('Service process executable: {0}' -f $wrapper.ExecutablePath)
+                }
+              }
+            }
+          }
+          catch { Add-Report ('Service inspection failed: {0}' -f $_.Exception.Message) }
+
+          Add-Report "`r`n=== API processes (no command-line arguments) ==="
+          try {
+            $processes = @(Get-CimInstance -ClassName Win32_Process -Filter "Name='SmartHomeApplicationAPI.exe'" -ErrorAction Stop)
+            if ($processes.Count -eq 0) { Add-Report 'No SmartHomeApplicationAPI.exe process found at collection time.' }
+            foreach ($process in $processes) {
+              Add-Report ('PID={0}; ParentPID={1}; Created={2}; Executable={3}' -f $process.ProcessId, $process.ParentProcessId, $process.CreationDate, $process.ExecutablePath)
+            }
+          }
+          catch { Add-Report ('Process inspection failed: {0}' -f $_.Exception.Message) }
+
+          Add-Report "`r`n=== Application events, oldest first, all recorded severity levels ==="
+          try {
+            # No Level='Error' filter and no MaxEvents limit before filtering.
+            # Use the raw Message property, not Format-List's wrapped display.
+            $events = @(
+              Get-WinEvent -FilterHashtable @{ LogName='Application'; StartTime=$since; EndTime=$until } -ErrorAction Stop |
+                Where-Object { $_.Message -match 'SmartHomeApplicationAPI|SmartHomeApi|Hangfire|Npgsql' } |
+                Sort-Object TimeCreated, RecordId
+            )
+            Add-Report ('Matching events: {0}' -f $events.Count)
+            foreach ($event in $events) {
+              Add-Report ('--- UTC={0}; Provider={1}; Level={2}; EventId={3}; RecordId={4}; ProcessId={5} ---' -f $event.TimeCreated.ToUniversalTime().ToString('o'), $event.ProviderName, $event.LevelDisplayName, $event.Id, $event.RecordId, $event.ProcessId)
+              Add-Report $event.Message
+              Add-Report ''
+            }
+          }
+          catch { Add-Report ('Application event query returned no events or could not be read: {0}' -f $_.Exception.Message) }
+
+          Add-Report "`r`n=== Service-control events for SmartHomeApi ==="
+          try {
+            $serviceEvents = @(
+              Get-WinEvent -FilterHashtable @{ LogName='System'; ProviderName='Service Control Manager'; StartTime=$since; EndTime=$until } -ErrorAction Stop |
+                Where-Object { $_.Message -match 'SmartHomeApi|SmartHome API' } |
+                Sort-Object TimeCreated, RecordId
+            )
+            foreach ($event in $serviceEvents) {
+              Add-Report ('--- UTC={0}; EventId={1}; RecordId={2} ---' -f $event.TimeCreated.ToUniversalTime().ToString('o'), $event.Id, $event.RecordId)
+              Add-Report $event.Message
+            }
+            if ($serviceEvents.Count -eq 0) { Add-Report 'No matching service-control events.' }
+          }
+          catch { Add-Report ('Service-control event query returned no events or could not be read: {0}' -f $_.Exception.Message) }
+
+          $safeReport = Protect-LogText ($report.ToString())
+          $reportPath = Join-Path $diagnosticDir 'api-startup-diagnostics.txt'
+          Set-Content -LiteralPath $reportPath -Value $safeReport -Encoding UTF8
+
+          # Prevent application log text from being interpreted as Actions commands.
+          $stopToken = [Guid]::NewGuid().ToString('N')
+          Write-Output '::group::SmartHome API startup diagnostics'
+          Write-Output "::stop-commands::${stopToken}"
+          try { Write-Output $safeReport }
+          finally {
+            Write-Output "::${stopToken}::"
+            Write-Output '::endgroup::'
+          }
+
+      - name: Upload API startup diagnostics
+        if: ${{ always() && steps.start_api.outcome == 'failure' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: smarthome-api-startup-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/smarthome-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}/*.txt
+          if-no-files-found: warn
+          retention-days: 3
