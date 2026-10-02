@@ -60,7 +60,7 @@ app.UseCors("AllowBlazor");
 
 app.UseHangfireDashboard("/hangfire");
 
-//Jobs.Register();
+Jobs.Register();
 
 app.MapControllers();
 
