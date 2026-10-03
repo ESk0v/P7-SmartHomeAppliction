@@ -90,15 +90,19 @@ jobs:
           $global:LASTEXITCODE = 0
 
       - name: Start API
+        id: start_api
         shell: powershell
         run: |
           Start-Service -Name $env:API_SERVICE
           $deadline = (Get-Date).AddSeconds(120)
           do {
+            Start-Sleep -Seconds 2
             $up = Test-NetConnection -ComputerName 127.0.0.1 -Port ([int]$env:API_PORT) -InformationLevel Quiet -WarningAction SilentlyContinue
-            if (-not $up) { Start-Sleep -Seconds 2 }
-          } until ($up -or (Get-Date) -ge $deadline)
-          if (-not $up) { throw "API is not listening on port $env:API_PORT" }
+            $stopped = (Get-Service -Name $env:API_SERVICE).Status -eq 'Stopped'
+          } until ($up -or $stopped -or (Get-Date) -ge $deadline)
+          if (-not $up) {
+            throw "API is not listening on port $env:API_PORT (service state: $((Get-Service -Name $env:API_SERVICE).Status))"
+          }
 
       - name: Start IIS site
         shell: powershell
@@ -107,3 +111,53 @@ jobs:
           $pool = (Get-Website -Name $env:SITE_NAME).applicationPool
           Start-WebAppPool -Name $pool
           Start-Website -Name $env:SITE_NAME
+
+      # Only runs when the API failed to start. Prints service state, the
+      # NSSM stdout/stderr logs and recent Windows events. Lines that look
+      # like credentials are hidden.
+      - name: API diagnostics
+        if: ${{ failure() && steps.start_api.outcome == 'failure' }}
+        continue-on-error: true
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $name = $env:API_SERVICE
+
+          function Hide-Secrets([string[]]$lines) {
+            $lines | ForEach-Object {
+              if ($_ -match '(?i)password|pwd|secret|token|authorization|postgres(ql)?://|Host=.*;') { '[REDACTED]' } else { $_ }
+            }
+          }
+
+          $stop = [guid]::NewGuid().ToString('N')
+          Write-Output "::stop-commands::$stop"
+
+          Write-Output '=== Service ==='
+          Get-CimInstance Win32_Service -Filter "Name='$name'" | Format-List Name, State, StartName, ExitCode, ProcessId
+
+          Write-Output '=== NSSM logs (last 60 lines) ==='
+          $params = "HKLM:\SYSTEM\CurrentControlSet\Services\$name\Parameters"
+          if (Test-Path $params) {
+            $p = Get-ItemProperty $params
+            Write-Output "AppDirectory: $($p.AppDirectory)"
+            foreach ($f in @($p.AppStdout, $p.AppStderr)) {
+              if ($f -and (Test-Path $f)) {
+                Write-Output "--- $f"
+                Hide-Secrets (Get-Content $f -Tail 60)
+              }
+              elseif ($f) { Write-Output "--- $f (not found)" }
+              else { Write-Output '--- no log file configured in NSSM' }
+            }
+          }
+          else { Write-Output "No NSSM parameters found for $name" }
+
+          Write-Output '=== Application events, last 10 minutes ==='
+          Get-WinEvent -FilterHashtable @{ LogName = 'Application'; StartTime = (Get-Date).AddMinutes(-10) } -ErrorAction SilentlyContinue |
+            Where-Object { $_.Message -match 'SmartHome|Sk0v|Hangfire|Npgsql' } |
+            Sort-Object TimeCreated |
+            ForEach-Object {
+              "--- $($_.TimeCreated.ToString('s')) $($_.LevelDisplayName)"
+              Hide-Secrets ($_.Message -split "`r?`n")
+            }
+
+          Write-Output "::$stop::"
