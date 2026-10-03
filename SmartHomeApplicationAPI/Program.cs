@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using SmartHomeApplicationAPI.Infrastructure;
 using SmartHomeApplicationAPI.Repository;
 using SmartHomeApplicationAPI.Service;
+using SmartHomeApplicationAPI.Hangfire.Repository;
+using SmartHomeApplicationAPI.Hangfire.Services;
 using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
