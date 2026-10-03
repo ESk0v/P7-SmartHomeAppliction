@@ -6,8 +6,8 @@ on:
       - main
 
 env:
-  SITE_NAME: SmartHome
-  API_SERVICE: SmartHomeApi
+  SITE_NAME: Sk0v.dk
+  API_SERVICE: Sk0vApi
   API_PORT: '6200'
   SITE_ROOT: C:\ActiveServers\Sk0v.dk\Sk0v
 
