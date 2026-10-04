@@ -1,18 +1,14 @@
+using Hangfire;
+using Hangfire.PostgreSql;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
+using SmartHomeApplicationAPI.Hangfire.Repository;
+using SmartHomeApplicationAPI.Hangfire.Services;
 using SmartHomeApplicationAPI.Infrastructure;
 using SmartHomeApplicationAPI.Repository;
 using SmartHomeApplicationAPI.Service;
-using SmartHomeApplicationAPI.Hangfire.Repository;
-using SmartHomeApplicationAPI.Hangfire.Services;
-using Npgsql;
-using Hangfire;
-using Hangfire.PostgreSql;
 
 var builder = WebApplication.CreateBuilder(args);
-
-// --------------------------------------------------
-// Configuration / Secrets
-// --------------------------------------------------
 
 if (!builder.Environment.IsDevelopment())
 {
@@ -29,25 +25,17 @@ var smartHomeConn = builder.Configuration.GetConnectionString("SmartHome");
 
 if (string.IsNullOrWhiteSpace(smartHomeConn))
 {
-    throw new InvalidOperationException(
-        "ConnectionStrings:SmartHome is missing");
+    throw new InvalidOperationException("ConnectionStrings:SmartHome is missing");
 }
 
-// --------------------------------------------------
-// Hangfire connection Test det hele
-// --------------------------------------------------
+var hangfireConn = new NpgsqlConnectionStringBuilder(smartHomeConn)
+{
+    ApplicationName = "SmartHome-Hangfire"
+}.ConnectionString;
 
-var hangfireConnectionBuilder =
-    new NpgsqlConnectionStringBuilder(smartHomeConn)
-    {
-        ApplicationName = "SmartHome-Hangfire"
-    };
-
-var hangfireConn = hangfireConnectionBuilder.ConnectionString;
-
-// --------------------------------------------------
-// CORS
-// --------------------------------------------------
+var runHangfireServer =
+    builder.Configuration.GetValue<bool?>("Hangfire:RunServer")
+    ?? !builder.Environment.IsDevelopment();
 
 builder.Services.AddCors(options =>
 {
@@ -57,24 +45,10 @@ builder.Services.AddCors(options =>
             .AllowAnyHeader());
 });
 
-// --------------------------------------------------
-// Entity Framework / PostgreSQL
-// --------------------------------------------------
-
 builder.Services.AddDbContext<SmartHomeDbContext>(options =>
 {
     options.UseNpgsql(smartHomeConn);
 });
-
-// --------------------------------------------------
-// Hangfire
-// --------------------------------------------------
-// IMPORTANT:
-// Storage is enabled for this test.
-// Hangfire Server is NOT enabled yet.
-// Jobs.Register() is NOT called yet.
-// Dashboard is NOT enabled yet.
-// --------------------------------------------------
 
 builder.Services.AddHangfire(config =>
 {
@@ -89,9 +63,10 @@ builder.Services.AddHangfire(config =>
         });
 });
 
-// --------------------------------------------------
-// Application services
-// --------------------------------------------------
+if (runHangfireServer)
+{
+    builder.Services.AddHangfireServer(o => o.WorkerCount = 2);
+}
 
 builder.Services.AddScoped<
     IElectricityPriceImportRepository,
@@ -109,38 +84,37 @@ builder.Services.AddScoped<
     IElectricityPriceRepository,
     ElectricityPriceRepository>();
 
-// --------------------------------------------------
-// Controllers
-// --------------------------------------------------
-
 builder.Services.AddControllers();
-
-// --------------------------------------------------
-// Build application
-// --------------------------------------------------
 
 var app = builder.Build();
 
-// --------------------------------------------------
-// Middleware
-// --------------------------------------------------
-
 app.UseCors("AllowBlazor");
 
-// --------------------------------------------------
-// Hangfire intentionally NOT enabled yet
-// --------------------------------------------------
-
-// app.UseHangfireDashboard("/hangfire");
-// app.MapHangfireDashboard("/hangfire");
-
-// builder.Services.AddHangfireServer();
-// Jobs.Register();
-
-// --------------------------------------------------
-// AP
-// --------------------------------------------------
-
 app.MapControllers();
+
+if (runHangfireServer)
+{
+    app.Lifetime.ApplicationStarted.Register(() => _ = Task.Run(async () =>
+    {
+        for (var attempt = 1; attempt <= 5; attempt++)
+        {
+            try
+            {
+                SmartHomeApplicationAPI.Hangfire.Jobs.Register();
+                app.Logger.LogInformation("Hangfire recurring jobs registered.");
+                return;
+            }
+            catch (Exception ex)
+            {
+                app.Logger.LogError(
+                    ex,
+                    "Hangfire job registration failed (attempt {Attempt}/5)",
+                    attempt);
+
+                await Task.Delay(TimeSpan.FromSeconds(10 * attempt));
+            }
+        }
+    }));
+}
 
 app.Run();
