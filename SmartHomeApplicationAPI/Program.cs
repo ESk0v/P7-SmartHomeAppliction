@@ -55,12 +55,16 @@ builder.Services.AddHangfire(config =>
     config.UseSimpleAssemblyNameTypeSerializer()
         .UseRecommendedSerializerSettings();
 
-    config.UsePostgreSqlStorage(
-        o => o.UseNpgsqlConnection(hangfireConn),
-        new PostgreSqlStorageOptions
-        {
-            PrepareSchemaIfNecessary = true
-        });
+    if (builder.Environment.IsDevelopment())
+    {
+        config.UseInMemoryStorage();
+    }
+    else
+    {
+        config.UsePostgreSqlStorage(
+            o => o.UseNpgsqlConnection(hangfireConn),
+            new PostgreSqlStorageOptions { PrepareSchemaIfNecessary = true });
+    }
 });
 
 if (runHangfireServer)
@@ -89,6 +93,11 @@ builder.Services.AddControllers();
 var app = builder.Build();
 
 app.UseCors("AllowBlazor");
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseHangfireDashboard("/hangfire");
+}
 
 app.MapControllers();
 
