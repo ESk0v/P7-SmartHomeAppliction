@@ -5,6 +5,12 @@ on:
     branches:
       - main
 
+env:
+  SITE_NAME: Sk0v.dk
+  API_SERVICE: Sk0vApi
+  API_PORT: '6200'
+  SITE_ROOT: C:\ActiveServers\Sk0v.dk\Sk0v
+
 jobs:
   build-and-publish:
     name: Build and Publish
@@ -14,10 +20,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup .NET 9
+      - name: Setup .NET 10
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Restore dependencies
         run: dotnet restore SmartHome.sln
@@ -28,8 +34,12 @@ jobs:
       - name: Publish application
         run: dotnet publish SmartHomeApplication/SmartHomeApplication.csproj --configuration Release --output ./publish/application --no-build
 
+      # No --no-build here: a win-x64 publish needs its own restore/build
       - name: Publish API
         run: dotnet publish SmartHomeApplicationAPI/SmartHomeApplicationAPI.csproj --configuration Release --output ./publish/api --runtime win-x64 --self-contained false
+
+      - name: Write deployment manifest
+        run: echo "commit=$GITHUB_SHA run=$GITHUB_RUN_ID built=$(date -u +%FT%TZ)" > ./publish/api/DEPLOYMENT.txt
 
       - name: Upload deployment artifact
         uses: actions/upload-artifact@v4
@@ -49,77 +59,130 @@ jobs:
           name: smarthome-release
           path: ./publish
 
-      - name: Stop SmartHome API
-        shell: powershell
-        run: |
-          $svc = Get-Service -Name "SmartHomeApi" -ErrorAction SilentlyContinue
-          if ($svc -and $svc.Status -ne 'Stopped') {
-            Stop-Service -Name "SmartHomeApi" -Force
-            $svc.WaitForStatus('Stopped', [TimeSpan]::FromSeconds(60))
-          }
-          Start-Sleep -Seconds 3
-
-      - name: Stop SmartHome IIS site
+      - name: Stop API and IIS site
         shell: powershell
         run: |
           Import-Module WebAdministration
-          $pool = (Get-Website -Name "SmartHome").applicationPool
-          Stop-Website -Name "SmartHome" -ErrorAction SilentlyContinue
-          if ((Get-WebAppPoolState -Name $pool).Value -ne 'Stopped') { Stop-WebAppPool -Name $pool }
-          $deadline = (Get-Date).AddSeconds(60)
-          while ((Get-WebAppPoolState -Name $pool).Value -ne 'Stopped' -and (Get-Date) -lt $deadline) {
-            Start-Sleep -Seconds 1
-          }
-          if ((Get-WebAppPoolState -Name $pool).Value -ne 'Stopped') { throw "App pool did not stop" }
 
+          $svc = Get-Service -Name $env:API_SERVICE -ErrorAction SilentlyContinue
+          if ($svc -and $svc.Status -ne 'Stopped') {
+            Stop-Service -Name $env:API_SERVICE -Force
+            $svc.WaitForStatus('Stopped', [TimeSpan]::FromSeconds(60))
+          }
+
+          $pool = (Get-Website -Name $env:SITE_NAME).applicationPool
+          Stop-Website -Name $env:SITE_NAME -ErrorAction SilentlyContinue
+          if ((Get-WebAppPoolState -Name $pool).Value -ne 'Stopped') { Stop-WebAppPool -Name $pool }
+          Start-Sleep -Seconds 3
+          Write-Host 'API and IIS site stopped.'
+
+      # /NFL /NDL /NP /NJH keep the Robocopy log to the summary table only
       - name: Deploy frontend
         shell: powershell
         run: |
-          $source = Join-Path $env:GITHUB_WORKSPACE "publish\application"
-          $destination = "C:\Users\Administrator\Desktop\ActiveServers\SmartHome\Frontend"
+          $src = Join-Path $env:GITHUB_WORKSPACE 'publish\application'
+          $dst = Join-Path $env:SITE_ROOT 'Frontend'
+          New-Item -ItemType Directory -Force -Path $dst | Out-Null
 
-          robocopy $source $destination /MIR /R:3 /W:5
-
-          if ($LASTEXITCODE -ge 8) {
-            exit $LASTEXITCODE
-          }
-
-          exit 0
+          robocopy $src $dst /MIR /R:3 /W:5 /NFL /NDL /NP /NJH
+          if ($LASTEXITCODE -ge 8) { throw "Frontend copy failed: $LASTEXITCODE" }
+          $global:LASTEXITCODE = 0
 
       - name: Deploy API
         shell: powershell
         run: |
-          $source = Join-Path $env:GITHUB_WORKSPACE "publish\api"
-          $destination = "C:\Users\Administrator\Desktop\ActiveServers\SmartHome\API"
+          $src = Join-Path $env:GITHUB_WORKSPACE 'publish\api'
+          $dst = Join-Path $env:SITE_ROOT 'API'
+          if (-not (Test-Path (Join-Path $src 'SmartHomeApplicationAPI.exe'))) { throw 'API executable missing from artifact' }
+          New-Item -ItemType Directory -Force -Path $dst | Out-Null
 
-          robocopy $source $destination /MIR /R:3 /W:5
+          # /XF keeps a server-side secrets.json from being purged by /MIR
+          robocopy $src $dst /MIR /R:3 /W:5 /NFL /NDL /NP /NJH /XF secrets.json
+          if ($LASTEXITCODE -ge 8) { throw "API copy failed: $LASTEXITCODE" }
+          $global:LASTEXITCODE = 0
 
-          if ($LASTEXITCODE -ge 8) {
-            exit $LASTEXITCODE
-          }
+          Write-Host "Deployed to ${dst}: $(Get-Content (Join-Path $dst 'DEPLOYMENT.txt'))"
 
-          exit 0
-
-      - name: Start SmartHome API
+      # Gives up after 3 logged errors, 120 seconds, or the service stopping,
+      # and stops the service so NSSM does not keep restarting it.
+      - name: Start API
+        id: start_api
         shell: powershell
         run: |
-          Start-Service -Name "SmartHomeApi"
-          $deadline = (Get-Date).AddSeconds(30)
-          do {
-            Start-Sleep -Seconds 2
-            $up = (Test-NetConnection -ComputerName 127.0.0.1 -Port 6200 -WarningAction SilentlyContinue).TcpTestSucceeded
-          } until ($up -or (Get-Date) -gt $deadline)
-          if (-not $up) {
-            Get-Service -Name "SmartHomeApi" | Format-List Name, Status
-            Get-WinEvent -FilterHashtable @{LogName='Application'; StartTime=(Get-Date).AddMinutes(-5)} -MaxEvents 20 -ErrorAction SilentlyContinue |
-              Where-Object { $_.LevelDisplayName -eq 'Error' } | Format-List TimeCreated, ProviderName, Message
-            throw "API is not listening on port 6200"
-          }
+          $name = $env:API_SERVICE
+          $started = Get-Date
+          Start-Service -Name $name
 
-      - name: Start SmartHome IIS site
+          do {
+            Start-Sleep -Seconds 3
+            $up = Test-NetConnection -ComputerName 127.0.0.1 -Port ([int]$env:API_PORT) -InformationLevel Quiet -WarningAction SilentlyContinue
+            $state = (Get-Service -Name $name).Status
+            $errors = @(
+              Get-WinEvent -FilterHashtable @{ LogName = 'Application'; Level = 2; StartTime = $started } -ErrorAction SilentlyContinue |
+                Where-Object { $_.Message -match 'Hangfire|Npgsql|SmartHomeApplicationAPI' }
+            )
+          } until ($up -or $state -eq 'Stopped' -or $errors.Count -ge 3 -or (Get-Date) -ge $started.AddSeconds(120))
+
+          if (-not $up) {
+            Stop-Service -Name $name -Force -ErrorAction SilentlyContinue
+            throw "API did not start (service: $state, errors logged: $($errors.Count))"
+          }
+          Write-Host "API listening on port $env:API_PORT"
+
+      - name: Start IIS site
         shell: powershell
         run: |
           Import-Module WebAdministration
-          $pool = (Get-Website -Name "SmartHome").applicationPool
+          $pool = (Get-Website -Name $env:SITE_NAME).applicationPool
           Start-WebAppPool -Name $pool
-          Start-Website -Name "SmartHome"
+          Start-Website -Name $env:SITE_NAME
+          Write-Host 'IIS site started.'
+
+      # Runs only when the API failed to start. Credential-looking lines are hidden.
+      - name: API diagnostics
+        if: ${{ failure() && steps.start_api.outcome == 'failure' }}
+        continue-on-error: true
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $name = $env:API_SERVICE
+
+          function Hide-Secrets([string[]]$lines) {
+            $lines | ForEach-Object {
+              if ($_ -match '(?i)password|pwd|secret|token|authorization|postgres(ql)?://|Host=.*;') { '[REDACTED]' } else { $_ }
+            }
+          }
+
+          $stop = [guid]::NewGuid().ToString('N')
+          Write-Output "::stop-commands::$stop"
+
+          Write-Output '=== Service ==='
+          Get-CimInstance Win32_Service -Filter "Name='$name'" | Format-List State, ExitCode, StartName
+
+          Write-Output '=== NSSM ==='
+          $params = "HKLM:\SYSTEM\CurrentControlSet\Services\$name\Parameters"
+          if (Test-Path $params) {
+            $p = Get-ItemProperty $params
+            Write-Output "Application:  $($p.Application)"
+            Write-Output "AppDirectory: $($p.AppDirectory)"
+            foreach ($f in @($p.AppStdout, $p.AppStderr)) {
+              if ($f -and (Test-Path $f)) {
+                Write-Output "--- last 40 lines of $f"
+                Hide-Secrets (Get-Content $f -Tail 40)
+              }
+              elseif ($f) { Write-Output "--- $f (not found)" }
+            }
+          }
+          else { Write-Output "No NSSM parameters found for $name" }
+
+          Write-Output '=== Error summary (Application log, last 10 minutes, repeats counted) ==='
+          Get-WinEvent -FilterHashtable @{ LogName = 'Application'; Level = 2; StartTime = (Get-Date).AddMinutes(-10) } -ErrorAction SilentlyContinue |
+            Where-Object { $_.Message -match 'SmartHome|Sk0v|Hangfire|Npgsql' } |
+            Group-Object {
+              $lines = $_.Message -split "`r?`n"
+              $hit = $lines | Where-Object { $_ -match '(?i)exception|error|failed|timeout' } | Select-Object -First 1
+              if ($hit) { $hit.Trim() } else { $lines[0] }
+            } |
+            ForEach-Object { Hide-Secrets ('{0}x {1}' -f $_.Count, $_.Name) }
+
+          Write-Output "::$stop::"

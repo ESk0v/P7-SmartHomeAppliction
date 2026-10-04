@@ -1,70 +1,92 @@
+using Hangfire;
+using Hangfire.PostgreSql;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
+using SmartHomeApplicationAPI.Hangfire.Repository;
+using SmartHomeApplicationAPI.Hangfire.Services;
 using SmartHomeApplicationAPI.Infrastructure;
 using SmartHomeApplicationAPI.Repository;
 using SmartHomeApplicationAPI.Service;
-using Hangfire;
-using Hangfire.PostgreSql;
-using SmartHomeApplicationAPI.Hangfire;
-using SmartHomeApplicationAPI.Hangfire.Repository;
-using SmartHomeApplicationAPI.Hangfire.Services;
-using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
 if (!builder.Environment.IsDevelopment())
 {
     var secretsPath = Environment.GetEnvironmentVariable("SECRETS_PATH")
-                      ?? @"C:\Secrets\SmartHome\secrets.json";
-    builder.Configuration.AddJsonFile(secretsPath, optional: false, reloadOnChange: true);
+        ?? @"C:\Secrets\SmartHome\secrets.json";
+
+    builder.Configuration.AddJsonFile(
+        secretsPath,
+        optional: false,
+        reloadOnChange: true);
 }
 
 var smartHomeConn = builder.Configuration.GetConnectionString("SmartHome");
-if (string.IsNullOrWhiteSpace(smartHomeConn))
-    throw new InvalidOperationException("ConnectionStrings:SmartHome is missing");
 
-smartHomeConn = new NpgsqlConnectionStringBuilder(smartHomeConn)
+if (string.IsNullOrWhiteSpace(smartHomeConn))
 {
-    Timeout = 60,
-    CommandTimeout = 60,
-    KeepAlive = 30
+    throw new InvalidOperationException("ConnectionStrings:SmartHome is missing");
+}
+
+var hangfireConn = new NpgsqlConnectionStringBuilder(smartHomeConn)
+{
+    ApplicationName = "SmartHome-Hangfire"
 }.ConnectionString;
+
+var runHangfireServer =
+    builder.Configuration.GetValue<bool?>("Hangfire:RunServer")
+    ?? !builder.Environment.IsDevelopment();
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowBlazor", policy =>
         policy.WithOrigins("https://localhost:7100")
-              .AllowAnyMethod()
-              .AllowAnyHeader());
+            .AllowAnyMethod()
+            .AllowAnyHeader());
 });
 
 builder.Services.AddDbContext<SmartHomeDbContext>(options =>
 {
-    if (builder.Environment.IsDevelopment())
-        options.UseInMemoryDatabase("SmartHome");
-    else
-        options.UseNpgsql(smartHomeConn);
+    options.UseNpgsql(smartHomeConn);
 });
 
 builder.Services.AddHangfire(config =>
 {
     config.UseSimpleAssemblyNameTypeSerializer()
-          .UseRecommendedSerializerSettings();
+        .UseRecommendedSerializerSettings();
 
     if (builder.Environment.IsDevelopment())
+    {
         config.UseInMemoryStorage();
+    }
     else
+    {
         config.UsePostgreSqlStorage(
-            o => o.UseNpgsqlConnection(smartHomeConn),
-            new PostgreSqlStorageOptions { PrepareSchemaIfNecessary = false });
+            o => o.UseNpgsqlConnection(hangfireConn),
+            new PostgreSqlStorageOptions { PrepareSchemaIfNecessary = true });
+    }
 });
 
-builder.Services.AddHangfireServer();
+if (runHangfireServer)
+{
+    builder.Services.AddHangfireServer(o => o.WorkerCount = 2);
+}
 
-builder.Services.AddScoped<IElectricityPriceImportRepository, ElectricityPriceImportRepository>();
-builder.Services.AddHttpClient<IElectricityPriceImportService, ElectricityPriceImportService>();
+builder.Services.AddScoped<
+    IElectricityPriceImportRepository,
+    ElectricityPriceImportRepository>();
 
-builder.Services.AddScoped<IElectricityPriceService, ElectricityPriceService>();
-builder.Services.AddScoped<IElectricityPriceRepository, ElectricityPriceRepository>();
+builder.Services.AddHttpClient<
+    IElectricityPriceImportService,
+    ElectricityPriceImportService>();
+
+builder.Services.AddScoped<
+    IElectricityPriceService,
+    ElectricityPriceService>();
+
+builder.Services.AddScoped<
+    IElectricityPriceRepository,
+    ElectricityPriceRepository>();
 
 builder.Services.AddControllers();
 
@@ -72,10 +94,36 @@ var app = builder.Build();
 
 app.UseCors("AllowBlazor");
 
-app.UseHangfireDashboard("/hangfire");
-
-Jobs.Register();
+if (app.Environment.IsDevelopment())
+{
+    app.UseHangfireDashboard("/hangfire");
+}
 
 app.MapControllers();
+
+if (runHangfireServer)
+{
+    app.Lifetime.ApplicationStarted.Register(() => _ = Task.Run(async () =>
+    {
+        for (var attempt = 1; attempt <= 5; attempt++)
+        {
+            try
+            {
+                SmartHomeApplicationAPI.Hangfire.Jobs.Register();
+                app.Logger.LogInformation("Hangfire recurring jobs registered.");
+                return;
+            }
+            catch (Exception ex)
+            {
+                app.Logger.LogError(
+                    ex,
+                    "Hangfire job registration failed (attempt {Attempt}/5)",
+                    attempt);
+
+                await Task.Delay(TimeSpan.FromSeconds(10 * attempt));
+            }
+        }
+    }));
+}
 
 app.Run();
