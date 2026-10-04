@@ -34,7 +34,7 @@ if (string.IsNullOrWhiteSpace(smartHomeConn))
 }
 
 // --------------------------------------------------
-// Hangfire connection
+// Hangfire connection Test det hele
 // --------------------------------------------------
 
 var hangfireConnectionBuilder =
