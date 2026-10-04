@@ -12,6 +12,10 @@ env:
   SITE_ROOT: C:\ActiveServers\Sk0v.dk\Sk0v
 
 jobs:
+  # ============================================================
+  # BUILD
+  # ============================================================
+
   build-and-publish:
     name: Build and Publish
     runs-on: ubuntu-latest
@@ -28,14 +32,70 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore SmartHome.sln
 
-      - name: Build
+      - name: Build solution
         run: dotnet build SmartHome.sln --configuration Release --no-restore
 
+      # ----------------------------------------------------------
+      # Frontend
+      # ----------------------------------------------------------
+
       - name: Publish application
-        run: dotnet publish SmartHomeApplication/SmartHomeApplication.csproj --configuration Release --output ./publish/application --no-build
+        run: |
+          dotnet publish \
+            SmartHomeApplication/SmartHomeApplication.csproj \
+            --configuration Release \
+            --output ./publish/application \
+            --no-build
+
+      # ----------------------------------------------------------
+      # API
+      # ----------------------------------------------------------
 
       - name: Publish API
-        run: dotnet publish SmartHomeApplicationAPI/SmartHomeApplicationAPI.csproj --configuration Release --output ./publish/api --runtime win-x64 --self-contained false
+        run: |
+          dotnet publish \
+            SmartHomeApplicationAPI/SmartHomeApplicationAPI.csproj \
+            --configuration Release \
+            --output ./publish/api \
+            --runtime win-x64 \
+            --self-contained false \
+            --no-build
+
+      # ----------------------------------------------------------
+      # Verify API publish
+      # ----------------------------------------------------------
+
+      - name: Verify API publish
+        shell: bash
+        run: |
+          if [ ! -f "./publish/api/SmartHomeApplicationAPI.exe" ]; then
+            echo "ERROR: SmartHomeApplicationAPI.exe was not created."
+            exit 1
+          fi
+
+          echo "API executable:"
+          ls -lh ./publish/api/SmartHomeApplicationAPI.exe
+
+      # ----------------------------------------------------------
+      # Deployment manifest
+      #
+      # This lets us prove exactly which GitHub commit was deployed.
+      # ----------------------------------------------------------
+
+      - name: Create deployment manifest
+        shell: bash
+        run: |
+          echo "Commit: $GITHUB_SHA" > ./publish/api/DEPLOYMENT.txt
+          echo "Run: $GITHUB_RUN_ID" >> ./publish/api/DEPLOYMENT.txt
+          echo "Workflow: $GITHUB_WORKFLOW" >> ./publish/api/DEPLOYMENT.txt
+          echo "Created: $(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> ./publish/api/DEPLOYMENT.txt
+
+          echo "=== DEPLOYMENT MANIFEST ==="
+          cat ./publish/api/DEPLOYMENT.txt
+
+      # ----------------------------------------------------------
+      # Upload artifact
+      # ----------------------------------------------------------
 
       - name: Upload deployment artifact
         uses: actions/upload-artifact@v4
@@ -43,121 +103,488 @@ jobs:
           name: smarthome-release
           path: ./publish
 
+
+  # ============================================================
+  # DEPLOY
+  # ============================================================
+
   deploy:
     name: Deploy to SmartHome Server
     needs: build-and-publish
-    runs-on: [self-hosted, Windows, X64]
+
+    runs-on:
+      - self-hosted
+      - Windows
+      - X64
 
     steps:
+
+      # ----------------------------------------------------------
+      # Download artifact
+      # ----------------------------------------------------------
+
       - name: Download deployment artifact
         uses: actions/download-artifact@v4
         with:
           name: smarthome-release
-          path: ./publish
+          path: ${{ github.workspace }}\publish
+
+      # ----------------------------------------------------------
+      # Verify downloaded artifact
+      # ----------------------------------------------------------
+
+      - name: Verify downloaded artifact
+        shell: powershell
+        run: |
+          $publish = Join-Path $env:GITHUB_WORKSPACE 'publish'
+          $api = Join-Path $publish 'api'
+
+          Write-Host "========================================"
+          Write-Host "DOWNLOADED ARTIFACT"
+          Write-Host "========================================"
+          Write-Host "Publish directory: $publish"
+          Write-Host "API directory:     $api"
+
+          if (-not (Test-Path $publish)) {
+            throw "Publish directory does not exist: $publish"
+          }
+
+          if (-not (Test-Path $api)) {
+            throw "API directory does not exist: $api"
+          }
+
+          $exe = Join-Path $api 'SmartHomeApplicationAPI.exe'
+
+          if (-not (Test-Path $exe)) {
+            throw "SmartHomeApplicationAPI.exe was not found in downloaded artifact."
+          }
+
+          $manifest = Join-Path $api 'DEPLOYMENT.txt'
+
+          if (-not (Test-Path $manifest)) {
+            throw "DEPLOYMENT.txt was not found in downloaded artifact."
+          }
+
+          Write-Host ""
+          Write-Host "=== DEPLOYMENT MANIFEST ==="
+          Get-Content $manifest
+
+          Write-Host ""
+          Write-Host "=== API FILE ==="
+          Get-Item $exe |
+            Select-Object FullName, Length, LastWriteTime
+
+          Write-Host ""
+          Write-Host "=== API ARTIFACT CONTENT ==="
+          Get-ChildItem $api -Recurse |
+            Select-Object FullName, Length, LastWriteTime
+
+
+      # ----------------------------------------------------------
+      # Stop API and IIS
+      # ----------------------------------------------------------
 
       - name: Stop API and IIS site
         shell: powershell
         run: |
           Import-Module WebAdministration
 
-          $svc = Get-Service -Name $env:API_SERVICE -ErrorAction SilentlyContinue
+          Write-Host "Stopping API service..."
+
+          $svc = Get-Service `
+            -Name $env:API_SERVICE `
+            -ErrorAction SilentlyContinue
+
           if ($svc -and $svc.Status -ne 'Stopped') {
-            Stop-Service -Name $env:API_SERVICE -Force
-            $svc.WaitForStatus('Stopped', [TimeSpan]::FromSeconds(60))
+            Stop-Service `
+              -Name $env:API_SERVICE `
+              -Force
+
+            $svc.WaitForStatus(
+              'Stopped',
+              [TimeSpan]::FromSeconds(60)
+            )
           }
 
-          $pool = (Get-Website -Name $env:SITE_NAME).applicationPool
-          Stop-Website -Name $env:SITE_NAME -ErrorAction SilentlyContinue
-          if ((Get-WebAppPoolState -Name $pool).Value -ne 'Stopped') { Stop-WebAppPool -Name $pool }
+          Write-Host "API service stopped."
+
+          Write-Host "Stopping IIS site..."
+
+          $site = Get-Website `
+            -Name $env:SITE_NAME `
+            -ErrorAction Stop
+
+          $pool = $site.applicationPool
+
+          Stop-Website `
+            -Name $env:SITE_NAME `
+            -ErrorAction SilentlyContinue
+
+          if ((Get-WebAppPoolState -Name $pool).Value -ne 'Stopped') {
+            Stop-WebAppPool -Name $pool
+          }
+
           Start-Sleep -Seconds 3
+
+          Write-Host "IIS site stopped."
+
+
+      # ----------------------------------------------------------
+      # Deploy frontend
+      # ----------------------------------------------------------
 
       - name: Deploy frontend
         shell: powershell
         run: |
-          $destination = Join-Path $env:SITE_ROOT 'Frontend'
-          New-Item -ItemType Directory -Force -Path $destination | Out-Null
-          robocopy (Join-Path $env:GITHUB_WORKSPACE 'publish\application') $destination /MIR /R:3 /W:5
-          if ($LASTEXITCODE -ge 8) { throw "Frontend copy failed: $LASTEXITCODE" }
+          $source = Join-Path `
+            $env:GITHUB_WORKSPACE `
+            'publish\application'
+
+          $destination = Join-Path `
+            $env:SITE_ROOT `
+            'Frontend'
+
+          Write-Host "========================================"
+          Write-Host "DEPLOY FRONTEND"
+          Write-Host "========================================"
+          Write-Host "SOURCE:      $source"
+          Write-Host "DESTINATION: $destination"
+
+          if (-not (Test-Path $source)) {
+            throw "Frontend artifact directory does not exist: $source"
+          }
+
+          New-Item `
+            -ItemType Directory `
+            -Force `
+            -Path $destination |
+            Out-Null
+
+          robocopy `
+            $source `
+            $destination `
+            /MIR `
+            /R:3 `
+            /W:5
+
+          if ($LASTEXITCODE -ge 8) {
+            throw "Frontend copy failed. Robocopy exit code: $LASTEXITCODE"
+          }
+
           $global:LASTEXITCODE = 0
+
+          Write-Host "Frontend deployment completed."
+
+
+      # ----------------------------------------------------------
+      # Deploy API
+      # ----------------------------------------------------------
 
       - name: Deploy API
         shell: powershell
         run: |
-          $destination = Join-Path $env:SITE_ROOT 'API'
-          New-Item -ItemType Directory -Force -Path $destination | Out-Null
-          robocopy (Join-Path $env:GITHUB_WORKSPACE 'publish\api') $destination /MIR /R:3 /W:5 /XF secrets.json
-          if ($LASTEXITCODE -ge 8) { throw "API copy failed: $LASTEXITCODE" }
+          $source = Join-Path `
+            $env:GITHUB_WORKSPACE `
+            'publish\api'
+
+          $destination = Join-Path `
+            $env:SITE_ROOT `
+            'API'
+
+          Write-Host "========================================"
+          Write-Host "DEPLOY API"
+          Write-Host "========================================"
+          Write-Host "SOURCE:      $source"
+          Write-Host "DESTINATION: $destination"
+
+          if (-not (Test-Path $source)) {
+            throw "API artifact directory does not exist: $source"
+          }
+
+          $sourceExe = Join-Path `
+            $source `
+            'SmartHomeApplicationAPI.exe'
+
+          if (-not (Test-Path $sourceExe)) {
+            throw "API executable missing from artifact: $sourceExe"
+          }
+
+          $sourceManifest = Join-Path `
+            $source `
+            'DEPLOYMENT.txt'
+
+          if (-not (Test-Path $sourceManifest)) {
+            throw "Deployment manifest missing from artifact: $sourceManifest"
+          }
+
+          Write-Host ""
+          Write-Host "=== SOURCE MANIFEST ==="
+          Get-Content $sourceManifest
+
+          New-Item `
+            -ItemType Directory `
+            -Force `
+            -Path $destination |
+            Out-Null
+
+          Write-Host ""
+          Write-Host "Copying API..."
+
+          robocopy `
+            $source `
+            $destination `
+            /MIR `
+            /R:3 `
+            /W:5 `
+            /XF secrets.json
+
+          if ($LASTEXITCODE -ge 8) {
+            throw "API copy failed. Robocopy exit code: $LASTEXITCODE"
+          }
+
           $global:LASTEXITCODE = 0
+
+          Write-Host ""
+          Write-Host "API copy completed."
+
+
+      # ----------------------------------------------------------
+      # VERIFY ACTUAL SERVER FILES
+      # ----------------------------------------------------------
+
+      - name: Verify deployed API files
+        shell: powershell
+        run: |
+          $destination = Join-Path `
+            $env:SITE_ROOT `
+            'API'
+
+          $exe = Join-Path `
+            $destination `
+            'SmartHomeApplicationAPI.exe'
+
+          $manifest = Join-Path `
+            $destination `
+            'DEPLOYMENT.txt'
+
+          Write-Host "========================================"
+          Write-Host "VERIFY SERVER DEPLOYMENT"
+          Write-Host "========================================"
+
+          if (-not (Test-Path $exe)) {
+            throw "SmartHomeApplicationAPI.exe does not exist on server."
+          }
+
+          if (-not (Test-Path $manifest)) {
+            throw "DEPLOYMENT.txt does not exist on server."
+          }
+
+          Write-Host ""
+          Write-Host "=== SERVER MANIFEST ==="
+          Get-Content $manifest
+
+          Write-Host ""
+          Write-Host "=== SERVER EXECUTABLE ==="
+          Get-Item $exe |
+            Select-Object FullName, Length, LastWriteTime
+
+          Write-Host ""
+          Write-Host "Server deployment verified."
+
+
+      # ----------------------------------------------------------
+      # Start API
+      # ----------------------------------------------------------
 
       - name: Start API
         id: start_api
         shell: powershell
         run: |
-          Start-Service -Name $env:API_SERVICE
+          Write-Host "Starting API service..."
+
+          Start-Service `
+            -Name $env:API_SERVICE
+
           $deadline = (Get-Date).AddSeconds(120)
+
           do {
             Start-Sleep -Seconds 2
-            $up = Test-NetConnection -ComputerName 127.0.0.1 -Port ([int]$env:API_PORT) -InformationLevel Quiet -WarningAction SilentlyContinue
-            $stopped = (Get-Service -Name $env:API_SERVICE).Status -eq 'Stopped'
-          } until ($up -or $stopped -or (Get-Date) -ge $deadline)
+
+            $up = Test-NetConnection `
+              -ComputerName 127.0.0.1 `
+              -Port ([int]$env:API_PORT) `
+              -InformationLevel Quiet `
+              -WarningAction SilentlyContinue
+
+            $stopped = (
+              Get-Service `
+                -Name $env:API_SERVICE
+            ).Status -eq 'Stopped'
+
+          } until (
+            $up `
+            -or $stopped `
+            -or (Get-Date) -ge $deadline
+          )
+
+          $state = (
+            Get-Service `
+              -Name $env:API_SERVICE
+          ).Status
+
+          Write-Host "Service state: $state"
+          Write-Host "Port listening: $up"
+
           if (-not $up) {
-            throw "API is not listening on port $env:API_PORT (service state: $((Get-Service -Name $env:API_SERVICE).Status))"
+            throw "API is not listening on port $env:API_PORT. Service state: $state"
           }
+
+          Write-Host "API started successfully."
+
+
+      # ----------------------------------------------------------
+      # Start IIS
+      # ----------------------------------------------------------
 
       - name: Start IIS site
         shell: powershell
         run: |
           Import-Module WebAdministration
-          $pool = (Get-Website -Name $env:SITE_NAME).applicationPool
-          Start-WebAppPool -Name $pool
-          Start-Website -Name $env:SITE_NAME
 
-      # Only runs when the API failed to start. Prints service state, the
-      # NSSM stdout/stderr logs and recent Windows events. Lines that look
-      # like credentials are hidden.
+          $pool = (
+            Get-Website `
+              -Name $env:SITE_NAME
+          ).applicationPool
+
+          Start-WebAppPool `
+            -Name $pool
+
+          Start-Website `
+            -Name $env:SITE_NAME
+
+          Write-Host "IIS site started."
+
+
+      # ----------------------------------------------------------
+      # Diagnostics if API failed
+      # ----------------------------------------------------------
+
       - name: API diagnostics
         if: ${{ failure() && steps.start_api.outcome == 'failure' }}
         continue-on-error: true
         shell: powershell
         run: |
           $ErrorActionPreference = 'Continue'
+
           $name = $env:API_SERVICE
 
           function Hide-Secrets([string[]]$lines) {
             $lines | ForEach-Object {
-              if ($_ -match '(?i)password|pwd|secret|token|authorization|postgres(ql)?://|Host=.*;') { '[REDACTED]' } else { $_ }
+              if ($_ -match '(?i)password|pwd|secret|token|authorization|postgres(ql)?://|Host=.*;') {
+                '[REDACTED]'
+              }
+              else {
+                $_
+              }
             }
           }
 
           $stop = [guid]::NewGuid().ToString('N')
+
           Write-Output "::stop-commands::$stop"
 
-          Write-Output '=== Service ==='
-          Get-CimInstance Win32_Service -Filter "Name='$name'" | Format-List Name, State, StartName, ExitCode, ProcessId
+          Write-Output '=== SERVICE ==='
 
-          Write-Output '=== NSSM logs (last 60 lines) ==='
+          Get-CimInstance `
+            Win32_Service `
+            -Filter "Name='$name'" |
+            Format-List `
+              Name,
+              State,
+              StartName,
+              ExitCode,
+              ProcessId
+
+          Write-Output ''
+          Write-Output '=== NSSM CONFIGURATION ==='
+
           $params = "HKLM:\SYSTEM\CurrentControlSet\Services\$name\Parameters"
-          if (Test-Path $params) {
-            $p = Get-ItemProperty $params
-            Write-Output "AppDirectory: $($p.AppDirectory)"
-            foreach ($f in @($p.AppStdout, $p.AppStderr)) {
-              if ($f -and (Test-Path $f)) {
-                Write-Output "--- $f"
-                Hide-Secrets (Get-Content $f -Tail 60)
-              }
-              elseif ($f) { Write-Output "--- $f (not found)" }
-              else { Write-Output '--- no log file configured in NSSM' }
-            }
-          }
-          else { Write-Output "No NSSM parameters found for $name" }
 
-          Write-Output '=== Application events, last 10 minutes ==='
-          Get-WinEvent -FilterHashtable @{ LogName = 'Application'; StartTime = (Get-Date).AddMinutes(-10) } -ErrorAction SilentlyContinue |
-            Where-Object { $_.Message -match 'SmartHome|Sk0v|Hangfire|Npgsql' } |
+          if (Test-Path $params) {
+
+            $p = Get-ItemProperty $params
+
+            Write-Output "AppDirectory: $($p.AppDirectory)"
+            Write-Output "Application:  $($p.Application)"
+            Write-Output "AppStdout:    $($p.AppStdout)"
+            Write-Output "AppStderr:    $($p.AppStderr)"
+
+            foreach ($f in @(
+              $p.AppStdout,
+              $p.AppStderr
+            )) {
+
+              if ($f -and (Test-Path $f)) {
+
+                Write-Output "--- $f"
+
+                Hide-Secrets (
+                  Get-Content $f -Tail 100
+                )
+              }
+              elseif ($f) {
+
+                Write-Output "--- $f (not found)"
+
+              }
+              else {
+
+                Write-Output '--- no log file configured'
+
+              }
+            }
+
+          }
+          else {
+
+            Write-Output "No NSSM parameters found for $name"
+
+          }
+
+          Write-Output ''
+          Write-Output '=== DEPLOYED API MANIFEST ==='
+
+          $manifest = Join-Path `
+            $env:SITE_ROOT `
+            'API\DEPLOYMENT.txt'
+
+          if (Test-Path $manifest) {
+            Get-Content $manifest
+          }
+          else {
+            Write-Output 'DEPLOYMENT.txt not found'
+          }
+
+          Write-Output ''
+          Write-Output '=== APPLICATION EVENTS ==='
+
+          Get-WinEvent `
+            -FilterHashtable @{
+              LogName = 'Application'
+              StartTime = (Get-Date).AddMinutes(-10)
+            } `
+            -ErrorAction SilentlyContinue |
+            Where-Object {
+              $_.Message -match 'SmartHome|Sk0v|Hangfire|Npgsql'
+            } |
             Sort-Object TimeCreated |
             ForEach-Object {
+
               "--- $($_.TimeCreated.ToString('s')) $($_.LevelDisplayName)"
-              Hide-Secrets ($_.Message -split "`r?`n")
+
+              Hide-Secrets (
+                $_.Message -split "`r?`n"
+              )
             }
 
           Write-Output "::$stop::"
