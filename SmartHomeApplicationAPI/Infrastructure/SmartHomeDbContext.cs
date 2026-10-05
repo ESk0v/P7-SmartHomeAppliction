@@ -12,35 +12,14 @@ public partial class SmartHomeDbContext : DbContext
     {
     }
 
-    public virtual DbSet<DayAheadPrice> DayAheadPrices { get; set; }
+    public virtual DbSet<DayAheadPrice> DayAheadPrices { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<DayAheadPrice>(entity =>
-        {
-            entity.HasKey(e => e.Id).HasName("day_ahead_price_pkey");
+        base.OnModelCreating(modelBuilder);
 
-            entity.ToTable("day_ahead_price");
-
-            entity.Property(e => e.Id)
-                .UseIdentityAlwaysColumn()
-                .HasColumnName("id");
-            entity.Property(e => e.IsPredicted)
-                .HasDefaultValue(false)
-                .HasColumnName("is_predicted");
-            entity.Property(e => e.Price)
-                .HasPrecision(10, 2)
-                .HasColumnName("price");
-            entity.Property(e => e.PriceArea)
-                .HasMaxLength(3)
-                .HasColumnName("price_area");
-            entity.Property(e => e.Time)
-                .HasColumnType("timestamp(0) without time zone")
-                .HasColumnName("time");
-        });
-
-        OnModelCreatingPartial(modelBuilder);
+        // Scans the assembly for all classes that implement IEntityTypeConfiguration<T> and applies any pending migrations
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(SmartHomeDbContext).Assembly);
     }
 
-    partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
 }
