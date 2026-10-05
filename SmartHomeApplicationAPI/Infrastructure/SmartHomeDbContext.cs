@@ -13,6 +13,7 @@ public partial class SmartHomeDbContext : DbContext
     }
 
     public virtual DbSet<DayAheadPrice> DayAheadPrices { get; set; } = null!;
+    public virtual DbSet<Users> Users { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
