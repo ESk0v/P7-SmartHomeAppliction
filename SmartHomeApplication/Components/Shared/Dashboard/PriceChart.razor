@@ -12,7 +12,7 @@
             <h6>More information here</h6>
         </div>
         
-        <div class="price-chart">
+        <div class="chart-uppersection">
             @foreach (var p in prices)
             {
                 <div class="price-column" title="@p.Hour.Hour:00 - @p.Price.ToString("0.00", CultureInfo.CurrentCulture)">
@@ -82,12 +82,9 @@
 
 
 
-
-
-
-    .price-chart {
-    width: 80%;
-    height: 300px;
+    .chart-uppersection {
+    width: 100%;
+    height: 25vh;
 
     margin: 0 auto;
 
