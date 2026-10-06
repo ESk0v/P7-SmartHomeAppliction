@@ -5,21 +5,33 @@
 @using System.Globalization
 
 @namespace Shared.Dashboard
-<h1>PRICE CHART TEST</h1>
 <div class="chart-card">
-    <h3>Electricity price per hour</h3>
-    
-    <div class="chart">
-        @foreach (var p in prices)
-        {
-            <div class="bar-col" title="@p.Hour.Hour:00 - @p.Price.ToString("0.00", CultureInfo.CurrentCulture) kr/kWh">
-                <div class="bar-area">
-                    <div class="bar" style="height:@((p.Price / maxPrice * 100).ToString("0.##", CultureInfo.InvariantCulture))%"></div>
+    <div class="chart-content">
+        <div class="chart-header">
+            <h6>Price forecast and schedule</h6>
+            <h6>More information here</h6>
+        </div>
+        
+        <div class="price-chart">
+            @foreach (var p in prices)
+            {
+                <div class="price-column" title="@p.Hour.Hour:00 - @p.Price.ToString("0.00", CultureInfo.CurrentCulture)">
+                    <div class="price-bar-area">
+                        <div class="price-bar"
+                            style="height:@((p.Price / maxPrice * 100).ToString("0.##", CultureInfo.InvariantCulture))%">
+                        </div>
+                    </div>
+
+                    <span class="price-label">@p.Hour.Hour</span>
                 </div>
-                <span class="bar-label">@p.Hour.Hour</span>
-            </div>
-        }
-    </div>
+            }
+        </div>
+
+        <div class="chart-card-divider"></div>
+
+        <div class="chart-lowersection">
+        </div>
+    </div>    
 </div>
 
 @code {
@@ -49,7 +61,75 @@
 }
 
 <style>
-    .Chart{
-        
+    .chart-card{
+        background-color: #fff;
+        border: 1px solid #e5e2dc;
+        border-radius: 12px;
+        padding: 20px; 
     }
+
+    .chart-card-divider {
+        width: 100%;
+        border: 1px solid;
+        border-radius: 12px;
+        border-color: #e5e2dc;
+        margin: 0 auto;
+    }
+
+
+
+
+
+
+
+
+
+
+    .price-chart {
+    width: 80%;
+    height: 300px;
+
+    margin: 0 auto;
+
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.price-column {
+    height: 100%;
+
+    flex: 1;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.price-bar-area {
+    width: 100%;
+    height: 100%;
+
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+}
+
+.price-bar {
+    width: 70%;
+
+    background-color: #e5e2dc;
+
+    border-radius: 6px 6px 0 0;
+
+    min-height: 2px;
+}
+
+.price-label {
+    margin-top: 8px;
+
+    font-size: 12px;
+}
 </style>
