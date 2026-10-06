@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 
 @using Shared.Dashboard
+@using SmartHomeApplication.Components.Shared.Dashboard
 
 <PageTitle>Dashboard</PageTitle>
 
@@ -10,5 +11,30 @@
 </SectionContent>
 
 <div>
-    <PriceChart />
+    <div class="statistics">
+        <Statistics />
+        <Statistics />
+        <Statistics />
+        <Statistics />
+    </div>
+
+    <div class="priceoverview">
+        <PriceChart />
+    </div>
+
+    <div class="deviceschedules">
+    </div>    
 </div>
+
+@code {
+
+}
+
+<style>
+    .statistics {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 3vw;
+        margin-bottom: 1%;
+    }
+</style>
