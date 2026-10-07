@@ -1,6 +1,7 @@
 using Hangfire;
 using Hangfire.PostgreSql;
-using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Identity;
+using SmartHomeApplicationAPI.Infrastructure.Models;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using SmartHomeApplicationAPI.Hangfire.Repository;
@@ -51,6 +52,24 @@ builder.Services.AddDbContext<SmartHomeDbContext>(options =>
 {
     options.UseNpgsql(smartHomeConn);
 });
+
+// For handling users and login
+builder.Services.AddIdentityCore<User>(settings =>
+{
+    settings.User.RequireUniqueEmail = true;
+    settings.Password.RequiredLength = 8;
+    settings.Password.RequireDigit = true;
+    settings.Password.RequireLowercase = true;
+    settings.Password.RequireUppercase = true;
+    settings.Password.RequireNonAlphanumeric = false;
+    settings.Lockout.MaxFailedAccessAttempts = 3;
+    settings.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+})
+    .AddRoles<IdentityRole>()
+    .AddEntityFrameworkStores<SmartHomeDbContext>()
+    .AddSignInManager()
+    .AddDefaultTokenProviders();
+
 
 builder.Services.AddHangfire(config =>
 {

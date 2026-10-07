@@ -1,11 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using SmartHomeApplicationAPI.Infrastructure.Models;
 
 namespace SmartHomeApplicationAPI.Infrastructure;
 
-public partial class SmartHomeDbContext : DbContext
+public partial class SmartHomeDbContext : IdentityDbContext<User> 
 {
     public SmartHomeDbContext(DbContextOptions<SmartHomeDbContext> options)
         : base(options)
@@ -13,7 +12,6 @@ public partial class SmartHomeDbContext : DbContext
     }
 
     public virtual DbSet<DayAheadPrice> DayAheadPrices { get; set; } = null!;
-    public virtual DbSet<Users> Users { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

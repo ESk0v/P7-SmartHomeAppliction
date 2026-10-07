@@ -1,7 +1,7 @@
-﻿using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Identity;
 using SmartHomeApplicationAPI.DTOs;
+using SmartHomeApplicationAPI.Infrastructure.Models;
+using Microsoft.AspNetCore.Mvc;
 
 namespace SmartHomeApplicationAPI.Controller
 {
@@ -9,50 +9,84 @@ namespace SmartHomeApplicationAPI.Controller
     [Route("api/auth")]
     public class AuthController : ControllerBase
     {
-        [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] LoginRequestDTO model)
-        {
-            // Should be replaced with Check in DB and user lookup and password hash verification
-            if (model.Username == "admin" && model.Password == "password")
-            {
-                /*
-                var claims = new List<Claim>
-                {
-                    new Claim(ClaimTypes.Name, model.Username),
-                };
+        // private readonly ILogger<AuthController> _logger; ------> Will be used later
+        private readonly UserManager<User> _userManager;
+        private readonly SignInManager<User> _signInManager;
 
-                var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-                var principal = new ClaimsPrincipal(identity);
-                */
-                return Ok(new
+        public AuthController(UserManager<User> userManager, SignInManager<User> signInManager)
+        {
+            _userManager = userManager;
+            _signInManager = signInManager;
+        }
+
+        [HttpPost("register")]
+        public async Task<ActionResult<AuthRespDTO>> Register([FromBody] RegisterReqDTO request, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var username = request.Username;
+            var email = request.Email;
+
+            var existingUsername = await _userManager.FindByNameAsync(username);
+            if (existingUsername is not null)
+            {
+                return Conflict(new
                 {
-                    IsAuthenticated = true,
-                    UserName = model.Username
+                    Message = "Did not complete registration of user. Username error"
                 });
             }
 
-            return Unauthorized(new
+            var existingEmail = await _userManager.FindByEmailAsync(email);
+            if (existingEmail is not null)
             {
-                Message = "Invalid username or password"
-            });
+                return Conflict(new
+                {
+                    Message = "Did not complete registration of user. Email error"
+                });
+            }
+
+            var user = new User
+            {
+                UserName = username,
+                Email = email,
+                DisplayName = request.DisplayName,
+                EmailConfirmed = false
+            };
+
+            var result = await _userManager.CreateAsync(user, request.Password);
+            if (!result.Succeeded)
+            {
+                return BadRequest(new
+                {
+                    Errors = result.Errors.Select(error => error.Description)
+                });
+            }
+
+            var roles = await _userManager.GetRolesAsync(user);
+
+            return Ok(new AuthRespDTO(user.Id, user.UserName, user.DisplayName, roles.ToArray()));
         }
 
-        [HttpGet("user-info")]
-        public IActionResult GetUserInfo()
+        [HttpPost("login")]
+        public async Task<ActionResult<AuthRespDTO>> Login([FromBody] LoginReqDTO request, CancellationToken cancellationToken)
         {
-            if (!User.Identity?.IsAuthenticated != true)
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var user = await _userManager.FindByNameAsync(request.Username);
+            if (user is null)
+            {
+                return NotFound();
+            }
+
+            var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, lockoutOnFailure: true);
+            if (!result.Succeeded)
             {
                 return Unauthorized();
             }
 
-            return Ok(new { UserName = User.Identity?.Name, IsAuthenticated = true });
-        }
+            var roles = await _userManager.GetRolesAsync(user);
 
-        [HttpPost("logout")]
-        public async Task<IActionResult> logout()
-        {
-            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            return LocalRedirect("/login");
+            return Ok(new AuthRespDTO(user.Id, user.UserName!, user.DisplayName, roles.ToArray()));
         }
     }
 }
