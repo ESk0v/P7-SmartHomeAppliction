@@ -11,10 +11,10 @@
 
 <div class="dashboard">
     <div class="statistics">
-        <Statistics />
-        <Statistics />
-        <Statistics />
-        <Statistics />
+        <Statistics Type="StatisticsType.PlannedCost"/>
+        <Statistics Type="StatisticsType.ScheduleSavings"/>
+        <Statistics Type="StatisticsType.PeakShift"/>
+        <Statistics Type="StatisticsType.CheapestPeriod"/>
     </div>
 
     <div class="priceoverview">
@@ -35,6 +35,9 @@
 <style>
 .dashboard {
     height: calc(100vh - 120px); /* adjust 120px to your header/topbar height */
+    padding: 0 3vw;
+    box-sizing: border-box;
+    
     display: flex;
     flex-direction: column;
     justify-content: space-evenly;
@@ -42,13 +45,13 @@
 
 .statistics {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 3vw;
 }
 
 .devices {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 3vw;
 }
 </style>

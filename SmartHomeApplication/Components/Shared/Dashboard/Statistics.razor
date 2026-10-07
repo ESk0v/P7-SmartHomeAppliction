@@ -7,11 +7,74 @@
 @namespace Shared.Dashboard
 
 <div class="statistics-card">
-    <h1>hs</h1>
+    <p class="statistics-title">@Title</p>
+
+    @if (Data is not null)
+    {
+        <p class="statistics-value">@Data.Value</p>
+
+        @if (Data.Description is not null)
+        {
+            <p class="statistics-description">@Data.Description</p>
+        }
+    }
 </div>
 
 @code {
 
+    [Parameter]
+    public StatisticsType Type { get; set; }
+    public StatisticsDto? Data { get; set;}
+
+    private string Title => Type switch
+    {
+        StatisticsType.PlannedCost => "Planned cost today",
+        StatisticsType.CheapestPeriod => "Cheapest Window",
+        StatisticsType.ScheduleSavings => "Saved vs unscheduled",
+        StatisticsType.PeakShift => "Load moved off peak",
+        _ => "Statistics"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        Data = Type switch
+        {
+            StatisticsType.PlannedCost => await GetPlannedCost(),
+            StatisticsType.CheapestPeriod => await GetCheapestPeriod(),
+            StatisticsType.ScheduleSavings => await GetScheduleSavings(),
+            StatisticsType.PeakShift => await GetPeakShift(),
+            _ => new StatisticsDto {Value = "error"}
+        
+        };
+    }
+
+    private async Task<StatisticsDto> GetPlannedCost()
+    {
+        return await Http.GetFromJsonAsync<StatisticsDto>(
+            "api/statistics-controller/planned-cost"
+        ) ?? new StatisticsDto();
+    }
+
+    private async Task<StatisticsDto> GetCheapestPeriod()
+    {
+        return await Http.GetFromJsonAsync<StatisticsDto>(
+            "api/statistics-controller/Cheapest-period"
+        ) ?? new StatisticsDto();
+    }
+
+    private async Task<StatisticsDto> GetScheduleSavings()
+    {
+        return await Http.GetFromJsonAsync<StatisticsDto>(
+            "api/statistics-controller/schedule-savings"
+        ) ?? new StatisticsDto();
+    }
+
+    private async Task<StatisticsDto> GetPeakShift()
+    {
+        return await Http.GetFromJsonAsync<StatisticsDto>(
+            "api/statistics-controller/peak-shift"
+        ) ?? new StatisticsDto();
+    }
 }
 
 <style>
@@ -20,8 +83,42 @@
         border: 1px solid #e5e2dc;
         border-radius: 12px;
         padding: 20px;
-        width: 100/5%;
 
+        width: 100%;
+        box-sizing: border-box;
         aspect-ratio: 3 / 1;
+
+        display: flex;
+        flex-direction: column;
+        grid-template-rows: auto 1fr auto;
+    }
+
+    .statistics-title {
+        margin: 0;
+        color: #999;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+
+    .statistics-value {
+        margin: 0;
+        font-size: 2rem;
+        font-weight: 700;
+        line-height: 1;
+    }
+
+    .statistics-description {
+        margin: 0;
+        min-height: 1.2em;
+        color: #888;
+        font-size: 0.8rem;
+    }
+
+    .statistics-value,
+    .statistics-description,
+    .statistics-title {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 </style>
