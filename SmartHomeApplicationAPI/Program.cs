@@ -1,5 +1,6 @@
 using Hangfire;
 using Hangfire.PostgreSql;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using SmartHomeApplicationAPI.Hangfire.Repository;
@@ -37,12 +38,30 @@ var runHangfireServer =
     builder.Configuration.GetValue<bool?>("Hangfire:RunServer")
     ?? !builder.Environment.IsDevelopment();
 
+// User login, auth and authorization
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.Cookie.Name = "auth_smartHome";
+        options.Cookie.SameSite = SameSiteMode.None; // something with localhost cross-port
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        options.Events.OnRedirectToLogin = context =>
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return Task.CompletedTask;
+        };
+        options.AccessDeniedPath = "/access-denied";
+    });
+builder.Services.AddAuthorization();
+builder.Services.AddCascadingAuthenticationState();
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowBlazor", policy =>
         policy.WithOrigins("https://localhost:7100")
             .AllowAnyMethod()
-            .AllowAnyHeader());
+            .AllowAnyHeader()
+            .AllowCredentials());
 });
 
 builder.Services.AddDbContext<SmartHomeDbContext>(options =>

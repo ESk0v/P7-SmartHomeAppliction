@@ -1,0 +1,31 @@
+﻿@page "/logout"
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body flex-column">
+                <div class="text-center mt-2">
+                    <span class="text-danger fw-bolder">You have successfully logged out of the application</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Tells backend to sign out and clear auth
+            await Http.PostAsync("api/auth/logout", null);
+        }
+        catch
+        {
+            // Idk, ignore failures for now., Sshould not fail
+        }
+    }
+}
+

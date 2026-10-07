@@ -9,7 +9,6 @@ namespace SmartHomeApplicationAPI.Infrastructure.Models
     {
         [Key]
         [Column("id")]
-
         public int Id { get; set; }
 
         [Required]

@@ -2,10 +2,24 @@
 @rendermode InteractiveServer
 @inject HttpClient Http
 @inject ILogger<Dashboard> Logger
-@using System.Globalization
-@using Utilities.Models
 
 <PageTitle>Dashboard</PageTitle>
+
+<div class="col-12">
+    <div class="card">
+        <div class="card-body">
+            <AuthorizeView>
+                <NotAuthorized>
+                    <span>You are not logged in. Please <a class="fw-bolder" href="/login">click</a> to login.</span>
+                </NotAuthorized>
+                <Authorized>
+                    <span>Logged in as <b>@context.User.Identity?.Name</b>. <a class="fw-bolder" href="/logout">Click here</a> to logout.</span>
+                </Authorized>
+            </AuthorizeView>
+        </div>
+    </div>
+</div>
+
 
 <div class="chart-card">
     <h3>Electricity price per hour</h3>
