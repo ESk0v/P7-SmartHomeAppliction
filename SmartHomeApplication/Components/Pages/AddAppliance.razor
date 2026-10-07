@@ -1,0 +1,58 @@
+﻿@page "/addAppliance"
+@rendermode InteractiveServer
+@using Utilities.Models
+
+<PageTitle>Add Appliance</PageTitle>
+
+<h3>Add New Device</h3>
+
+
+
+<div class="row">
+        <div class="col-md-4">
+            <EditForm Method="post" Model="DeviceDTO" OnValidSubmit="AddDevice" FormName="AddDeviceForm">
+                <DataAnnotationsValidator />   
+                <div class="mb-3">
+                    <label for="deviceName" class="form-label">Device Name</label>
+                    <InputText id="deviceName" class="form-control" @bind-Value="DeviceDTO.Name" />   
+                    <ValidationMessage For="() => DeviceDTO.Name" class="text-danger" />
+                </div> 
+                <div class="mb-3">
+                    <label for="deviceCategory" class="form-label">Device Category</label>
+                    <InputText id="deviceCategory" class="form-control" @bind-Value="DeviceDTO.Category" />
+                    <ValidationMessage For="() => DeviceDTO.Category" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label for="devicePreset" class="form-label">Preset</label>
+                    <InputText id="devicePreset" class="form-control" @bind-Value="DeviceDTO.Preset" />
+                    <ValidationMessage For="() => DeviceDTO.Preset" class="text-danger" /> 
+                </div>
+                <div class="mb-3">
+                    <label for="deviceConsumption" class="form-label">Consumption (kWh)</label>
+                    <InputNumber id="deviceConsumption" class="form-control" @bind-Value="DeviceDTO.ConsumptionInkWh" />
+                    <ValidationMessage For="() => DeviceDTO.ConsumptionInkWh" class="text-danger" /> 
+                </div>
+                <div class="mb-3">
+                    <label for="deviceDuration" class="form-label">Duration (minutes)</label>
+                    <InputNumber id="deviceDuration" class="form-control" @bind-Value="DeviceDTO.DurationInMinutes" />
+                    <ValidationMessage For="() => DeviceDTO.DurationInMinutes" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <button type="submit" class="btn btn-primary">Add Device</button>
+                </div>
+            </EditForm>
+        </div>
+</div>
+
+
+
+@code {
+    private DeviceDTO DeviceDTO = new();
+
+    private async Task AddDevice()
+    {
+        // TODO: send DeviceDTO to API or process it
+        await Task.CompletedTask;
+        return ;
+    }
+}
