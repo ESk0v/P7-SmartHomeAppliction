@@ -4,11 +4,11 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using System.Security.Claims;
 using SmartHomeApplication.Models;
 
+
 namespace SmartHomeApplication.Controllers
 {
-    [ApiController]
     [Route("account")]
-    public class AccountController : ControllerBase
+    public class AccountController : Controller
     {
         private readonly HttpClient _apiClient;
 
@@ -18,45 +18,34 @@ namespace SmartHomeApplication.Controllers
         }
 
         [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] LoginViewModel model, CancellationToken cancellationToken)
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Login([FromBody] string username, string password, CancellationToken cancellationToken)
         {
-            using var response = await _apiClient.PostAsJsonAsync("api/auth/login", model, cancellationToken);
+            using var response = await _apiClient.PostAsJsonAsync("api/auth/login", new
+            {
+                Username = username,
+                Password = password
+            }, 
+            cancellationToken);
 
             if (!response.IsSuccessStatusCode)
             {
-                return Unauthorized();
+                return Redirect("/login?error=invalidLogin");
             }
 
-            var claims = new List<Claim>
+            var result = await response.Content.ReadFromJsonAsync<AuthRespModel>(cancellationToken);
+            
+            if (result is null)
             {
-                new(ClaimTypes.Name, model.UserName)
-            };
-            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-            var principal = new ClaimsPrincipal(identity);
+                return StatusCode(StatusCode.Status502BadGateway, "Auth is invalid");
+            }
 
-            try
-            {
-                await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
-            return Ok();
+            await SignInAsync(result);
+
+            return Redirect("/");
         }
 
-        [HttpPost("logout")]
-        public async Task<IActionResult> Logout()
-        {
-            try
-            {
-                await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);
-            }
-            return Ok();
-        }
+        
+        
     }
 }

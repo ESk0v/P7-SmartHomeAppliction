@@ -53,7 +53,8 @@ builder.Services.AddDbContext<SmartHomeDbContext>(options =>
     options.UseNpgsql(smartHomeConn);
 });
 
-// For handling users and login
+// For handling users and login (DataProtection to make EF core work now)
+builder.Services.AddDataProtection();
 builder.Services.AddIdentityCore<User>(settings =>
 {
     settings.User.RequireUniqueEmail = true;

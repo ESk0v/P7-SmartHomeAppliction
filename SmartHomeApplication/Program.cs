@@ -1,7 +1,5 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using SmartHomeApplication.Components;
-using Microsoft.AspNetCore.Components.Authorization;
-using SmartHomeApplication.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,24 +13,6 @@ builder.Services.AddHttpClient("Api", client =>
 });
 
 builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("Api"));
-
-/*
-builder.Services.AddScoped(sp =>
-{
-    var handler = new HttpClientHandler
-    {
-        UseCookies = true,
-        CookieContainer = new System.Net.CookieContainer()
-    };
-
-    return new HttpClient(handler)
-    {
-        BaseAddress = new Uri(apiBaseUrl)
-    };
-});
-*/
-
-
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
@@ -58,10 +38,7 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         settings.SlidingExpiration = true;
     });
 builder.Services.AddAuthorizationCore();
-builder.Services.AddScoped<AuthenticationStateProvider, AuthenticationProvider>();
 builder.Services.AddCascadingAuthenticationState();
-builder.Services.AddHttpContextAccessor();
-
 
 
 var app = builder.Build();
