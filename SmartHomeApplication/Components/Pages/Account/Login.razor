@@ -50,17 +50,17 @@
         errorMessage = null;
 
         // send Http POST to the API backend
-        var response = await Http.PostAsJsonAsync("api/auth/login", Model);
+        var response = await Http.PostAsJsonAsync("account/login", Model);
 
         // Handle response
         if (response.IsSuccessStatusCode)
         {
             Navigation.NavigateTo("/", forceLoad: true);
+            return;
         }
-        else
-        {
-            errorMessage = "Invalid username or password";
-        }
+
+        // Only reaches if, if statement does not run
+        errorMessage = "Invalid username or password";
 
     }
 

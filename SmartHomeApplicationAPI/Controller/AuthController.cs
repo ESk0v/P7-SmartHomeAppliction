@@ -2,7 +2,6 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
 using SmartHomeApplicationAPI.DTOs;
-using System.Security.Claims;
 
 namespace SmartHomeApplicationAPI.Controller
 {
@@ -13,6 +12,7 @@ namespace SmartHomeApplicationAPI.Controller
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequestDTO model)
         {
+            // Should be replaced with Check in DB and user lookup and password hash verification
             if (model.Username == "admin" && model.Password == "password")
             {
                 /*
@@ -31,7 +31,10 @@ namespace SmartHomeApplicationAPI.Controller
                 });
             }
 
-            return Redirect("/login?error=InvalidUsernameOrPassword");
+            return Unauthorized(new
+            {
+                Message = "Invalid username or password"
+            });
         }
 
         [HttpGet("user-info")]
