@@ -1,34 +1,27 @@
 ﻿@page "/login"
-@rendermode InteractiveServer
-@using SmartHomeApplication.Models
-@using SmartHomeApplication.Services
-@using Microsoft.AspNetCore.Components.Authorization
-@inject HttpClient Http
-@inject NavigationManager Navigation
-@inject AuthenticationStateProvider AuthStateProvider
 
 <div class="row">
     <div class="col-lg-4 offset-lg-4 pt-4 pb-4 border">
-        <EditForm Model="@Model" OnValidSubmit="Authenticate" FormName="LoginForm">
-            <DataAnnotationsValidator />
+        <form method="post" action="/account/login" data-enhance="false">
+            <AntiforgeryToken />
             <div class="mb-3 text-center flex-column">
                 <h3>LOGIN</h3>
             </div>
 
-            @if (!string.IsNullOrEmpty(errorMessage))
+            @if (HasError)
             {
-                <div class="alert alert-danger">@errorMessage</div>
+                <div class="alert alert-danger">
+                    Invalid username or password
+                </div>
             }
 
             <div class="mb-3">
-                <label>User Name</label>
-                <InputText @bind-Value="Model.UserName" class="form-control" placeholder="Username" />
-                <ValidationMessage For="() => Model.UserName" />
+                <label for="username">Username</label>
+                <input id="username" name="username" type="text" class="form-control" autocomplete="username" required />
             </div>
             <div class="mb-3">
-                <label>Password</label>
-                <InputText @bind-Value="Model.Password" class="form-control" placeholder="Password" type="password"/>
-                <ValidationMessage For="() => Model.Password" />
+                <label for="password">Password</label>
+                <input id="password" name="password" type="password" class="form-control" autocomplete="current-password" required />
             </div>
             <div class="mb-3 text-center">
                 <span class="text-danger"></span>
@@ -36,32 +29,17 @@
             <div class="mb-3 d-grid gap-2">
                 <button type="submit" class="btn btn-primary">Login</button>
             </div>
-        </EditForm>
+        </form>
+
+        <div class="text-center">
+            <a href="/register">Create an account</a>
+        </div>
     </div>
 </div>
 
 @code {
-    public LoginViewModel Model { get; set; } = new();
+    [SupplyParameterFromQuery]
+    private string? Error { get; set; }
 
-    private string? errorMessage;
-
-    private async Task Authenticate()
-    {
-        errorMessage = null;
-
-        // send Http POST to the API backend
-        var response = await Http.PostAsJsonAsync("account/login", Model);
-
-        // Handle response
-        if (response.IsSuccessStatusCode)
-        {
-            Navigation.NavigateTo("/", forceLoad: true);
-            return;
-        }
-
-        // Only reaches if, if statement does not run
-        errorMessage = "Invalid username or password";
-
-    }
-
+    private bool HasError => string.Equals(Error, "invalidLogin", StringComparison.OrdinalIgnoreCase);
 }

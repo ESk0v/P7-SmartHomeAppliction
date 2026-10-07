@@ -17,9 +17,26 @@ namespace SmartHomeApplication.Controllers
             _apiClient = apiClient;
         }
 
+        [HttpPost("register")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Register([FromForm] RegisterViewModel model, CancellationToken cancellationToken)
+        {
+            var response = await _apiClient.PostAsJsonAsync("api/auth/register", model, cancellationToken);
+            if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
+            {
+                return Redirect("/register?error=unavailable");
+            }
+            if (!response.IsSuccessStatusCode)
+            {
+                return Redirect("/register?error=invalid");
+            }
+
+            return Redirect("/login?registered=true");
+        }
+
         [HttpPost("login")]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Login([FromBody] string username, string password, CancellationToken cancellationToken)
+        public async Task<IActionResult> Login([FromForm] string username, [FromForm] string password, CancellationToken cancellationToken)
         {
             using var response = await _apiClient.PostAsJsonAsync("api/auth/login", new
             {
@@ -37,7 +54,7 @@ namespace SmartHomeApplication.Controllers
             
             if (result is null)
             {
-                return StatusCode(StatusCode.Status502BadGateway, "Auth is invalid");
+                return StatusCode(StatusCodes.Status502BadGateway, "Auth is invalid");
             }
 
             await SignInAsync(result);
@@ -45,7 +62,33 @@ namespace SmartHomeApplication.Controllers
             return Redirect("/");
         }
 
-        
+        [HttpPost("logout")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Logout()
+        {
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+
+            return Redirect("/login");
+        }
+
+        private async Task SignInAsync(AuthRespModel result)
+        {
+            var claims = new List<Claim>
+            {
+                new(ClaimTypes.NameIdentifier, result.UserId),
+                new(ClaimTypes.Name, result.Username),
+                new("display_name", result.DisplayName)
+            };
+
+            claims.AddRange(
+                result.Roles.Select(role =>
+                new Claim(ClaimTypes.Role, role)));
+
+            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+            var principal = new ClaimsPrincipal(identity);
+
+            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
+        }
         
     }
 }
