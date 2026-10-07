@@ -9,7 +9,7 @@
     <span>Dashboard</span>
 </SectionContent>
 
-<div>
+<div class="dashboard">
     <div class="statistics">
         <Statistics />
         <Statistics />
@@ -33,21 +33,22 @@
 }
 
 <style>
-    .statistics {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 3vw;
-        margin-bottom: 1%;
-    }
+.dashboard {
+    height: calc(100vh - 120px); /* adjust 120px to your header/topbar height */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-evenly;
+}
 
-    .priceoverview{
-        margin-bottom: 1%;
-    }
+.statistics {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 3vw;
+}
 
-    .devices {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 3vw;
-        margin-bottom: 1%;
-    }
+.devices {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 3vw;
+}
 </style>
