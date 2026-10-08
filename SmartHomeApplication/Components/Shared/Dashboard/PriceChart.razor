@@ -30,11 +30,20 @@
         <div class="chart-card-divider"></div>
 
         <div class="chart-lowersection">
+            @foreach (var activeSchedule in activeSchedules)
+            {
+                <div class="plan-row">
+                    <span>@activeSchedule.deviceName</span>
+                    <span>@activeSchedule.startTime.ToString("HH:mm") - @activeSchedule.endTime.ToString("HH:mm")</span>
+                </div>
+            }
         </div>
     </div>    
 </div>
 
 @code {
+    [Parameter] public List<PlanDto> activeSchedules { get; set; } = new();
+
     private List<HourPriceDto> prices = new();
     private decimal maxPrice;
     private string? error;
