@@ -4,28 +4,17 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SmartHomeApplicationAPI.Infrastructure.Models
 {
-	[Table("device")]
-	public class Device
+	[Table("presets")]
+	public class Presets
 	{
 		[Key]
 		[Column("id")]
-
 		public int Id { get; set; }
 
 		[Required]
-		[MaxLength(50)]
+		[MaxLength(30)]
 		[Column("name")]
 		public string Name { get; set; } = null!;
-
-		[Required]
-		[MaxLength(20)]
-		[Column("category")]
-		public string Category { get; set; } = null!;
-
-		[Required]
-		[MaxLength(10)]
-		[Column("preset")]
-		public string preset { get; set; } = "standard";
 
 		[Required]
 		[Column("consumption_in_kwh")]
@@ -34,5 +23,12 @@ namespace SmartHomeApplicationAPI.Infrastructure.Models
 		[Required]
 		[Column("duration_in_minutes")]
 		public int DurationInMinutes { get; set; }
+
+		[Required]
+		[Column("device_id")]
+		public int DeviceId { get; set; }
+
+		[ForeignKey(nameof(DeviceId))]
+		public Devices Device { get; set; } = null!;
 	}
 }

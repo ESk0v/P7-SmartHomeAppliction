@@ -1,4 +1,5 @@
 @page "/appliance"
+@inject HttpClient http
 
 <PageTitle>Appliances</PageTitle>
 
@@ -17,12 +18,14 @@
     </div>
 </SectionContent>
 
-<h1>This is for add custom appliances</h1>
+<h1>This is for seeing all appliances</h1>
 
 
 @code {
     // Current amount of devices in the registry
     private int amount = 5;
+
+    
 }
 
 <style>
