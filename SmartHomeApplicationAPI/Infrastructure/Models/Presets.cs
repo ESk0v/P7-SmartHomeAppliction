@@ -5,7 +5,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace SmartHomeApplicationAPI.Infrastructure.Models
 {
 	[Table("presets")]
-	public class Preset
+	public class Presets
 	{
 		[Key]
 		[Column("id")]
