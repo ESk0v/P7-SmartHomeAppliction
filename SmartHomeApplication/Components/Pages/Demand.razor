@@ -1,18 +1,73 @@
 @page "/demand"
+@using System.Globalization
 
-<PageTitle>Demand</PageTitle>
+<PageTitle>New demand</PageTitle>
 
 <SectionContent SectionName="TopBarActions">
-    <div>
-        <span>Home energy plan</span>
-        <span></span>
+    <div class="header">
+        <div class="heading">
+            <h1>New demand</h1>
+            <p>Configure a new scheduling demand</p>
+        </div>
+
+        <div class="header-actions">
+
+        </div>
     </div>
 </SectionContent>
 
-<h1>This is for the new demand</h1>
-
-
 @code {
-    
+    private string date = DateTime.Today.ToString("ddd dd MMM yyyy", CultureInfo.InvariantCulture);
+    private string area = "Nordpool DK1";
 }
 
+<style>
+    .header {
+        align-items: center;
+        display: flex;
+        gap: 1rem;
+        justify-content: space-between;
+        width: 100%;
+    }
+
+    .heading h1 {
+        color: #222;
+        font-size: 1.1rem;
+        font-weight: 600;
+        line-height: 0.6;
+        margin: 0;
+    }
+
+    .heading p {
+        color: #999;
+        font-size: 0.70rem;
+        line-height: 0.75;
+        margin: 0;
+    }
+
+    .heading {
+        display: flex;
+        flex-direction: column;
+        gap: 0.7rem;
+    }
+
+    .header-actions {
+        align-items: center;
+        display: flex;
+        flex-shrink: 0;
+        gap: 0.5rem;
+    }
+
+    @@media (max-width: 640.98px) {
+        .header {
+            align-items: flex-start;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .header-actions {
+            width: 100%;
+        }
+
+    }
+</style>

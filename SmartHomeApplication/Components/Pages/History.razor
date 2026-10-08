@@ -1,15 +1,219 @@
 @page "/history"
+@rendermode InteractiveServer
+@using System.Globalization
 
 <PageTitle>History</PageTitle>
 
 <SectionContent SectionName="TopBarActions">
-    <span>History</span>
+    <div class="header">
+        <div class="heading">
+            <h1>History</h1>
+            <p>@dateRange</p>
+        </div>
+
+        <div class="header-actions">
+            <div class="@GetPeriodToggleClass()" role="group" aria-label="History period">
+                <span class="period-toggle-indicator" aria-hidden="true"></span>
+                <button type="button"
+                        class="@GetPeriodButtonClass(HistoryPeriod.SevenDays)"
+                        @onclick="() => SelectPeriod(HistoryPeriod.SevenDays)">
+                    7d
+                </button>
+                <button type="button"
+                        class="@GetPeriodButtonClass(HistoryPeriod.ThirtyDays)"
+                        @onclick="() => SelectPeriod(HistoryPeriod.ThirtyDays)">
+                    30d
+                </button>
+                <button type="button"
+                        class="@GetPeriodButtonClass(HistoryPeriod.Year)"
+                        @onclick="() => SelectPeriod(HistoryPeriod.Year)">
+                    Year
+                </button>
+            </div>
+
+            <SecondaryButton Icon="@Icons.Export">
+                Export CSV
+            </SecondaryButton>
+        </div>
+    </div>
 </SectionContent>
 
 <h1>This is for the history view</h1>
 
 
 @code {
-    
+    private HistoryPeriod selectedPeriod = HistoryPeriod.ThirtyDays;
+
+    private string fromDate => GetStartDate(selectedPeriod)
+        .ToString("d MMM yyyy", CultureInfo.InvariantCulture);
+
+    private string toDate => DateTime.Today.AddDays(-1)
+        .ToString("d MMM yyyy", CultureInfo.InvariantCulture);
+
+    private string dateRange => $"{fromDate} - {toDate}";
+
+    private void SelectPeriod(HistoryPeriod period)
+    {
+        selectedPeriod = period;
+    }
+
+    private string GetPeriodButtonClass(HistoryPeriod period)
+    {
+        return selectedPeriod == period
+            ? "period-option period-option-active"
+            : "period-option";
+    }
+
+    private string GetPeriodToggleClass()
+    {
+        var periodClass = selectedPeriod switch
+        {
+            HistoryPeriod.SevenDays => "period-toggle-seven-days",
+            HistoryPeriod.Year => "period-toggle-year",
+            _ => "period-toggle-thirty-days"
+        };
+
+        return $"period-toggle {periodClass}";
+    }
+
+    private static DateTime GetStartDate(HistoryPeriod period)
+    {
+        return period switch
+        {
+            HistoryPeriod.SevenDays => DateTime.Today.AddDays(-7),
+            HistoryPeriod.ThirtyDays => DateTime.Today.AddMonths(-1),
+            HistoryPeriod.Year => DateTime.Today.AddYears(-1),
+            _ => DateTime.Today.AddMonths(-1)
+        };
+    }
+
+    private enum HistoryPeriod
+    {
+        SevenDays,
+        ThirtyDays,
+        Year
+    }
 }
 
+<style>
+    .header {
+        align-items: center;
+        display: flex;
+        gap: 1rem;
+        justify-content: space-between;
+        width: 100%;
+    }
+
+    .heading h1 {
+        color: #222;
+        font-size: 1.1rem;
+        font-weight: 600;
+        line-height: 0.6;
+        margin: 0;
+    }
+
+    .heading p {
+        color: #999;
+        font-size: 0.70rem;
+        line-height: 0.75;
+        margin: 0;
+    }
+
+    .heading {
+        display: flex;
+        flex-direction: column;
+        gap: 0.7rem;
+    }
+
+    .header-actions {
+        align-items: center;
+        display: flex;
+        flex-shrink: 0;
+        gap: 0.9rem;
+    }
+
+    .period-toggle {
+        align-items: center;
+        background-color: #f0eeec;
+        border-radius: 0.75rem;
+        display: flex;
+        padding: 0.125rem;
+        position: relative;
+    }
+
+    .period-toggle-indicator {
+        background-color: #fff;
+        border-radius: 0.65rem;
+        bottom: 0.125rem;
+        box-shadow: 0 0.1rem 0.25rem rgba(34, 34, 34, 0.12);
+        left: 0.125rem;
+        position: absolute;
+        top: 0.125rem;
+        transform: translateX(100%);
+        transition: transform 180ms ease;
+        width: calc((100% - 0.25rem) / 3);
+    }
+
+    .period-toggle-seven-days .period-toggle-indicator {
+        transform: translateX(0);
+    }
+
+    .period-toggle-year .period-toggle-indicator {
+        transform: translateX(200%);
+    }
+
+    .period-option {
+        background: transparent;
+        border: 0;
+        border-radius: 0.65rem;
+        color: #716d6a;
+        cursor: pointer;
+        font: inherit;
+        font-size: 0.75rem;
+        min-width: 3.25rem;
+        padding: 0.55rem 0.75rem;
+        position: relative;
+        transition: color 150ms ease;
+        width: 33.333%;
+        z-index: 1;
+    }
+
+    .period-option:hover {
+        color: #222;
+    }
+
+    .period-option:focus-visible {
+        outline: 1.5px solid #a9a0ff;
+        outline-offset: 1px;
+    }
+
+    .period-option-active {
+        color: #222;
+    }
+
+    @@media (prefers-reduced-motion: reduce) {
+        .period-toggle-indicator {
+            transition: none;
+        }
+    }
+
+    @@media (max-width: 640.98px) {
+        .header {
+            align-items: flex-start;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .header-actions {
+            width: 100%;
+        }
+
+        .period-toggle {
+            width: 100%;
+        }
+
+        .period-option {
+            flex: 1;
+        }
+    }
+</style>
