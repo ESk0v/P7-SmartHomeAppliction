@@ -38,7 +38,6 @@
     private List<HourPriceDto> prices = new();
     private decimal maxPrice;
     private string? error;
-    private bool loaded;
 
     protected override async Task OnInitializedAsync()
     {
@@ -52,10 +51,6 @@
         {
             error = $"{ex.GetType().Name}: {ex.Message} (base address: {Http.BaseAddress})";
             Logger.LogError(ex, "Failed to load electricity prices");
-        }
-        finally
-        {
-            loaded = true;
         }
     }
 }
