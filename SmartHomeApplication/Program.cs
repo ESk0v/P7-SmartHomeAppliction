@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Authentication.Cookies;
 using SmartHomeApplication.Components;
+using SmartHomeApplication.State;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,6 +11,7 @@ builder.Services.AddScoped(sp => new HttpClient
 {
     BaseAddress = new Uri(apiBaseUrl)
 });
+builder.Services.AddScoped<OptimizedPlanState>();
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
@@ -17,6 +20,19 @@ builder.Services.AddRazorComponents()
 // Logging
 builder.Services.AddLogging();
 builder.Logging.SetMinimumLevel(LogLevel.Information); // This can be changed to LogLevel.Warning or Error if we determine that
+
+// User login, auth and authorization
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.Cookie.Name = "auth_token";
+        options.LoginPath = "/login";
+        options.Cookie.MaxAge = TimeSpan.FromMinutes(30);
+        options.AccessDeniedPath = "/access-denied";
+    });
+builder.Services.AddAuthorization();
+builder.Services.AddCascadingAuthenticationState();
+
 
 var app = builder.Build();
 
@@ -31,6 +47,10 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseAntiforgery();
+
+// Same, for user login and stuff
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
