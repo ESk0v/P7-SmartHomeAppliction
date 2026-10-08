@@ -36,20 +36,23 @@
     </div>
 
     <div class="priceoverview">
-        @if (activeSchedules is null)
-        {
-            <p>Loading...</p>
-        }
-        else
+        @if (activeSchedules is not null)
         {
             <PriceChart activeSchedules="activeSchedules"/>
         }
     </div>
 
     <div class="devices">
-        <Devices />
-        <Devices />
-        <Devices />
+        @if (activeSchedules is null)
+        {
+            <p>Loading...</p>
+        }
+        else {
+            @foreach (PlanDto activeSchedule in activeSchedules)
+            {
+                <Schedules activeSchedule="activeSchedule" />
+            }
+        }
     </div>    
 </div>
 
@@ -70,22 +73,49 @@
         height: calc(100vh - 120px);
         padding: 0 3vw;
         box-sizing: border-box;
-        
+
         display: flex;
         flex-direction: column;
-        justify-content: space-evenly;
+        justify-content: space-between;
     }
 
     .statistics {
+        flex: 0 0 15%;
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 3vw;
     }
 
+    .priceoverview {
+        flex: 0 0 60%;
+        min-height: 0;
+    }
+
     .devices {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        display: flex;
         gap: 3vw;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 8px;
+    }
+
+    .devices {
+        flex: 0 0 20%;
+        display: flex;
+        gap: 3vw;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 8px;
+        min-height: 0;
+        scrollbar-width: thin;   
+        scrollbar-color: #cfcbc3 transparent;
+        --scrollbar-w: 6px;
+        --scrollbar-gap: 6px;
+        
+    }
+
+    .devices > * {
+        flex: 0 0 calc((100% - 6vw) / 3);
     }
 
     .header {

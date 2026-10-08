@@ -13,11 +13,12 @@ public class PlanRepository : IPlanRepository
         _db = db;
     }
 
-    public async Task<List<PlanDto>> GetPlansAsync()
+    public async Task<List<PlanDto>> GetPlansAsync(DateTime date)
     {
         return await _db.Schedules
             .AsNoTracking()
             .OrderBy(s => s.StartTime)
+            .Where(s => s.EndTime >= date)
             .Join(_db.Devices,
                 s => s.DeviceId,
                 d => d.Id,

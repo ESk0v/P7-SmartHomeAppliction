@@ -22,6 +22,5 @@ public class ElectricityPriceService : IElectricityPriceService
             .Select(g => new HourPriceDto(g.Key, g.Sum(r => r.Price) / g.Count()))
             .OrderBy(r => r.Hour)
             .ToList();
-        
     }
 }

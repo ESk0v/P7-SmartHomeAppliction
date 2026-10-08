@@ -83,8 +83,12 @@
         var origin = first.Date.AddHours(first.Hour);
         var totalHours = prices.Count;
 
-        var left = (schedule.startTime - origin).TotalHours / totalHours * 100;
-        var width = (schedule.endTime - schedule.startTime).TotalHours / totalHours * 100;
+        // the visible part starts at "now" if the schedule has already started
+        var now = DateTime.Now;
+        var visibleStart = schedule.startTime > now ? schedule.startTime : now;
+
+        var left = (visibleStart - origin).TotalHours / totalHours * 100;
+        var width = (schedule.endTime - visibleStart).TotalHours / totalHours * 100;
 
         left = Math.Clamp(left, 0, 100);
         width = Math.Clamp(width, 0, 100 - left);
@@ -123,10 +127,15 @@
     .chart-card {
         --name-col: 120px;
         --time-col: 80px;
-        --col-gap: 16px;
+        --col-gap: 0px;
 
-        height: 45vh;
+        --scrollbar-w: 6px;
+        --scrollbar-gap: 6px;
+
+        height: 100%;
+        width: 100%;
         box-sizing: border-box;
+
         background-color: #fff;
         border: 1px solid #e5e2dc;
         border-radius: 12px;
@@ -169,10 +178,10 @@
     }
 
     .chart-uppersection {
-        flex: 4 1 0;
+        flex: 3.5 1 0;
         min-height: 0;
-        width: 100%;               /* same width as the divider */
-        margin: 0;                 /* removes the name/time column indent */
+        width: 100%;            
+        margin: 0;            
         display: flex;
         align-items: stretch;
         justify-content: space-between;
@@ -193,11 +202,23 @@
         min-height: 0;
         overflow-y: auto;
         overflow-x: hidden;
-        scrollbar-width: none;
+        margin-right: calc(-1 * (var(--scrollbar-w) + var(--scrollbar-gap)));
+        padding-right: var(--scrollbar-gap);
+        scrollbar-width: thin;   
+        scrollbar-color: #cfcbc3 transparent;
     }
 
-    .chart-lowersection::-webkit-scrollbar {
-        display: none;
+    .chart-lowersection::-webkit-scrollbar {    
+        width: var(--scrollbar-w);
+    }
+
+    .chart-lowersection::-webkit-scrollbar-thumb {
+        background-color: #cfcbc3;
+        border-radius: 3px;
+    }
+
+    .chart-lowersection::-webkit-scrollbar-track {
+        background: transparent;
     }
 
     .plan-row {
