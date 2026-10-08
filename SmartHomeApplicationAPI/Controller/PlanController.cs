@@ -18,6 +18,6 @@ public class PlanController : ControllerBase
     [HttpGet("plan")]
     public async Task<ActionResult<List<PlanDto>>> getPlans()
     {
-        return await _service.GetPlans;
+        return await _service.GetPlansAsync();
     }
 }
