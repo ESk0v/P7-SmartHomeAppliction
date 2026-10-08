@@ -3,6 +3,9 @@
 
 @using global::Shared.Dashboard
 @using System.Globalization
+@using Utilities.Models
+
+@inject HttpClient Http
 
 <PageTitle>Dashboard</PageTitle>
 
@@ -33,7 +36,14 @@
     </div>
 
     <div class="priceoverview">
-        <PriceChart />
+        @if (activeSchedules is null)
+        {
+            <p>Loading...</p>
+        }
+        else
+        {
+            <PriceChart activeSchedules="activeSchedules"/>
+        }
     </div>
 
     <div class="devices">
@@ -46,11 +56,18 @@
 @code {
     private string date = DateTime.Today.ToString("ddd dd MMM yyyy", CultureInfo.InvariantCulture);
     private string area = "Nordpool DK1";
+
+    private List<PlanDto>? activeSchedules;
+
+    protected override async Task OnInitializedAsync()
+    {
+        activeSchedules = await Http.GetFromJsonAsync<List<PlanDto>>("api/plan-controller/get-plan");
+    }
 }
 
 <style>
     .dashboard {
-        height: calc(100vh - 120px); /* adjust 120px to your header/topbar height */
+        height: calc(100vh - 120px);
         padding: 0 3vw;
         box-sizing: border-box;
         

@@ -8,18 +8,24 @@
 <div class="chart-card">
     <div class="chart-content">
         <div class="chart-header">
-            <h6>Price forecast and schedule</h6>
-            <h6>More information here</h6>
+            <span class="chart-title">Price forecast and schedule</span>
+            <div class="legend">
+                @foreach (var activeSchedule in activeSchedules)
+                {
+                    <span class="schedulename-overview">
+                        <span class="legend-dot" style="background-color:@activeSchedule.colorCode"></span>
+                        @activeSchedule.deviceName
+                    </span>
+                }
+            </div>
         </div>
-        
+
         <div class="chart-uppersection">
             @foreach (var p in prices)
             {
                 <div class="price-column" title="@p.Hour.Hour:00 - @p.Price.ToString("0.00", CultureInfo.CurrentCulture)">
                     <div class="price-bar-area">
-                        <div class="price-bar"
-                            style="height:@((p.Price / maxPrice * 100).ToString("0.##", CultureInfo.InvariantCulture))%">
-                        </div>
+                        <div class="price-bar" style="@BarStyle(p)"></div>
                     </div>
 
                     <span class="price-label">@p.Hour.Hour</span>
@@ -30,11 +36,23 @@
         <div class="chart-card-divider"></div>
 
         <div class="chart-lowersection">
+            @foreach (var activeSchedule in activeSchedules)
+            {
+                <div class="plan-row">
+                    <span class="plan-name">@activeSchedule.deviceName</span>
+                    <div class="plan-track">
+                        <div class="plan-fill" style="@FillStyle(activeSchedule)"></div>
+                    </div>
+                    <span class="plan-time">@activeSchedule.startTime.ToString("HH:mm") - @activeSchedule.endTime.ToString("HH:mm")</span>
+                </div>
+            }
         </div>
-    </div>    
+    </div>
 </div>
 
 @code {
+    [Parameter] public List<PlanDto> activeSchedules { get; set; } = new();
+
     private List<HourPriceDto> prices = new();
     private decimal maxPrice;
     private string? error;
@@ -53,75 +71,203 @@
             Logger.LogError(ex, "Failed to load electricity prices");
         }
     }
+
+    private string FillStyle(PlanDto schedule)
+    {
+        if (prices is null || prices.Count == 0)
+        {
+            return "display:none";
+        }
+
+        var first = prices.Min(p => p.Hour);
+        var origin = first.Date.AddHours(first.Hour);
+        var totalHours = prices.Count;
+
+        var left = (schedule.startTime - origin).TotalHours / totalHours * 100;
+        var width = (schedule.endTime - schedule.startTime).TotalHours / totalHours * 100;
+
+        left = Math.Clamp(left, 0, 100);
+        width = Math.Clamp(width, 0, 100 - left);
+
+        return string.Create(CultureInfo.InvariantCulture,
+            $"left:{left:0.##}%;width:{width:0.##}%;background-color:{schedule.colorCode}");
+    }
+
+    private string BarStyle(HourPriceDto p)
+    {
+        var height = maxPrice > 0 ? (double)(p.Price / maxPrice * 100) : 0;
+        var style = string.Create(CultureInfo.InvariantCulture, $"height:{height:0.##}%");
+
+        var color = ScheduleColorFor(p.Hour);
+        if (!string.IsNullOrWhiteSpace(color))
+        {
+            style += $";background-color:{color}";
+        }
+
+        return style;
+    }
+
+    private string? ScheduleColorFor(DateTime hour)
+    {
+        var hourStart = hour.Date.AddHours(hour.Hour);
+        var hourEnd = hourStart.AddHours(1);
+
+        // a schedule covers the hour if the two time ranges overlap
+        return activeSchedules
+            .FirstOrDefault(s => s.startTime < hourEnd && s.endTime > hourStart)
+            ?.colorCode;
+    }
 }
 
 <style>
-    .chart-card{
+    .chart-card {
+        --name-col: 120px;
+        --time-col: 80px;
+        --col-gap: 16px;
+
+        height: 45vh;
+        box-sizing: border-box;
         background-color: #fff;
         border: 1px solid #e5e2dc;
         border-radius: 12px;
-        padding: 20px; 
+        padding: 20px;
     }
 
-    .chart-card-divider {
-        width: 100%;
-        border: 1px solid;
-        border-radius: 12px;
-        border-color: #e5e2dc;
-        margin: 0 auto;
+    .chart-content {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
     }
 
+    .chart-header {
+        flex: 0 0 12%;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+    }
 
+    .legend {
+        display: flex;
+        align-items: center;
+        gap: 1.5vw;
+    }
 
+    .schedulename-overview {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3vw;
+        font-size: 12px;
+        white-space: nowrap;
+    }
 
-
-
+    .legend-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
 
     .chart-uppersection {
-    width: 100%;
-    height: 25vh;
+        flex: 4 1 0;
+        min-height: 0;
+        width: 100%;               /* same width as the divider */
+        margin: 0;                 /* removes the name/time column indent */
+        display: flex;
+        align-items: stretch;
+        justify-content: space-between;
+        gap: 10px;
+    }
 
-    margin: 0 auto;
 
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 8px;
-}
+    .chart-card-divider {
+        flex: 0 0 auto;
+        width: 100%;
+        border: 1px solid #e5e2dc;
+        border-radius: 12px;
+        margin: 1.5vh 0;
+    }
 
-.price-column {
-    height: 100%;
+    .chart-lowersection {
+        flex: 1.5 1 0;
+        min-height: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+        scrollbar-width: none;
+    }
 
-    flex: 1;
+    .chart-lowersection::-webkit-scrollbar {
+        display: none;
+    }
 
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-end;
-}
+    .plan-row {
+        display: flex;
+        align-items: center;
+        gap: var(--col-gap);
+        padding: 0.5vh 0;
+    }
 
-.price-bar-area {
-    width: 100%;
-    height: 100%;
+    .plan-name {
+        flex: 0 0 var(--name-col);
+        font-size: 12px;
+    }
 
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-}
+    .plan-track {
+        position: relative;
+        overflow: hidden;
+        flex: 1 1 0;
+        min-width: 0;
+        height: 10px;
+        background-color: #e5e2dc;
+        border-radius: 6px;
+    }
 
-.price-bar {
-    width: 70%;
+    .plan-fill {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        min-width: 4px;
+        border-radius: 6px;
+    }
 
-    background-color: #e5e2dc;
+    .plan-time {
+        flex: 0 0 var(--time-col);
+        text-align: right;
+        font-size: 12px;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+    }
 
-    border-radius: 6px 6px 0 0;
+    .price-column {
+        flex: 1;
+        min-width: 0;
+        height: auto;      
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+    }
 
-    min-height: 2px;
-}
+    .price-bar-area {
+        flex: 1 1 0;        
+        min-height: 0;
+        width: 100%;
+        height: auto;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+    }
 
-.price-label {
-    margin-top: 8px;
+    .price-bar {
+        width: 100%;         
+        background-color: #e5e2dc;
+        border-radius: 6px 6px 0 0;
+        min-height: 2px;
+    }
 
-    font-size: 12px;
-}
+    .price-label {
+        flex: 0 0 auto;
+        text-align: center;
+        margin-top: 8px;
+        font-size: 12px;
+    }
 </style>
