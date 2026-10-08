@@ -1,12 +1,27 @@
 ﻿@page "/"
 @rendermode InteractiveServer
 
-@using Shared.Dashboard
+@using global::Shared.Dashboard
+@using System.Globalization
 
 <PageTitle>Dashboard</PageTitle>
 
 <SectionContent SectionName="TopBarActions">
-    <span>Dashboard</span>
+    <div class="header">
+        <div class="heading">
+            <h1>Home energy plan</h1>
+            <p>@date <span aria-hidden="true">•</span> @area</p>
+        </div>
+
+        <div class="header-actions">
+            <SecondaryButton>
+                Re-optimize
+            </SecondaryButton>
+            <PrimaryButton>
+                New demand
+            </PrimaryButton>
+        </div>
+    </div>
 </SectionContent>
 
 <div class="dashboard">
@@ -29,29 +44,79 @@
 </div>
 
 @code {
-
+    private string date = DateTime.Today.ToString("ddd dd MMM yyyy", CultureInfo.InvariantCulture);
+    private string area = "Nordpool DK1";
 }
 
 <style>
-.dashboard {
-    height: calc(100vh - 120px); /* adjust 120px to your header/topbar height */
-    padding: 0 3vw;
-    box-sizing: border-box;
-    
-    display: flex;
-    flex-direction: column;
-    justify-content: space-evenly;
-}
+    .dashboard {
+        height: calc(100vh - 120px); /* adjust 120px to your header/topbar height */
+        padding: 0 3vw;
+        box-sizing: border-box;
+        
+        display: flex;
+        flex-direction: column;
+        justify-content: space-evenly;
+    }
 
-.statistics {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 3vw;
-}
+    .statistics {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 3vw;
+    }
 
-.devices {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 3vw;
-}
+    .devices {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 3vw;
+    }
+
+    .header {
+        align-items: center;
+        display: flex;
+        gap: 1rem;
+        justify-content: space-between;
+        width: 100%;
+    }
+
+    .heading h1 {
+        color: #222;
+        font-size: 1.1rem;
+        font-weight: 600;
+        line-height: 0.6;
+        margin: 0;
+    }
+
+    .heading p {
+        color: #999;
+        font-size: 0.70rem;
+        line-height: 0.75;
+        margin: 0;
+    }
+
+    .heading {
+        display: flex;
+        flex-direction: column;
+        gap: 0.7rem;
+    }
+
+    .header-actions {
+        align-items: center;
+        display: flex;
+        flex-shrink: 0;
+        gap: 0.9rem;
+    }
+
+    @@media (max-width: 640.98px) {
+        .header {
+            align-items: flex-start;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .header-actions {
+            width: 100%;
+        }
+
+    }
 </style>

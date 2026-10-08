@@ -1,15 +1,320 @@
 @page "/optimized"
+@rendermode InteractiveServer
+@inject OptimizedPlanState PlanState
 
-<PageTitle>Optimized</PageTitle>
+<PageTitle>Optimized plans</PageTitle>
 
 <SectionContent SectionName="TopBarActions">
-    <span>Optimized</span>
+    <div class="header">
+        <div class="heading">
+            <div class="plan-title">
+                <label id="plan-select-label" class="visually-hidden">Optimized plan</label>
+                <div class="plan-picker">
+                    <button type="button"
+                        class="plan-picker-trigger"
+                        @onclick="TogglePlanPicker">
+                    <span class="plan-picker-icon">@selectedPlan.Icon</span>
+                    <span>@selectedPlan.Name</span>
+                    <span class="plan-picker-chevron @(isPlanPickerOpen ? "plan-picker-chevron-open" : "")"></span>
+                    </button>
+
+                    @if (isPlanPickerOpen)
+                    {
+                    <div class="plan-picker-menu">
+                        @foreach (Plan plan in plans)
+                        {
+                            <button type="button"
+                                    class="plan-picker-option @(plan.Id == selectedPlanId ? "plan-picker-option-selected" : "")"
+                                    @onclick="() => SelectPlan(plan.Id)">
+                                <span class="plan-picker-icon">@plan.Icon</span>
+                                <span>@plan.Name</span>
+                                @if (plan.Id == selectedPlanId)
+                                {
+                                    <span class="plan-picker-check">✓</span>
+                                }
+                                </button>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+            <p style="padding: 0 0.85rem">@selectedPlan.Device • @selectedPlan.Target% target • Window: @selectedPlan.Window</p>
+        </div>
+
+        <div class="header-actions">
+            <button type="button" class="optimized-action optimized-action-secondary">
+                Adjust
+            </button>
+            <button type="button" class="optimized-action optimized-action-primary">
+                Confirm
+            </button>
+        </div>
+    </div>
 </SectionContent>
 
-<h1>This is for the optimized plan</h1>
-
-
 @code {
-    
+    private readonly List<Plan> plans =
+    [
+        new("mixed-home", "Whole-home savings plan", "Home appliances", 75, "21:00–06:00", Icons.Cpu),
+        new("evening-ev", "EV evening plan", "EV Charger", 80, "22:00–07:00", Icons.Car),
+        new("laundry-night", "Laundry night plan", "Washing machine", 65, "23:00–06:00", Icons.WashingMachine)
+    ];
+
+    private bool isPlanPickerOpen;
+
+    private string selectedPlanId
+    {
+        get => PlanState.SelectedPlanId;
+        set => PlanState.SelectedPlanId = value;
+    }
+
+    private Plan selectedPlan => plans.First(plan => plan.Id == selectedPlanId);
+
+    private void TogglePlanPicker()
+    {
+        isPlanPickerOpen = !isPlanPickerOpen;
+    }
+
+    private void SelectPlan(string planId)
+    {
+        selectedPlanId = planId;
+        isPlanPickerOpen = false;
+    }
+
+    private sealed record Plan(
+        string Id,
+        string Name,
+        string Device,
+        int Target,
+        string Window,
+        RenderFragment Icon);
 }
 
+
+<style>
+    .header {
+        align-items: center;
+        display: flex;
+        gap: 1rem;
+        justify-content: space-between;
+        width: 100%;
+    }
+
+    .heading h1 {
+        color: #222;
+        font-size: 1.1rem;
+        font-weight: 600;
+        line-height: 0.6;
+        margin: 0;
+    }
+
+    .heading p {
+        color: #999;
+        font-size: 0.70rem;
+        line-height: 0.75;
+        margin: 0;
+    }
+
+    .heading {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        margin-left: -1rem;
+        margin-top: -0.5rem;
+    }
+
+    .plan-title {
+        align-items: center;
+        display: flex;
+        gap: 0.75rem;
+    }
+
+    .visually-hidden {
+        height: 1px;
+        margin: -1px;
+        overflow: hidden;
+        position: absolute;
+        width: 1px;
+    }
+
+    .plan-picker {
+        position: relative;
+    }
+
+    .plan-picker-trigger {
+        align-items: center;
+        appearance: none;
+        background: #fff;
+        border: 0;
+        border-radius: 0.75rem;
+        color: #222;
+        cursor: pointer;
+        display: flex;
+        font: inherit;
+        font-size: 1.1rem;
+        font-weight: 600;
+        gap: 0.75rem;
+        min-width: 20rem;
+        padding: 0.1rem 0.85rem;
+        text-align: left;
+        transition: background-color 150ms ease, box-shadow 150ms ease;
+    }
+
+    .plan-picker-trigger:hover,
+    .plan-picker-trigger:focus-visible {
+        background: #f8f7ff;
+        outline: none;
+    }
+
+    .plan-picker-icon {
+        color: #7569e8;
+        display: inline-flex;
+        flex-shrink: 0;
+        height: 1.4rem;
+        width: 1.4rem;
+    }
+
+    .plan-picker-icon svg {
+        height: 100%;
+        width: 100%;
+    }
+
+    .plan-picker-chevron {
+        border-bottom: 2px solid #999;
+        border-right: 2px solid #999;
+        height: 0.6rem;
+        margin-left: auto;
+        transform: rotate(45deg) translateY(-0.15rem);
+        transition: border-color 150ms ease, transform 150ms ease;
+        width: 0.6rem;
+    }
+
+    .plan-picker-chevron-open {
+        border-color: #7569e8;
+        transform: rotate(225deg) translateY(-0.05rem);
+    }
+
+    .plan-picker-menu {
+        background: #fff;
+        border: 1px solid #e2ded9;
+        border-radius: 0.75rem;
+        box-shadow: 0 0.5rem 1.2rem rgba(34, 34, 34, 0.14);
+        left: 0;
+        overflow: hidden;
+        padding: 0.25rem 0;
+        position: absolute;
+        right: 0;
+        top: calc(100% + 0.4rem);
+        z-index: 10;
+    }
+
+    .plan-picker-option {
+        align-items: center;
+        background: #fff;
+        border: 0;
+        color: #222;
+        cursor: pointer;
+        display: flex;
+        font: inherit;
+        font-size: 1rem;
+        gap: 0.75rem;
+        padding: 0.85rem 1rem;
+        text-align: left;
+        width: 100%;
+    }
+
+    .plan-picker-option:hover,
+    .plan-picker-option:focus-visible {
+        background: #f0efff;
+        outline: none;
+    }
+
+    .plan-picker-option-selected {
+        background: #ebeaff;
+    }
+
+    .plan-picker-check {
+        color: #7569e8;
+        font-size: 1.2rem;
+        font-weight: 700;
+        margin-left: auto;
+    }
+
+    .optimized-action {
+        align-items: center;
+        border-radius: 0.7rem;
+        cursor: pointer;
+        display: inline-flex;
+        font: inherit;
+        font-size: 0.85rem;
+        justify-content: center;
+        min-height: 2.3rem;
+        min-width: 7rem;
+        padding: 0.5rem 1rem;
+        transition: background-color 150ms ease, border-color 150ms ease;
+    }
+
+    .optimized-action:focus-visible {
+        outline: 1.5px solid #a9a0ff;
+        outline-offset: 1px;
+    }
+
+    .optimized-action-secondary {
+        background: #fff;
+        border: 1px solid #e2ded9;
+        color: #222;
+    }
+
+    .optimized-action-secondary:hover {
+        background: #e8e5e1;
+        border-color: #d2ccc5;
+    }
+
+    .optimized-action-primary {
+        background: #1b1a19;
+        border: 1px solid #1b1a19;
+        color: #fff;
+    }
+
+    .optimized-action-primary:hover {
+        background: #373432;
+        border-color: #373432;
+    }
+
+    .header-actions {
+        align-items: center;
+        display: flex;
+        flex-shrink: 0;
+        gap: 0.7rem;
+    }
+
+    @@media (max-width: 640.98px) {
+        .header {
+            align-items: flex-start;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .header-actions {
+            width: 100%;
+        }
+
+        .plan-title {
+            flex-wrap: wrap;
+            gap: 0.4rem;
+        }
+
+        .plan-picker,
+        .plan-picker-trigger {
+            width: 100%;
+        }
+
+        .header-actions {
+            justify-content: stretch;
+        }
+
+        .optimized-action {
+            flex: 1;
+        }
+    }
+</style>
