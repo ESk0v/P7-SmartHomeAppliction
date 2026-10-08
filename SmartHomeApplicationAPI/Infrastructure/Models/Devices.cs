@@ -26,12 +26,7 @@ namespace SmartHomeApplicationAPI.Infrastructure.Models
 		[Column("icon")]
 		public string Icon { get; set; } = null!;
 
-		[Required]
-		[Column("preset_id")]
-		public int PresetId { get; set; }
-
-		[ForeignKey(nameof(PresetId))]
-		public Presets Preset { get; set; } = null!;
+		public ICollection<Presets> Presets { get; set; } = new List<Presets>();
 
 		[Required]
 		[Column("consumption_in_kwh")]

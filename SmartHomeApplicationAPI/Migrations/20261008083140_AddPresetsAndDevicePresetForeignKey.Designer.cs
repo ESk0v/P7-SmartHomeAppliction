@@ -12,7 +12,7 @@ using SmartHomeApplicationAPI.Infrastructure;
 namespace SmartHomeApplicationAPI.Migrations
 {
     [DbContext(typeof(SmartHomeDbContext))]
-    [Migration("20261008083140_AddPresetsAndDevicePresetForeignKey")]
+    [Migration("20261008091938_AddPresetsAndDevicePresetForeignKey")]
     partial class AddPresetsAndDevicePresetForeignKey
     {
         /// <inheritdoc />
@@ -96,13 +96,7 @@ namespace SmartHomeApplicationAPI.Migrations
                         .HasColumnType("character varying(50)")
                         .HasColumnName("name");
 
-                    b.Property<int>("PresetId")
-                        .HasColumnType("integer")
-                        .HasColumnName("preset_id");
-
                     b.HasKey("Id");
-
-                    b.HasIndex("PresetId");
 
                     b.ToTable("devices");
                 });
@@ -120,6 +114,10 @@ namespace SmartHomeApplicationAPI.Migrations
                         .HasColumnType("numeric")
                         .HasColumnName("consumption_in_kwh");
 
+                    b.Property<int>("DeviceId")
+                        .HasColumnType("integer")
+                        .HasColumnName("device_id");
+
                     b.Property<int>("DurationInMinutes")
                         .HasColumnType("integer")
                         .HasColumnName("duration_in_minutes");
@@ -131,6 +129,8 @@ namespace SmartHomeApplicationAPI.Migrations
                         .HasColumnName("name");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("DeviceId");
 
                     b.ToTable("presets");
                 });
@@ -216,15 +216,15 @@ namespace SmartHomeApplicationAPI.Migrations
                     b.ToTable("users");
                 });
 
-            modelBuilder.Entity("SmartHomeApplicationAPI.Infrastructure.Models.Devices", b =>
+            modelBuilder.Entity("SmartHomeApplicationAPI.Infrastructure.Models.Presets", b =>
                 {
-                    b.HasOne("SmartHomeApplicationAPI.Infrastructure.Models.Presets", "Preset")
-                        .WithMany("Devices")
-                        .HasForeignKey("PresetId")
+                    b.HasOne("SmartHomeApplicationAPI.Infrastructure.Models.Devices", "Device")
+                        .WithMany("Presets")
+                        .HasForeignKey("DeviceId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Preset");
+                    b.Navigation("Device");
                 });
 
             modelBuilder.Entity("SmartHomeApplicationAPI.Infrastructure.Models.Schedules", b =>
@@ -252,9 +252,9 @@ namespace SmartHomeApplicationAPI.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("SmartHomeApplicationAPI.Infrastructure.Models.Presets", b =>
+            modelBuilder.Entity("SmartHomeApplicationAPI.Infrastructure.Models.Devices", b =>
                 {
-                    b.Navigation("Devices");
+                    b.Navigation("Presets");
                 });
 #pragma warning restore 612, 618
         }
