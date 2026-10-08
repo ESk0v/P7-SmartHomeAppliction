@@ -24,6 +24,11 @@ namespace SmartHomeApplicationAPI.Infrastructure.Models
 		[Column("duration_in_minutes")]
 		public int DurationInMinutes { get; set; }
 
-		public ICollection<Devices> Devices { get; set; } = new List<Devices>();
+		[Required]
+		[Column("device_id")]
+		public int DeviceId { get; set; }
+
+		[ForeignKey(nameof(DeviceId))]
+		public Devices Device { get; set; } = null!;
 	}
 }
