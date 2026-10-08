@@ -28,7 +28,7 @@ namespace SmartHomeApplicationAPI.Infrastructure.Models
         public int DeviceId { get; set; }
 
 		[ForeignKey(nameof(DeviceId))]
-        public Device Device { get; set; } = null!;
+        public Devices Device { get; set; } = null!;
 
 		[Required]
         [Column("start_time")]

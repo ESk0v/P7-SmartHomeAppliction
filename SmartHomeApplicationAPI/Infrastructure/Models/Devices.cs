@@ -9,7 +9,6 @@ namespace SmartHomeApplicationAPI.Infrastructure.Models
 	{
 		[Key]
 		[Column("id")]
-
 		public int Id { get; set; }
 
 		[Required]
@@ -32,7 +31,7 @@ namespace SmartHomeApplicationAPI.Infrastructure.Models
 		public int PresetId { get; set; }
 
 		[ForeignKey(nameof(PresetId))]
-		public Preset Preset { get; set; } = null!;
+		public Presets Preset { get; set; } = null!;
 
 		[Required]
 		[Column("consumption_in_kwh")]
