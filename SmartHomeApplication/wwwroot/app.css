@@ -1,5 +1,5 @@
 html, body {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
 }
 
 a, .btn-link {
@@ -57,51 +57,4 @@ h1:focus {
 
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
-}
-
-.chart-card {
-    width: 80%;
-    margin: 1rem auto;
-}
-
-.chart {
-    display: flex;
-    align-items: stretch;
-    gap: 4px;
-    height: 30vh;
-    min-height: 220px;
-}
-
-.bar-col {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-}
-
-.bar-area {
-    flex: 1;
-    display: flex;
-    align-items: flex-end;
-}
-
-.bar {
-    width: 100%;
-    background: #3b82f6;
-    border-radius: 3px 3px 0 0;
-    transition: height 0.3s ease;
-}
-
-.bar-col:hover .bar {
-    background: #1d4ed8;
-}
-
-.bar-label {
-    text-align: center;
-    font-size: 0.75rem;
-    margin-top: 4px;
-}
-
-@media (max-width: 600px) {
-    .bar-label:nth-child(even) { visibility: hidden; } /* avoid cramped labels on phones */
 }

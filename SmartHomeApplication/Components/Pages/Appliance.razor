@@ -1,11 +1,77 @@
 @page "/appliance"
 
-<PageTitle>Appliance</PageTitle>
+<PageTitle>Appliances</PageTitle>
+
+<SectionContent SectionName="TopBarActions">
+    <div class="header">
+        <div class="heading">
+            <h1>Appliance registry</h1>
+            <p>@amount devices</p>
+        </div>
+
+        <div class="header-actions">
+            <PrimaryButton>
+                New device
+            </PrimaryButton>
+        </div>
+    </div>
+</SectionContent>
 
 <h1>This is for add custom appliances</h1>
 
 
 @code {
-    
+    // Current amount of devices in the registry
+    private int amount = 5;
 }
 
+<style>
+    .header {
+        align-items: center;
+        display: flex;
+        gap: 1rem;
+        justify-content: space-between;
+        width: 100%;
+    }
+
+    .heading h1 {
+        color: #222;
+        font-size: 1.1rem;
+        font-weight: 600;
+        line-height: 0.6;
+        margin: 0;
+    }
+
+    .heading p {
+        color: #999;
+        font-size: 0.70rem;
+        line-height: 0.75;
+        margin: 0;
+    }
+
+    .heading {
+        display: flex;
+        flex-direction: column;
+        gap: 0.7rem;
+    }
+
+    .header-actions {
+        align-items: center;
+        display: flex;
+        flex-shrink: 0;
+        gap: 0.5rem;
+    }
+
+    @@media (max-width: 640.98px) {
+        .header {
+            align-items: flex-start;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .header-actions {
+            width: 100%;
+        }
+
+    }
+</style>
