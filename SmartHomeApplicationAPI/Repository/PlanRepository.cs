@@ -17,10 +17,11 @@ public class PlanRepository : IPlanRepository
     {
         return await _db.Schedules
             .AsNoTracking()
+            .OrderBy(s => s.StartTime)
             .Join(_db.Devices,
                 s => s.DeviceId,
                 d => d.Id,
-                (s, d) => new PlanDto(d.Name, s.StartTime, s.EndTime))
+                (s, d) => new PlanDto(s.Color, d.Name, s.StartTime, s.EndTime))
             .ToListAsync();
     }
 }
