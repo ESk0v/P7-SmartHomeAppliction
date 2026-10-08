@@ -2,7 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 using Utilities.Models;
 using SmartHomeApplicationAPI.Service;
 
-namespace Controller.Dashboard;
+namespace Controller;
+
 [ApiController]
 [Route("api/statistics-controller")]
 public class StatisticsController : ControllerBase
