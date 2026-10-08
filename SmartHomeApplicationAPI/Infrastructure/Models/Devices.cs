@@ -4,8 +4,8 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SmartHomeApplicationAPI.Infrastructure.Models
 {
-	[Table("device")]
-	public class Device
+	[Table("devices")]
+	public class Devices
 	{
 		[Key]
 		[Column("id")]
