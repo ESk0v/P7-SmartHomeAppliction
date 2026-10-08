@@ -15,7 +15,7 @@ public class PlanController : ControllerBase
         _service = service;
     }
 
-    [HttpGet("plan")]
+    [HttpGet("get-plan")]
     public async Task<ActionResult<List<PlanDto>>> getPlans()
     {
         return await _service.GetPlansAsync();
