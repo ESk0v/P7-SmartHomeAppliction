@@ -53,5 +53,10 @@ namespace SmartHomeApplicationAPI.Infrastructure.Models
 		[Required]
 		[Column("estimated_co2_emissions_in_percent")]
 		public decimal EstimatedCo2Emissions { get; set; }
+
+		[Required]
+		[MaxLength(7)]
+		[Column("color")]
+		public string Color { get; set; } = "#ea580b";
     }
 }
