@@ -58,7 +58,7 @@ namespace SmartHomeApplicationAPI.Migrations
                     b.ToTable("day_ahead_price", (string)null);
                 });
 
-            modelBuilder.Entity("SmartHomeApplicationAPI.Infrastructure.Models.Device", b =>
+            modelBuilder.Entity("SmartHomeApplicationAPI.Infrastructure.Models.Devices", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -81,21 +81,55 @@ namespace SmartHomeApplicationAPI.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("duration_in_minutes");
 
+                    b.Property<string>("Icon")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("icon");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)")
                         .HasColumnName("name");
 
-                    b.Property<string>("preset")
+                    b.HasKey("Id");
+
+                    b.ToTable("devices");
+                });
+
+            modelBuilder.Entity("SmartHomeApplicationAPI.Infrastructure.Models.Presets", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("ConsumptionInKwh")
+                        .HasColumnType("numeric")
+                        .HasColumnName("consumption_in_kwh");
+
+                    b.Property<int>("DeviceId")
+                        .HasColumnType("integer")
+                        .HasColumnName("device_id");
+
+                    b.Property<int>("DurationInMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("duration_in_minutes");
+
+                    b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)")
-                        .HasColumnName("preset");
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("name");
 
                     b.HasKey("Id");
 
-                    b.ToTable("device");
+                    b.HasIndex("DeviceId");
+
+                    b.ToTable("presets");
                 });
 
             modelBuilder.Entity("SmartHomeApplicationAPI.Infrastructure.Models.Schedules", b =>
@@ -106,6 +140,12 @@ namespace SmartHomeApplicationAPI.Migrations
                         .HasColumnName("id");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Color")
+                        .IsRequired()
+                        .HasMaxLength(7)
+                        .HasColumnType("character varying(7)")
+                        .HasColumnName("color");
 
                     b.Property<int>("DeviceId")
                         .HasColumnType("integer")
@@ -179,9 +219,20 @@ namespace SmartHomeApplicationAPI.Migrations
                     b.ToTable("users");
                 });
 
+            modelBuilder.Entity("SmartHomeApplicationAPI.Infrastructure.Models.Presets", b =>
+                {
+                    b.HasOne("SmartHomeApplicationAPI.Infrastructure.Models.Devices", "Device")
+                        .WithMany("Presets")
+                        .HasForeignKey("DeviceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Device");
+                });
+
             modelBuilder.Entity("SmartHomeApplicationAPI.Infrastructure.Models.Schedules", b =>
                 {
-                    b.HasOne("SmartHomeApplicationAPI.Infrastructure.Models.Device", "Device")
+                    b.HasOne("SmartHomeApplicationAPI.Infrastructure.Models.Devices", "Device")
                         .WithMany()
                         .HasForeignKey("DeviceId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -202,6 +253,11 @@ namespace SmartHomeApplicationAPI.Migrations
                     b.Navigation("NextSchedule");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("SmartHomeApplicationAPI.Infrastructure.Models.Devices", b =>
+                {
+                    b.Navigation("Presets");
                 });
 #pragma warning restore 612, 618
         }

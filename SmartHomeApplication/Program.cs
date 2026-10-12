@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using SmartHomeApplication.Components;
+using SmartHomeApplication.State;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,6 +11,7 @@ builder.Services.AddScoped(sp => new HttpClient
 {
     BaseAddress = new Uri(apiBaseUrl)
 });
+builder.Services.AddScoped<OptimizedPlanState>();
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
