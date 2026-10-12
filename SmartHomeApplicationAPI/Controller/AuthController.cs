@@ -9,14 +9,15 @@ namespace SmartHomeApplicationAPI.Controller
     [Route("api/auth")]
     public class AuthController : ControllerBase
     {
-        // private readonly ILogger<AuthController> _logger; ------> Will be used later
+        private readonly ILogger<AuthController> _logger;
         private readonly UserManager<User> _userManager;
         private readonly SignInManager<User> _signInManager;
 
-        public AuthController(UserManager<User> userManager, SignInManager<User> signInManager)
+        public AuthController(UserManager<User> userManager, SignInManager<User> signInManager, ILogger<AuthController> logger)
         {
             _userManager = userManager;
             _signInManager = signInManager;
+            _logger = logger;
         }
 
         [HttpPost("register")]
@@ -72,6 +73,7 @@ namespace SmartHomeApplicationAPI.Controller
         {
             cancellationToken.ThrowIfCancellationRequested();
 
+            _logger.LogInformation("User will not attempt to log in");
             var user = await _userManager.FindByNameAsync(request.Username);
             if (user is null)
             {

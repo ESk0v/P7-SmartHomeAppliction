@@ -11,10 +11,12 @@ namespace SmartHomeApplication.Controllers
     public class AccountController : Controller
     {
         private readonly HttpClient _apiClient;
+        private readonly ILogger<AccountController> _logger;
 
-        public AccountController(HttpClient apiClient)
+        public AccountController(HttpClient apiClient, ILogger<AccountController> logger)
         {
             _apiClient = apiClient;
+            _logger = logger;
         }
 
         [HttpPost("register")]

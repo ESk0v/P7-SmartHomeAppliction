@@ -53,6 +53,11 @@ builder.Services.AddDbContext<SmartHomeDbContext>(options =>
     options.UseNpgsql(smartHomeConn);
 });
 
+// Logging
+builder.Services.AddLogging();
+builder.Logging.SetMinimumLevel(LogLevel.Information); // This can be changed to LogLevel.Warning or Error if we determine that
+
+
 // For handling users and login (DataProtection to make EF core work now)
 builder.Services.AddDataProtection();
 builder.Services.AddIdentityCore<User>(settings =>
