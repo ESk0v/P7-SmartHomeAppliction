@@ -112,10 +112,20 @@ builder.Services.AddScoped<
     ElectricityPriceService>();
 
 builder.Services.AddScoped<
+    IPlanService,
+    PlanService>();
+
+builder.Services.AddScoped<
     IElectricityPriceRepository,
     ElectricityPriceRepository>();
 
+builder.Services.AddScoped<
+    IPlanRepository,
+    PlanRepository>();
+
 builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
@@ -124,6 +134,9 @@ app.UseCors("AllowBlazor");
 if (app.Environment.IsDevelopment())
 {
     app.UseHangfireDashboard("/hangfire");
+
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
 app.MapControllers();

@@ -3,7 +3,8 @@ using Utilities.Models;
 using SmartHomeApplicationAPI.Service;
 using Microsoft.EntityFrameworkCore.Infrastructure.Internal;
 
-namespace Controller.Dashboard;
+namespace Controller;
+
 [ApiController]
 [Route("api/electricity-price-controller")]
 public class ElectricityPriceController : ControllerBase

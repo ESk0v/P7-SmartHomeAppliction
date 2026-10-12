@@ -12,6 +12,10 @@ public partial class SmartHomeDbContext : IdentityDbContext<User>
     }
 
     public virtual DbSet<DayAheadPrice> DayAheadPrices { get; set; } = null!;
+    public virtual DbSet<Devices> Devices { get; set; } = null!;
+    public virtual DbSet<Presets> Presets { get; set; } = null!;
+    public virtual DbSet<Schedules> Schedules { get; set; } = null!;
+
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
