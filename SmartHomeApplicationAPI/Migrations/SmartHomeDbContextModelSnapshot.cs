@@ -227,7 +227,7 @@ namespace SmartHomeApplicationAPI.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("devices");
+                    b.ToTable("devices", (string)null);
                 });
 
             modelBuilder.Entity("SmartHomeApplicationAPI.Infrastructure.Models.Presets", b =>
@@ -261,7 +261,7 @@ namespace SmartHomeApplicationAPI.Migrations
 
                     b.HasIndex("DeviceId");
 
-                    b.ToTable("presets");
+                    b.ToTable("presets", (string)null);
                 });
 
             modelBuilder.Entity("SmartHomeApplicationAPI.Infrastructure.Models.Schedules", b =>
@@ -316,7 +316,7 @@ namespace SmartHomeApplicationAPI.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("schedules");
+                    b.ToTable("schedules", (string)null);
                 });
 
             modelBuilder.Entity("SmartHomeApplicationAPI.Infrastructure.Models.User", b =>
