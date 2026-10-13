@@ -14,13 +14,13 @@ namespace SmartHomeApplicationAPI.Infrastructure.Models
 
 		public int Id { get; set; }
 
-		// Foreign key to Users.Id
+		// Foreign key to User.Id
 		[Required]
 		[Column("user_id")]
-		public int UserId { get; set; }
+		public string UserId { get; set; } = string.Empty;
 
 		[ForeignKey(nameof(UserId))]
-		public Users User { get; set; } = null!;
+		public User User { get; set; } = null!;
 
         //foreign key to Device.Id
 		[Required]

@@ -1,0 +1,50 @@
+﻿@page "/login"
+@layout EmptyLayout
+@using SmartHomeApplication.Components.Layout
+
+
+<PageTitle>Login</PageTitle>
+
+<div class="row">
+    <div class="col-lg-4 offset-lg-4 pt-4 pb-4 border">
+        <form method="post" action="/account/login" data-enhance="false">
+            <AntiforgeryToken />
+            <div class="mb-3 text-center flex-column">
+                <h3>LOGIN</h3>
+            </div>
+
+            @if (HasError)
+            {
+                <div class="alert alert-danger">
+                    Invalid username or password
+                </div>
+            }
+
+            <div class="mb-3">
+                <label for="username">Username</label>
+                <input id="username" name="username" type="text" class="form-control" autocomplete="username" required />
+            </div>
+            <div class="mb-3">
+                <label for="password">Password</label>
+                <input id="password" name="password" type="password" class="form-control" autocomplete="current-password" required />
+            </div>
+            <div class="mb-3 text-center">
+                <span class="text-danger"></span>
+            </div>
+            <div class="mb-3 d-grid gap-2">
+                <button type="submit" class="btn btn-primary">Login</button>
+            </div>
+        </form>
+
+        <div class="text-center">
+            <a href="/register">Create an account</a>
+        </div>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    private string? Error { get; set; }
+
+    private bool HasError => string.Equals(Error, "invalidLogin", StringComparison.OrdinalIgnoreCase);
+}
