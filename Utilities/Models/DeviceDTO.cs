@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Utilities.Models
 {
-	public class DeviceDTO	
+	public class DevicesDTO	
 	{
 		public int Id { get; set; }
 
@@ -20,7 +20,7 @@ namespace Utilities.Models
 
 		[Required(ErrorMessage = "Consumption is required.")]
 		[Range(0.01, 2000.0)]
-		public decimal? ConsumptionInkWh { get; set; }
+		public decimal? ConsumptionInKwh { get; set; }
 
 		[Required(ErrorMessage = "Duration is required.")]
 		[Range(1, 1440)]

@@ -11,27 +11,48 @@
         </div>
 
         <div class="header-actions">
-            <PrimaryButton>
+            <NavLink class="nav-link" href="addAppliance" Match="NavLinkMatch.All">
+                <PrimaryButton>
                 New device
-            </PrimaryButton>
+                </PrimaryButton>
+            </NavLink>
         </div>
     </div>
 </SectionContent>
 
 <h1>This is for seeing all appliances</h1>
 
-<div class="nav-item px-3">
-    <NavLink class="nav-link" href="addAppliance" Match="NavLinkMatch.All">
-        <span class="bi bi-check-lg-nav-menu" aria-hidden="true"></span> Add Appliance
-    </NavLink>
-</div>
 
 
 @code {
     // Current amount of devices in the registry
-    private int amount = 5;
+    private int amount = 5;    
+    /*
+    @inject HttpClient Http
 
-    
+    private DevicesDTO DeviceDTO { get; set; } = new DevicesDTO();
+
+    private async Task AddDevice()
+    {
+        var resp = await Http.GetAsJsonAsync("api/devices/", DeviceDTO);
+
+        if (resp.IsSuccessStatusCode)
+        {
+            // TODO: handle success, e.g., show a success message or redirect to another page
+            Console.WriteLine("Device added successfully.");
+            return;
+        }
+
+        if (resp.StatusCode == System.Net.HttpStatusCode.BadRequest ||
+            resp.StatusCode == System.Net.HttpStatusCode.UnprocessableEntity)
+        {
+            //TODO: read validation errors from response and display them in the form
+            Console.WriteLine("Validation error occurred while adding device.");
+           
+        }
+  
+    }
+*/
 }
 
 <style>

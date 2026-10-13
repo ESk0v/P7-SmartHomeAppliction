@@ -1,15 +1,21 @@
 ﻿@page "/addAppliance"
-@rendermode InteractiveServer
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
 @using Utilities.Models
 
 <PageTitle>Add Appliance</PageTitle>
 
-<h3>Add New Device</h3>
+<div class="d-flex align-items-center mb-4">
+        <button class="btn btn-link text-dark text-decoration-none p-2 me-3 fs-4" @onclick="GoToAppliance"> @*cooked*@
+            <i class="bi bi-chevron-left"></i>
+        </button>
+        <div>
+            <h2 class="mb-0">Add device</h2>
+        </div>
+</div>
 
 
-
-<div class="row">
-        <div class="col-md-4">
+<div class="card shadow-sm border-0 rounded-4 p-4 bg-white">
             <EditForm Method="post" Model="DeviceDTO" OnValidSubmit="AddDevice" FormName="AddDeviceForm">
                 <DataAnnotationsValidator />   
                 <div class="mb-3">
@@ -19,8 +25,14 @@
                 </div> 
                 <div class="mb-3">
                     <label for="deviceCategory" class="form-label">Device Category</label>
-                    <InputText id="deviceCategory" class="form-control" @bind-Value="DeviceDTO.Category" />
-                    <ValidationMessage For="() => DeviceDTO.Category" class="text-danger" />
+                    <InputSelect id="deviceCategory" class="form-control" @bind-Value="DeviceDTO.Category" >
+                    <option value="">-- Select a Category --</option>
+                    @foreach (var category in categories)
+                    {
+                        <option value="@category">@category</option>
+                    }
+                    </InputSelect>
+                    <ValidationMessage For="() => DeviceDTO.Category" class="text-danger" /> 
                 </div>
                 <div class="mb-3">
                     <label for="devicePreset" class="form-label">Preset</label>
@@ -29,8 +41,8 @@
                 </div>
                 <div class="mb-3">
                     <label for="deviceConsumption" class="form-label">Consumption (kWh)</label>
-                    <InputNumber id="deviceConsumption" class="form-control" @bind-Value="DeviceDTO.ConsumptionInkWh" />
-                    <ValidationMessage For="() => DeviceDTO.ConsumptionInkWh" class="text-danger" /> 
+                    <InputNumber id="deviceConsumption" class="form-control" @bind-Value="DeviceDTO.ConsumptionInKwh" />
+                    <ValidationMessage For="() => DeviceDTO.ConsumptionInKwh" class="text-danger" /> 
                 </div>
                 <div class="mb-3">
                     <label for="deviceDuration" class="form-label">Duration (minutes)</label>
@@ -38,21 +50,57 @@
                     <ValidationMessage For="() => DeviceDTO.DurationInMinutes" class="text-danger" />
                 </div>
                 <div class="mb-3">
-                    <button type="submit" class="btn btn-primary">Add Device</button>
+                    <button type="submit" class="btn btn-primary">Save Device</button>
                 </div>
             </EditForm>
-        </div>
 </div>
 
 
-
 @code {
-    private DeviceDTO DeviceDTO = new();
+
+    private void GoToAppliance()
+    {
+        NavigationManager.NavigateTo("/appliance");
+    }
+
+    private List<string> categories = new ()
+    {
+        "Interruptible",
+        "Non-Interruptible"
+    };
+
+    private DevicesDTO DeviceDTO { get; set; } = new DevicesDTO();
 
     private async Task AddDevice()
     {
-        // TODO: send DeviceDTO to API or process it
-        await Task.CompletedTask;
-        return ;
+        var resp = await Http.PostAsJsonAsync("api/device-controller/create-device", DeviceDTO);
+
+        if (resp.IsSuccessStatusCode)
+        {
+            // TODO: handle success, e.g., show a success message or redirect to another page
+            Console.WriteLine("Device added successfully.");
+            return;
+        }
+
+        if (resp.StatusCode == System.Net.HttpStatusCode.BadRequest ||
+            resp.StatusCode == System.Net.HttpStatusCode.UnprocessableEntity)
+        {
+            //TODO: read validation errors from response and display them in the form
+            Console.WriteLine("Validation error occurred while adding device.");
+           
+        }
     }
 }
+
+<style>
+    /* Gives form inputs a light gray background */
+    .form-control {
+        background-color: #f8f9fa;
+        border: 1px solid #ced4da;
+    }
+
+    /* Optional: change the background slightly when you click/focus on it */
+    .form-control:focus {
+        background-color: #ffffff;
+    }
+</style>

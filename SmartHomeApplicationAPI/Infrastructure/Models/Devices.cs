@@ -21,12 +21,18 @@ namespace SmartHomeApplicationAPI.Infrastructure.Models
 		[Column("category")]
 		public string Category { get; set; } = null!;
 
+		/*
 		[Required]
 		[MaxLength(30)]
 		[Column("icon")]
 		public string Icon { get; set; } = null!;
 
 		public ICollection<Presets> Presets { get; set; } = new List<Presets>();
+		*/
+
+		[MaxLength(10)]
+		[Column("preset")]
+		public string Preset { get; set; } = "standard"; 
 
 		[Required]
 		[Column("consumption_in_kwh")]
