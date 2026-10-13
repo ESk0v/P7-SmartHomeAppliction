@@ -1,10 +1,12 @@
 ﻿@page "/register"
+@using SmartHomeApplication.Components.Layout
+@layout EmptyLayout
 
-<div class="row">
-    <div class="col-lg-5 offset-lg-3 pt-4 pb-4 border">
+<div class="row justify-content-center align-items-center">
+    <div class="col-lg-5 pt-4 pb-4 border">
         <form method="post" action="/account/register" data-enhance="false">
             <AntiforgeryToken />
-            <div class="mb-3 text-center flex-column">
+            <div class="mb-3 text-center d-flex flex-column">
                 <h3>REGISTER ACCOUNT</h3>
             </div>
 
