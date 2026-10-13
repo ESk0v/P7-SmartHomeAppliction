@@ -12,28 +12,16 @@ namespace SmartHomeApplicationAPI.Infrastructure.Models
 		public int Id { get; set; }
 
 		[Required]
-		[MaxLength(50)]
-		[Column("name")]
-		public string Name { get; set; } = null!;
+		[MaxLength(100)]
+		[Column("model")]
+		public string Model { get; set; } = null!;
 
 		[Required]
 		[MaxLength(20)]
 		[Column("category")]
 		public string Category { get; set; } = null!;
 
-		[Required]
-		[MaxLength(30)]
-		[Column("icon")]
-		public string Icon { get; set; } = null!;
-
-		public ICollection<Presets> Presets { get; set; } = new List<Presets>();
-
-		[Required]
-		[Column("consumption_in_kwh")]
-		public decimal ConsumptionInKwh { get; set; }
-
-		[Required]
-		[Column("duration_in_minutes")]
-		public int DurationInMinutes { get; set; }
-	}
+		ICollection<DevicePresets> DevicePresets { get; set; } = new List<DevicePresets>(); // For querying over all presets related to this device
+        ICollection<UserDevice> UserDevices { get; set; } = new List<UserDevice>(); // For querying over how many users have this device 
+    }
 }
