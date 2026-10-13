@@ -1,5 +1,7 @@
 using Hangfire;
 using Hangfire.PostgreSql;
+using Microsoft.AspNetCore.Identity;
+using SmartHomeApplicationAPI.Infrastructure.Models;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using SmartHomeApplicationAPI.Hangfire.Repository;
@@ -42,13 +44,38 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowBlazor", policy =>
         policy.WithOrigins("https://localhost:7100")
             .AllowAnyMethod()
-            .AllowAnyHeader());
+            .AllowAnyHeader()
+            .AllowCredentials());
 });
 
 builder.Services.AddDbContext<SmartHomeDbContext>(options =>
 {
     options.UseNpgsql(smartHomeConn);
 });
+
+// Logging
+builder.Services.AddLogging();
+builder.Logging.SetMinimumLevel(LogLevel.Information); // This can be changed to LogLevel.Warning or Error if we determine that
+
+
+// For handling users and login (DataProtection to make EF core work now)
+builder.Services.AddDataProtection();
+builder.Services.AddIdentityCore<User>(settings =>
+{
+    settings.User.RequireUniqueEmail = true;
+    settings.Password.RequiredLength = 8;
+    settings.Password.RequireDigit = true;
+    settings.Password.RequireLowercase = true;
+    settings.Password.RequireUppercase = true;
+    settings.Password.RequireNonAlphanumeric = false;
+    settings.Lockout.MaxFailedAccessAttempts = 3;
+    settings.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+})
+    .AddRoles<IdentityRole>()
+    .AddEntityFrameworkStores<SmartHomeDbContext>()
+    .AddSignInManager()
+    .AddDefaultTokenProviders();
+
 
 builder.Services.AddHangfire(config =>
 {

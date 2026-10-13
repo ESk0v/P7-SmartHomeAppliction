@@ -1,0 +1,22 @@
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+@code {
+    private bool isAuthenticated;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authenticationState =
+            await AuthenticationStateProvider.GetAuthenticationStateAsync();
+
+        isAuthenticated = authenticationState.User.Identity?.IsAuthenticated == true;
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender && !isAuthenticated)
+        {
+            Navigation.NavigateTo("/login", replace: true, forceLoad: true);
+        }
+    }
+}
