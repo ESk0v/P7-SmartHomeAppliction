@@ -20,6 +20,7 @@ public class PlanRepository : IPlanRepository
             .AsNoTracking()
             .OrderBy(p => p.StartTime)
             .Select(p => new PlanDto(
+                icon: p.UserDevice.Icon,
                 colorCode: p.UserDevice.Color,
                 deviceName: p.UserDevice.Nickname,
                 startTime: p.StartTime,
