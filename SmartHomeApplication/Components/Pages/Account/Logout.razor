@@ -1,0 +1,12 @@
+﻿@page "/logout"
+
+<div class="row">
+    <div class="col-lg-4 offset-lg-4 pt-4 pb-4 border">
+        <form method="post" action="/account/logout" data-enhance="false">
+            <AntiforgeryToken />
+            <button type="submit" class="btn btn-primary">Logout</button>
+        </form>
+    </div>
+</div>
+
+

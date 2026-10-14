@@ -14,6 +14,8 @@ public class PlanService : IPlanService
 
     public async Task<List<PlanDto>> GetPlansAsync()
     {
-        return await _repository.GetPlansAsync();
+        DateTime date = DateTime.UtcNow;
+
+        return await _repository.GetPlansAsync(date);
     }
 }
