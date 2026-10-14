@@ -13,7 +13,7 @@ public class PlanRepository : IPlanRepository
         _db = db;
     }
 
-    public async Task<List<PlanDto>> GetPlansAsync()
+    public async Task<List<PlanDto>> GetPlansAsync(DateTime date)
     {
         return await _db.Plan
             .AsNoTracking()
