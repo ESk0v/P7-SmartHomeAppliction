@@ -15,9 +15,9 @@ public class PresetController : ControllerBase
         _service = service;
     }
 
-    [HttpGet("get-preset")]
-    public async Task<ActionResult<List<PresetDto>>> GetPresets()
+    [HttpGet("get-preset/{deviceId:int}")]
+    public async Task<ActionResult<List<PresetDto>>> GetPresets(int deviceId)
     {
-        return await _service.GetPresetsAsync();
+        return await _service.GetPresetsAsync(deviceId);
     }
 }

@@ -1,6 +1,8 @@
 @page "/demand"
 @attribute [Authorize]
 
+@inject HttpClient Http
+
 @using System.Globalization
 @rendermode InteractiveServer
 @using Utilities.Models
@@ -55,9 +57,9 @@
                 <div>
                     <label for="devicePreset" class="form-label">Device Preset</label>
                     <InputSelect @bind-Value="ScheduleDTO.Preset" class="form-select" id="devicePreset">
-                        @foreach (var preset in Presets)
+                        @foreach (PresetDto preset in realPresets)
                         {
-                            <option value="@preset">@preset</option>
+                            <option value="@preset.presetName">@preset.presetName</option>
                         }
                     </InputSelect>
                     <ValidationMessage For="() => ScheduleDTO.Preset" class="text-danger" />
@@ -154,9 +156,12 @@
     // hent alle devices 
     // hente presets fra et deviceid
 
+    private List<PresetDto>? realPresets;
+    
+    public int deviceId = 1;
     protected override async Task OnInitializedAsync()
     {
-        realPresets = await Http.GetFromJsonAsync<List<PresetDto>>("api/preset-controller/get-preset");
+        // realPresets = await Http.GetFromJsonAsync<List<PresetDto>>("api/preset-controller/get-preset/{deviceId}");
     }
 
     private List<string> Devices = new()
