@@ -8,7 +8,7 @@
 
 <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
     <nav class="nav flex-column">
-        <!-- OUT COMMENTED FOR NOW. SHOULD BE DELETED LATER
+        <!-- OUT COMMENTED FOR NOW. SHOULD BE DELETED LATER ARE THE OLD NAVMENU ENTRIES
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
                 <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
@@ -28,7 +28,7 @@
         </div>
         -->
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All" forceLoad="true">
                 <span class="bi bi-grid-fill-nav-menu" aria-hidden="true"></span> Dashboard
             </NavLink>
         </div>
@@ -57,8 +57,20 @@
             </NavLink>
         </div>
 
-
-
+        <div class="nav-footer">
+            <!-- <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a> -->
+            <AuthorizeView>
+                <NotAuthorized>
+                    <a href="/login">Login</a>
+                </NotAuthorized>
+                <Authorized>
+                    <form method="post" action="/account/logout" data-enhance="false" @onclick:stopPropagation="true">
+                        <AntiforgeryToken />
+                        <button type="submit" class="btn btn-primary">Logout</button>
+                    </form>
+                </Authorized>
+            </AuthorizeView>
+        </div>
+        
     </nav>
 </div>
-

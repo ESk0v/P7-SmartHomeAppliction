@@ -1,0 +1,163 @@
+@inject ILogger<Schedules> Logger
+@inject HttpClient Http
+
+@using System.Globalization
+@using Utilities.Models
+
+@namespace Shared.Dashboard
+
+<div class="schedules-card">
+    <div class="schedule-top">
+        <div class="schedule-title">
+            <span class="schedule-icon">IC</span>
+            <span class="schedule-name">@activeSchedule.deviceName</span>
+        </div>
+
+        <div class="schedule-status @StatusClass">
+            <span class="schedule-status-text">@StatusText @activeSchedule.startTime.ToString("HH:mm")</span>
+        </div>
+    </div>
+
+    <div class="schedule-bottom">
+        <div class="schedule-progress">
+            <div class="schedule-progress-fill" style="@FillStyle()"></div>
+        </div>
+        <span class="schedule-percent">@Percent.ToString("0", CultureInfo.InvariantCulture)%</span>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public PlanDto activeSchedule { get; set; } = default!;
+
+    private double Percent
+    {
+        get
+        {
+            var total = (activeSchedule.endTime - activeSchedule.startTime).TotalSeconds;
+            var elapsed = (DateTime.Now - activeSchedule.startTime).TotalSeconds;
+
+            return total > 0 ? Math.Clamp(elapsed / total * 100, 0, 100) : 0;
+        }
+    }
+
+    private string FillStyle()
+    {
+        return string.Create(CultureInfo.InvariantCulture,
+            $"width:{Percent:0.##}%;background-color:{activeSchedule.colorCode}");
+    }
+
+    private enum ScheduleState { Queued, Running }
+
+    private ScheduleState State
+    {
+        get
+        {
+            var now = DateTime.Now;
+
+            if (now < activeSchedule.startTime) return ScheduleState.Queued;
+            return ScheduleState.Running;
+        }
+    }
+
+    private string StatusText => State switch
+    {
+        ScheduleState.Queued => "Queued",
+        ScheduleState.Running => "Running",
+        _ => ""
+    };
+
+    private string StatusTime => State switch
+    {
+        ScheduleState.Queued => $"at {activeSchedule.startTime:HH:mm}",
+        ScheduleState.Running => $"until {activeSchedule.endTime:HH:mm}",
+        _ => ""
+    };
+
+    private string StatusClass => State.ToString().ToLowerInvariant();
+}
+
+<style>
+    .schedules-card {
+        background-color: #fff;
+        border: 1px solid #e5e2dc;
+        border-radius: 12px;
+        padding: 8px 15px;
+        box-sizing: border-box;
+
+        aspect-ratio: 3 / 1;
+
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    .schedule-progress {
+        position: relative;
+        overflow: hidden;
+        flex: 1 1 0;      /* takes whatever space the label leaves */
+        min-width: 0;
+        height: 10px;
+        background-color: #e5e2dc;
+        border-radius: 6px;
+    }
+
+    .schedule-progress-fill {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        border-radius: 6px;
+        transition: width 0.3s ease;
+    }
+
+    .schedule-percent {
+        flex: 0 0 0;   /* fixed width so the bar doesn't jump between 0% and 100% */
+        text-align: right;
+        font-size: 12px;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .schedule-bottom {
+        display: flex;
+        align-items: center;
+        gap: 0.8vw;
+    }
+
+    .schedule-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .schedule-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .schedule-status {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        padding: 1px 10px;
+        background-color: #e5e2dc;
+        border-radius: 999px;
+
+        &.running {
+            background-color: #d6f0dc;
+            color: #1f6b35; 
+        }
+
+        &.queued {
+            background-color: #e6dcf5; 
+            color: #5b3a99;
+        }
+    }
+
+    .schedule-status-text {
+        font-size: 10px;
+        white-space: nowrap;
+    }
+
+</style>

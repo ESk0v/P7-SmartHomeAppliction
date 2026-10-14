@@ -6,29 +6,21 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace SmartHomeApplicationAPI.Infrastructure.Models
 {
-	[Table("schedules")]
-	public class Schedules
+	[Table("plan")]
+	public class Plan
 	{
 		[Key]
 		[Column("id")]
 
 		public int Id { get; set; }
 
-		// Foreign key to Users.Id
+        //foreign key to UserDevice.Id
 		[Required]
-		[Column("user_id")]
-		public int UserId { get; set; }
+		[Column("user_device_id")]
+        public int UserDeviceId { get; set; }
 
-		[ForeignKey(nameof(UserId))]
-		public Users User { get; set; } = null!;
-
-        //foreign key to Device.Id
-		[Required]
-		[Column("device_id")]
-        public int DeviceId { get; set; }
-
-		[ForeignKey(nameof(DeviceId))]
-        public Devices Device { get; set; } = null!;
+		[ForeignKey(nameof(UserDeviceId))]
+        public UserDevice UserDevice { get; set; } = null!;
 
 		[Required]
         [Column("start_time")]
@@ -40,11 +32,11 @@ namespace SmartHomeApplicationAPI.Infrastructure.Models
 
 		// If this schedule is split over two periods, point to the next/continuation schedule here.
 		// Nullable because not every schedule is split.
-		[Column("next_schedule_id")]
-		public int? NextScheduleId { get; set; }
+		[Column("next_plan_id")]
+		public int? NextPlanId { get; set; }
 
-		[ForeignKey(nameof(NextScheduleId))]
-		public Schedules? NextSchedule { get; set; }
+		[ForeignKey(nameof(NextPlanId))]
+		public Plan? NextPlan { get; set; }
 
 		[Required]
 		[Column("estimated_price_in_kroner", TypeName = "money")]
@@ -54,9 +46,5 @@ namespace SmartHomeApplicationAPI.Infrastructure.Models
 		[Column("estimated_co2_emissions_in_percent")]
 		public decimal EstimatedCo2Emissions { get; set; }
 
-		[Required]
-		[MaxLength(7)]
-		[Column("color")]
-		public string Color { get; set; } = "#ea580b";
     }
 }
