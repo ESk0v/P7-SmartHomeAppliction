@@ -18,7 +18,7 @@ public class PlanRepository : IPlanRepository
         return await _db.Plan
             .AsNoTracking()
             .OrderBy(s => s.StartTime)
-            .Join(_db.UserDevices,
+            .Join(_db.UserDevice,
                 s => s.UserDeviceId,
                 d => d.Id,
                 (s, d) => new PlanDto(d.Color, d.Nickname, s.StartTime, s.EndTime))

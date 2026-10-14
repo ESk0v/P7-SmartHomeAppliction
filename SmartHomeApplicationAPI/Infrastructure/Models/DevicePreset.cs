@@ -5,7 +5,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace SmartHomeApplicationAPI.Infrastructure.Models
 {
 	[Table("device_preset")]
-	public class DevicePresets
+	public class DevicePreset
 	{
 		[Key]
 		[Column("id")]
@@ -16,7 +16,7 @@ namespace SmartHomeApplicationAPI.Infrastructure.Models
 		public int DeviceId { get; set; }
 
 		[ForeignKey(nameof(DeviceId))]
-		public Devices? Device { get; set; }
+		public Device? Device { get; set; }
 
 		[Required]
 		[MaxLength(30)]

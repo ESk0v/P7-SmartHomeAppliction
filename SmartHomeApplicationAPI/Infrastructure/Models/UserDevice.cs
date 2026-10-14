@@ -16,7 +16,7 @@ namespace SmartHomeApplicationAPI.Infrastructure.Models
         public int DeviceId { get; set; }
 
         [ForeignKey(nameof(DeviceId))]
-        public Devices? Device { get; set; }
+        public Device? Device { get; set; }
 
         [Required]
         [Column("user_id")]
