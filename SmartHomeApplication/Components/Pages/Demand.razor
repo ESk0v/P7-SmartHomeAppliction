@@ -1,5 +1,7 @@
 @page "/demand"
 @using System.Globalization
+@rendermode InteractiveServer
+@using Utilities.Models
 
 <PageTitle>New demand</PageTitle>
 
@@ -7,7 +9,7 @@
     <div class="header">
         <div class="heading">
             <h1>New demand</h1>
-            <p>Configure a new scheduling demand</p>
+            <p>Configure a new scheduling demand..</p>
         </div>
 
         <div class="header-actions">
@@ -16,12 +18,179 @@
     </div>
 </SectionContent>
 
+<div class="row">
+    <div class="col-md-4">
+        <EditForm Method="post" Model="ScheduleDTO" OnValidSubmit="GenerateScheduling" FormName="AddSchedulingForm">
+            <DataAnnotationsValidator />
+            <div>
+                <label for="deviceName" class="form-label">Device Name</label>
+                <InputSelect @bind-Value="ScheduleDTO.DeviceName" class="form-select" id="deviceName">
+                    @foreach (var device in Devices)
+                    {
+                        <option value="@device">@device</option>
+                    }
+                </InputSelect>
+                <ValidationMessage For="() => ScheduleDTO.DeviceName" class="text-danger" />
+        
+            </div>   
+            @if (isEVSelected)
+            {
+                <div class="section-card mb-4">
+                    <p>Current charge</p>
+                    <p>Target charge</p>
+                    <div class="mb-3">
+                        <label class="form-label">Charge from: @(ScheduleDTO.ChargeStartPercentage)%</label>
+                        <InputNumber @bind-Value="ScheduleDTO.ChargeStartPercentage" max="100" min="0" step="10" type="range" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Charge to: @(ScheduleDTO.ChargeStopPercentage)%</label>
+                        <InputNumber @bind-Value="ScheduleDTO.ChargeStopPercentage" max="100" min="0" step="10" type="range" />
+                    </div>
+                </div>
+            } 
+            else 
+            {
+                <div>
+                    <label for="devicePreset" class="form-label">Device Preset</label>
+                    <InputSelect @bind-Value="ScheduleDTO.Preset" class="form-select" id="devicePreset">
+                        @foreach (var preset in Presets)
+                        {
+                            <option value="@preset">@preset</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="() => ScheduleDTO.Preset" class="text-danger" />
+                </div>  
+            }
+
+            <div>
+                <p>ALLOWED WINDOW</p>
+                <div>
+                    <label class="form-label">START</label>
+                    <div class="d-flex gap-2 align-items-center">
+                        <InputSelect @bind-Value="ScheduleDTO.StartHour" class="form-select" id="startHour">
+                            @foreach (var hour in Hours)
+                            {
+                                <option value="@hour">@hour</option>
+                            }
+                        </InputSelect>
+                        <span>:</span>
+                        <InputSelect @bind-Value="ScheduleDTO.StartMinute" class="form-select" id="startMinute">
+                            @foreach (var minute in Minutes)
+                            {
+                                <option value="@minute">@minute</option>
+                            }
+                        </InputSelect>
+                    </div>
+                    <ValidationMessage For="() => ScheduleDTO.StartHour" class="text-danger" />
+                    <ValidationMessage For="() => ScheduleDTO.StartMinute" class="text-danger" />
+                </div>
+
+                <div>
+                    <label class="form-label">END</label>
+                    <div class="d-flex gap-2 align-items-center">
+                        <InputSelect @bind-Value="ScheduleDTO.EndHour" class="form-select" id="endHour">
+                            @foreach (var hour in Hours)
+                            {
+                                <option value="@hour">@hour</option>
+                            }
+                        </InputSelect>
+                        <span>:</span>
+                        <InputSelect @bind-Value="ScheduleDTO.EndMinute" class="form-select" id="endMinute">
+                            @foreach (var minute in Minutes)
+                            {
+                                <option value="@minute">@minute</option>
+                            }
+                        </InputSelect>
+                    </div>
+                </div>
+                <ValidationMessage For="() => ScheduleDTO.EndHour" class="text-danger" />
+                <ValidationMessage For="() => ScheduleDTO.EndMinute" class="text-danger" />
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label">Priority</label>
+                <InputRadioGroup @bind-Value="ScheduleDTO.Priority" class="priority-toggle">
+                    <label class="priority-option">
+                        <InputRadio Value="@("Cheapest")" />
+                        <span>Cheapest</span>
+                    </label>
+                    <label class="priority-option">
+                        <InputRadio Value="@("Greenest")" />
+                        <span>Greenest</span>
+                    </label>
+                </InputRadioGroup>
+                <ValidationMessage For="() => ScheduleDTO.Priority" class="text-danger" />
+                    
+                    
+            </div>
+
+            <div class="mb-3">
+                <button type="submit" class="btn btn-primary">Generate Plan</button>
+            </div>
+        </EditForm>
+    </div>
+    <div class="col-md-8">
+        <div class="mb-4 prices">
+            <h2>24HR prices</h2>
+            <p>Here you will see price graph.</p>
+        </div>
+        <div class="mb-4 prices">
+            <h2>Generated plan</h2>
+        </div>
+        
+    </div>
+</div>
+
+
+
 @code {
     private string date = DateTime.Today.ToString("ddd dd MMM yyyy", CultureInfo.InvariantCulture);
     private string area = "Nordpool DK1";
+
+    private ScheduleDTO ScheduleDTO = new();
+
+    // hent alle devices 
+    // hente presets fra et deviceid
+
+    protected override async Task OnInitializedAsync()
+    {
+        realPresets = await Http.GetFromJsonAsync<List<PresetDto>>("api/preset-controller/get-preset");
+    }
+
+    private List<string> Devices = new()
+    {
+        "Electric Vehicle",
+        "Dryer",
+        "Washing Machine",
+        "Dishwasher"
+    };
+    private List<string> Presets = new()
+    {
+        "Standard",
+        "Quick",
+        "Eco"
+    };
+
+    private int[] Hours = Enumerable.Range(0, 23).ToArray();
+    private int [] Minutes = {0, 15, 30, 45};
+
+    private bool isEVSelected = false;
+    private async Task GenerateScheduling()
+    {
+        // TODO: send ScheduleDTO to API or process it
+        await Task.CompletedTask;
+        return ;
+    }
 }
 
 <style>
+    .prices {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        background: #334155;
+    }
+
     .header {
         align-items: center;
         display: flex;
@@ -69,5 +238,51 @@
             width: 100%;
         }
 
+    }
+
+    .form-label {
+        font-weight: 600;
+        color: #1e293b;
+    }
+
+    .priority-toggle {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        width: 100%;
+        overflow: hidden;
+        border: 1px solid #dbeafe;
+        border-radius: 10px;
+    }
+
+    .priority-option {
+        flex: 1 1 0;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 13px;
+        margin: 0;
+        cursor: pointer;
+        background: #f8fafc;
+        color: #334155;
+        transition: background-color 0.2s, color 0.2s;
+        box-sizing: border-box;
+    }
+
+    .priority-option:has(input:checked) {
+        background: #3078ed;
+        color: #fff;
+    }
+
+    .priority-option:focus-within {
+        outline: 2px solid #1d4ed8;
+        outline-offset: -2px;
+    }
+
+    .schedule-form -btn-primary {
+        padding: 12px 22px;
+        border-radius: 8px;
     }
 </style>
