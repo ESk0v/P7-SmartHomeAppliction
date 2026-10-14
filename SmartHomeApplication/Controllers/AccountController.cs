@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using System.Security.Claims;
 using SmartHomeApplication.Models;
 using System.Diagnostics;
+using System.Net;
 
 
 namespace SmartHomeApplication.Controllers
@@ -61,6 +62,13 @@ namespace SmartHomeApplication.Controllers
             }, 
             cancellationToken);
             _logger.LogInformation("Login response returned after: {elapsedSecondsRegister} seconds", stopwatch.Elapsed.TotalSeconds);
+
+            // Http.Locked is statuscode 423
+            if (response.StatusCode == HttpStatusCode.Locked)
+            {
+                _logger.LogWarning("Account locked due to 3 invalid login attempts");
+                return Redirect("/login?error=lockoutBegin");
+            }
 
             if (!response.IsSuccessStatusCode)
             {

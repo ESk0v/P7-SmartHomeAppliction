@@ -4,5 +4,5 @@ namespace SmartHomeApplicationAPI.Repository;
 
 public interface IPlanRepository
 {
-    Task<List<PlanDto>> GetPlansAsync(DateTime date);
+    Task<List<PlanDto>> GetPlansAsync(string UserID, DateTime date);
 }

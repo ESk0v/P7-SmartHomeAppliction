@@ -13,16 +13,18 @@ public class PlanRepository : IPlanRepository
         _db = db;
     }
 
-    public async Task<List<PlanDto>> GetPlansAsync(DateTime date)
+    public async Task<List<PlanDto>> GetPlansAsync(string userId, DateTime date)
     {
-        return await _db.Schedules
+        return await _db.Plan
+            .Where(p => p.UserDevice.UserId == userId && p.EndTime >= date)
             .AsNoTracking()
-            .OrderBy(s => s.StartTime)
-            .Where(s => s.EndTime >= date)
-            .Join(_db.Devices,
-                s => s.DeviceId,
-                d => d.Id,
-                (s, d) => new PlanDto(s.Color, d.Name, s.StartTime, s.EndTime))
+            .OrderBy(p => p.StartTime)
+            .Select(p => new PlanDto(
+                colorCode: p.UserDevice.Color,
+                deviceName: p.UserDevice.Nickname,
+                startTime: p.StartTime,
+                endTime: p.EndTime
+            ))
             .ToListAsync();
     }
 }
