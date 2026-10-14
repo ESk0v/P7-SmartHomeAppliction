@@ -5,8 +5,10 @@
 @using global::Shared.Dashboard
 @using System.Globalization
 @using Utilities.Models
+@using System.Security.Claims
 
 @inject HttpClient Http
+@inject AuthenticationStateProvider AuthProvider
 @inject ILogger<Dashboard> Logger
 
 <PageTitle>Dashboard</PageTitle>
@@ -66,7 +68,15 @@
 
     protected override async Task OnInitializedAsync()
     {
-        activeSchedules = await Http.GetFromJsonAsync<List<PlanDto>>("api/plan-controller/get-plan");
+        var state = await AuthProvider.GetAuthenticationStateAsync();
+        var userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        
+        var request = new HttpRequestMessage(HttpMethod.Get, "api/plan-controller/get-plan");
+        request.Headers.Add("UserId", userId);
+
+        var response = await Http.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        activeSchedules = await response.Content.ReadFromJsonAsync<List<PlanDto>>();
     }
 }
 

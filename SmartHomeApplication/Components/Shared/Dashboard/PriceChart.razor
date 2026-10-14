@@ -64,7 +64,14 @@
             prices = await Http.GetFromJsonAsync<List<HourPriceDto>>(
                 "api/electricity-price-controller/dashboard-showcase?areaCode=DK1") ?? new();
             maxPrice = prices.Count > 0 ? prices.Max(p => p.Price) : 0;
+
+            if (prices.Count > 0)
+            {
+                Logger.LogInformation("Prices from {First} to {Last}, count {Count}",
+                    prices.Min(p => p.Hour), prices.Max(p => p.Hour), prices.Count);
+            }
         }
+
         catch (Exception ex)
         {
             error = $"{ex.GetType().Name}: {ex.Message} (base address: {Http.BaseAddress})";
@@ -74,21 +81,41 @@
 
     private string FillStyle(PlanDto schedule)
     {
-        if (prices is null || prices.Count == 0)
+        if (prices.Count == 0)
         {
             return "display:none";
         }
 
-        var first = prices.Min(p => p.Hour);
-        var origin = first.Date.AddHours(first.Hour);
-        var totalHours = prices.Count;
-
-        // the visible part starts at "now" if the schedule has already started
         var now = DateTime.Now;
-        var visibleStart = schedule.startTime > now ? schedule.startTime : now;
 
-        var left = (visibleStart - origin).TotalHours / totalHours * 100;
-        var width = (schedule.endTime - visibleStart).TotalHours / totalHours * 100;
+        var first = prices.Min(p => p.Hour);
+        var last = prices.Max(p => p.Hour);
+        var firstStart = first.Date.AddHours(first.Hour);
+        var chartEnd = last.Date.AddHours(last.Hour).AddHours(1);
+
+        // Left edge = now (if we are inside or past the first bar's hour), otherwise the first bar's start
+        var origin = now > firstStart ? now : firstStart;
+
+        // 100% = origin until the end of the last bar
+        var totalHours = (chartEnd - origin).TotalHours;
+
+        // Plan finished, or nothing left of the chart
+        if (schedule.endTime <= origin || totalHours <= 0)
+        {
+            return "display:none";
+        }
+
+        // A running plan starts at 0%, a future plan at its real position
+        var start = schedule.startTime > origin ? schedule.startTime : origin;
+        var end = schedule.endTime < chartEnd ? schedule.endTime : chartEnd;
+
+        if (end <= start)
+        {
+            return "display:none";
+        }
+
+        var left = (start - origin).TotalHours / totalHours * 100;
+        var width = (end - start).TotalHours / totalHours * 100;
 
         left = Math.Clamp(left, 0, 100);
         width = Math.Clamp(width, 0, 100 - left);

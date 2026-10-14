@@ -14,8 +14,9 @@ public class ElectricityPriceService : IElectricityPriceService
     public async Task<List<HourPriceDto>> GetPricesForDateAsync(string areaCode)
     {
         DateTime date = DateTime.Now;
+        DateTime updatedDate = date.AddTicks(-(date.Ticks % TimeSpan.TicksPerHour));
 
-        var Result = await _repository.GetPricesForDateAsync(areaCode, date);
+        var Result = await _repository.GetPricesForDateAsync(areaCode, updatedDate);
 
         return Result
             .GroupBy(r => new DateTime(r.Hour.Year, r.Hour.Month, r.Hour.Day, r.Hour.Hour, 0, 0))
