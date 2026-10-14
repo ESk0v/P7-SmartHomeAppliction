@@ -5,7 +5,7 @@ namespace SmartHomeApplicationAPI.DTOs
     public class RegisterReqDTO
     {
         [Required]
-        [Length(5, 30)]
+        [Length(2, 30)]
         public string Username { get; set; } = string.Empty;
 
         [Required]
@@ -21,7 +21,7 @@ namespace SmartHomeApplicationAPI.DTOs
         public string PasswordConfirm { get; set; } = string.Empty;
 
         [Required]
-        [Length(5, 30)]
+        [Length(2, 30)]
         public string DisplayName {  get; set; } = string.Empty;
     }
 }

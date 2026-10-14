@@ -5,7 +5,7 @@ namespace SmartHomeApplication.Models
     public class RegisterViewModel
     {
         [Required]
-        [Length(5, 30)]
+        [Length(2, 30)]
         public string Username { get; set; } = string.Empty;
 
         [Required]
@@ -21,7 +21,7 @@ namespace SmartHomeApplication.Models
         public string PasswordConfirm { get; set; } = string.Empty;
 
         [Required]
-        [Length(5, 30)]
+        [Length(2, 30)]
         public string DisplayName { get; set; } = string.Empty;
     }
 }
