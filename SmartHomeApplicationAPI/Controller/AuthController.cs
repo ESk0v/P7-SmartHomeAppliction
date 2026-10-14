@@ -100,6 +100,12 @@ namespace SmartHomeApplicationAPI.Controller
             var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, lockoutOnFailure: true);
             if (!result.Succeeded)
             {
+                if (result.IsLockedOut)
+                {
+                    _logger.LogWarning("3 failed attempts to login. User locked out.");
+                    return StatusCode(StatusCodes.Status423Locked);
+                }
+
                 _logger.LogInformation("Failed login attempt, unauthorized");
                 return Unauthorized();
             }
