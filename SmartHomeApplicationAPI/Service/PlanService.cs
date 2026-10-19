@@ -12,10 +12,10 @@ public class PlanService : IPlanService
         _repository = repository;
     }
 
-    public async Task<List<PlanDto>> GetPlansAsync()
+    public async Task<List<PlanDto>> GetPlansAsync(string userID)
     {
         DateTime date = DateTime.UtcNow;
 
-        return await _repository.GetPlansAsync(date);
+        return await _repository.GetPlansAsync(userID, date);
     }
 }
