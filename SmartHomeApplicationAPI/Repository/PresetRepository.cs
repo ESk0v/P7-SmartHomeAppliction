@@ -26,4 +26,22 @@ public class PresetRepository : IPresetRepository
             .ToListAsync();
         
     }
+
+    public async Task<List<UserDeviceDto>> GetUserDevicesAsync(string userId)
+    {
+        return await _db.UserDevice
+            .AsNoTracking()
+            .Where(ud => ud.UserId == userId)
+            .Join(_db.Device,
+                ud => ud.DeviceId,
+                d => d.Id,
+                (ud, d) => new UserDeviceDto(
+                    ud.Id,
+                    ud.Nickname,
+                    d.Category,
+                    d.Model
+                ))
+            .ToListAsync();
+    }
+    
 }

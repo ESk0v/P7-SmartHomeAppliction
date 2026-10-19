@@ -20,4 +20,10 @@ public class PresetController : ControllerBase
     {
         return await _service.GetPresetsAsync(deviceId);
     }
+
+    [HttpGet("get-user-device/{userId}")]
+    public async Task<ActionResult<List<UserDeviceDto>>> GetUserDevices(string userId)
+    {
+        return await _service.GetUserDevicesAsync(userId);
+    }
 }

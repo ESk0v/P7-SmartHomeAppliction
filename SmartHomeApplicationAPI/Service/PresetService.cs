@@ -16,4 +16,9 @@ public class PresetService : IPresetService
     {
         return await _repository.GetPresetsAsync(deviceId);
     }
+
+    public async Task<List<UserDeviceDto>> GetUserDevicesAsync(string userId)
+    {
+        return await _repository.GetUserDevicesAsync(userId);
+    }
 }

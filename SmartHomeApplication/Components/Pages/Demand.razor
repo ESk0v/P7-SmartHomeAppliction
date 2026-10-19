@@ -29,9 +29,9 @@
             <div>
                 <label for="deviceName" class="form-label">Device Name</label>
                 <InputSelect @bind-Value="ScheduleDTO.DeviceName" class="form-select" id="deviceName">
-                    @foreach (var device in Devices)
+                    @foreach (UserDeviceDto device in userDevices)
                     {
-                        <option value="@device">@device</option>
+                        <option value="@device.deviceNickname">@device.deviceNickname</option>
                     }
                 </InputSelect>
                 <ValidationMessage For="() => ScheduleDTO.DeviceName" class="text-danger" />
@@ -140,6 +140,8 @@
         </div>
         <div class="mb-4 prices">
             <h2>Generated plan</h2>
+            <p>@ScheduleDTO.DeviceName</p>
+            <p>@ScheduleDTO.Priority</p>
         </div>
         
     </div>
@@ -154,14 +156,17 @@
     private ScheduleDTO ScheduleDTO = new();
 
     // hent alle devices 
-    // hente presets fra et deviceid
-
-    private List<PresetDto>? realPresets;
+    // hente presets ud fra hvilket device der er valgt i drop down
+    
+    private List<PresetDto> realPresets = new();
+    private List<UserDeviceDto> userDevices = new();
     
     public int deviceId = 1;
+    public string userId = "404b854b-d1c0-425f-bd41-1239a66de7df";
     protected override async Task OnInitializedAsync()
     {
-        // realPresets = await Http.GetFromJsonAsync<List<PresetDto>>("api/preset-controller/get-preset/{deviceId}");
+        // userDevices = await Http.GetFromJsonAsync<List<UserDeviceDto>>($"api/preset-controller/get-user-device/{userId}") ?? new List<UserDeviceDto>();
+        realPresets = await Http.GetFromJsonAsync<List<PresetDto>>($"api/preset-controller/get-preset/{deviceId}") ?? new List<PresetDto>();
     }
 
     private List<string> Devices = new()
@@ -178,7 +183,7 @@
         "Eco"
     };
 
-    private int[] Hours = Enumerable.Range(0, 23).ToArray();
+    private int[] Hours = Enumerable.Range(0, 24).ToArray();
     private int [] Minutes = {0, 15, 30, 45};
 
     private bool isEVSelected = false;
