@@ -18,12 +18,8 @@ namespace SmartHomeApplicationAPI.Infrastructure.Models
 		[ForeignKey(nameof(DeviceId))]
 		public Device? Device { get; set; }
 
-		[MaxLength(10)]
-		[Column("preset")]
-		public string Preset { get; set; } = "standard"; 
-
 		[Column("preset_name")]
-		public string PresetName { get; set; } = null!;
+		public string PresetName { get; set; } = "standard";
 
 		[Required]
 		[Precision(5, 3)]

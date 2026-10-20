@@ -1,7 +1,11 @@
 ﻿@page "/addAppliance"
-@inject HttpClient Http
+@rendermode InteractiveServer
 @inject NavigationManager NavigationManager
+@inject SmartHomeApplication.Service.IDeviceService DeviceService
 @using Utilities.Models
+@using Microsoft.AspNetCore.Components.Forms
+
+
 
 <PageTitle>Add Appliance</PageTitle>
 
@@ -16,38 +20,39 @@
 
 
 <div class="card shadow-sm border-0 rounded-4 p-4 bg-white">
-            <EditForm Method="post" Model="DeviceDTO" OnValidSubmit="AddDevice" FormName="AddDeviceForm">
+            <EditForm Method="post" Model="DeviceDto" OnValidSubmit="CreateDevice" FormName="AddDeviceForm" data-enhance="false">
+                <AntiforgeryToken/>
                 <DataAnnotationsValidator />   
                 <div class="mb-3">
-                    <label for="deviceName" class="form-label">Device Name</label>
-                    <InputText id="deviceName" class="form-control" @bind-Value="DeviceDTO.Name" />   
-                    <ValidationMessage For="() => DeviceDTO.Name" class="text-danger" />
+                    <label for="deviceModel" class="form-label">Device Model</label>
+                    <InputText id="deviceModel" class="form-control" @bind-Value="DeviceDto.Model" />   
+                    <ValidationMessage For="() => DeviceDto.Model" class="text-danger" />
                 </div> 
                 <div class="mb-3">
                     <label for="deviceCategory" class="form-label">Device Category</label>
-                    <InputSelect id="deviceCategory" class="form-control" @bind-Value="DeviceDTO.Category" >
+                    <InputSelect id="deviceCategory" class="form-control" @bind-Value="DeviceDto.Category" >
                     <option value="">-- Select a Category --</option>
                     @foreach (var category in categories)
                     {
                         <option value="@category">@category</option>
                     }
                     </InputSelect>
-                    <ValidationMessage For="() => DeviceDTO.Category" class="text-danger" /> 
+                    <ValidationMessage For="() => DeviceDto.Category" class="text-danger" /> 
                 </div>
                 <div class="mb-3">
                     <label for="devicePreset" class="form-label">Preset</label>
-                    <InputText id="devicePreset" class="form-control" @bind-Value="DeviceDTO.Preset" />
-                    <ValidationMessage For="() => DeviceDTO.Preset" class="text-danger" /> 
+                    <InputText id="devicePreset" class="form-control" @bind-Value="DeviceDto.Preset" />
+                    <ValidationMessage For="() => DeviceDto.Preset" class="text-danger" /> 
                 </div>
                 <div class="mb-3">
                     <label for="deviceConsumption" class="form-label">Consumption (kWh)</label>
-                    <InputNumber id="deviceConsumption" class="form-control" @bind-Value="DeviceDTO.ConsumptionInKwh" />
-                    <ValidationMessage For="() => DeviceDTO.ConsumptionInKwh" class="text-danger" /> 
+                    <InputNumber id="deviceConsumption" class="form-control" @bind-Value="DeviceDto.ConsumptionInKwh" />
+                    <ValidationMessage For="() => DeviceDto.ConsumptionInKwh" class="text-danger" /> 
                 </div>
                 <div class="mb-3">
                     <label for="deviceDuration" class="form-label">Duration (minutes)</label>
-                    <InputNumber id="deviceDuration" class="form-control" @bind-Value="DeviceDTO.DurationInMinutes" />
-                    <ValidationMessage For="() => DeviceDTO.DurationInMinutes" class="text-danger" />
+                    <InputNumber id="deviceDuration" class="form-control" @bind-Value="DeviceDto.DurationInMinutes" />
+                    <ValidationMessage For="() => DeviceDto.DurationInMinutes" class="text-danger" />
                 </div>
                 <div class="mb-3">
                     <button type="submit" class="btn btn-primary">Save Device</button>
@@ -63,43 +68,38 @@
         NavigationManager.NavigateTo("/appliance");
     }
 
-    private List<string> categories = new ()
+    private List<string> categories = new()
     {
         "Interruptible",
         "Non-Interruptible"
     };
 
-    private DevicesDTO DeviceDTO { get; set; } = new DevicesDTO();
 
-    private async Task AddDevice()
+
+    private DevicesDto DeviceDto { get; set; } = new DevicesDto();
+
+
+    public async Task CreateDevice()
     {
-        var resp = await Http.PostAsJsonAsync("api/device-controller/create-device", DeviceDTO);
-
-        if (resp.IsSuccessStatusCode)
+        try 
         {
-            // TODO: handle success, e.g., show a success message or redirect to another page
-            Console.WriteLine("Device added successfully.");
-            return;
+            await DeviceService.CreateDeviceAsync(DeviceDto);
+            NavigationManager.NavigateTo("/appliance");
         }
-
-        if (resp.StatusCode == System.Net.HttpStatusCode.BadRequest ||
-            resp.StatusCode == System.Net.HttpStatusCode.UnprocessableEntity)
+        catch (Exception ex)
         {
-            //TODO: read validation errors from response and display them in the form
-            Console.WriteLine("Validation error occurred while adding device.");
-           
-        }
+            // Handle the exception (e.g., log it, show an error message, etc.)
+            Console.WriteLine($"Error creating device: {ex.Message}");
+    }
     }
 }
 
 <style>
-    /* Gives form inputs a light gray background */
     .form-control {
         background-color: #f8f9fa;
         border: 1px solid #ced4da;
     }
 
-    /* Optional: change the background slightly when you click/focus on it */
     .form-control:focus {
         background-color: #ffffff;
     }

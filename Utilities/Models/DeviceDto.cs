@@ -2,13 +2,13 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Utilities.Models
 {
-	public class DevicesDTO	
+	public class DevicesDto	
 	{
-		public int Id { get; set; }
+		public String UserId { get; set; } = string.Empty;
 
-		[Required(ErrorMessage = "Device name is required.")]
+		[Required(ErrorMessage = "Device model is required.")]
 		[StringLength(50)]
-		public string Name { get; set; } = string.Empty;
+		public string Model { get; set; } = string.Empty;
 
 		[Required(ErrorMessage = "Please select a category.")]
 		[StringLength(20)]
