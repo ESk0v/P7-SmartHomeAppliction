@@ -1,5 +1,6 @@
 using Utilities.Models;
 using SmartHomeApplicationAPI.Repository;
+using SmartHomeApplicationAPI.Infrastructure.Models;
 
 namespace SmartHomeApplicationAPI.Service;
 
@@ -14,9 +15,25 @@ public class StatisticsService : IStatisticsService
 
     public async Task<StatisticsDto> GetPlannedCostAsync(string userID)
     {
-        var start = DateTime.Today;
+        var start = DateTime.UtcNow.Date;
         var end = start.AddDays(1);
 
-        #return await _repository.GetPlannedCostAsync(userID, start, end);
+        var plans = await _repository.GetPlannedCostAsync(userID, start, end);
+
+        if (plans.Count == 0)
+        {
+            return new StatisticsDto();
+        }
+
+        decimal totalPrice = 0;
+
+        foreach (Plan plan in plans)
+        {
+            totalPrice += plan.EstimatedPrice;
+        }
+
+        return new StatisticsDto{
+            Value = "" + totalPrice + " Kr."
+        };
     }
 }

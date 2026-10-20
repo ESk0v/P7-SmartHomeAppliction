@@ -1,8 +1,11 @@
 @inject ILogger<Statistics> Logger
+@inject AuthenticationStateProvider AuthProvider
 @inject HttpClient Http
+@attribute [Authorize]
 
 @using Utilities.Models
 @using System.Globalization
+@using System.Security.Claims
 
 @namespace Shared.Dashboard
 
@@ -12,11 +15,7 @@
     @if (Data is not null)
     {
         <p class="statistics-value">@Data.Value</p>
-
-        @if (Data.Description is not null)
-        {
-            <p class="statistics-description">@Data.Description</p>
-        }
+        <p class="statistics-description">@(Data.Description ?? "\u00A0")</p>
     }
 </div>
 
@@ -50,9 +49,15 @@
 
     private async Task<StatisticsDto> GetPlannedCost()
     {
-        return await Http.GetFromJsonAsync<StatisticsDto>(
-            "api/statistics-controller/planned-cost"
-        ) ?? new StatisticsDto();
+        var state = await AuthProvider.GetAuthenticationStateAsync();
+        var userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        
+        var request = new HttpRequestMessage(HttpMethod.Get, "api/statistics-controller/planned-cost");
+        request.Headers.Add("UserId", userId);
+
+        var response = await Http.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<StatisticsDto>();
     }
 
     private async Task<StatisticsDto> GetCheapestPeriod()

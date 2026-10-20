@@ -1,7 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using SmartHomeApplicationAPI.Infrastructure;
+using SmartHomeApplicationAPI.Infrastructure.Models;
 using Utilities.Models;
-19 january
+
 namespace SmartHomeApplicationAPI.Repository;
 
 public class StatisticsRepository : IStatisticsRepository
@@ -13,9 +14,11 @@ public class StatisticsRepository : IStatisticsRepository
         _db = db;
     }
 
-    public async Task<StatisticsDto> GetPlannedCostAsync(string userId, Date start, Date end)
+    public async Task<List<Plan>> GetPlannedCostAsync(string userId, DateTime start, DateTime end)
     {
         return await _db.Plan
-            
+            .Where(p => p.UserDevice.UserId == userId && p.EndTime <= end && p.StartTime >= start) 
+            .AsNoTracking()
+            .ToListAsync();   
     }
 }
