@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using SmartHomeApplicationAPI.Infrastructure;
+using SmartHomeApplicationAPI.Infrastructure.Models;
 using Utilities.Models;
 
 namespace SmartHomeApplicationAPI.Repository;
@@ -37,11 +38,44 @@ public class PresetRepository : IPresetRepository
                 d => d.Id,
                 (ud, d) => new UserDeviceDto(
                     ud.Id,
+                    ud.DeviceId,
                     ud.Nickname,
                     d.Category,
                     d.Model
                 ))
             .ToListAsync();
     }
-    
+
+    public async Task<PlanDTO> PostPlanAsync(PlanDTO planDTO)
+    {
+        if (planDTO.NextPlan != null)
+        {
+            
+        }
+
+        var plan = new Plan
+        {
+            UserDeviceId = planDTO.UserDeviceId,
+            StartTime = planDTO.StartTime,
+            EndTime = planDTO.EndTime,
+            EstimatedPrice = planDTO.EstimatedPrice,
+            EstimatedCo2Emissions = planDTO.EstimatedCO2Emission
+        };
+
+        _db.Plan.Add(plan);
+
+        await _db.SaveChangesAsync();
+
+        return new PlanDTO
+        {
+            UserDeviceId = plan.UserDeviceId,
+            StartTime = plan.StartTime,
+            EndTime = plan.EndTime,
+            EstimatedPrice = plan.EstimatedPrice,
+            EstimatedCO2Emission = plan.EstimatedCo2Emissions
+        
+        };
+        
+    }
+
 }

@@ -6,6 +6,10 @@
 @using System.Globalization
 @rendermode InteractiveServer
 @using Utilities.Models
+@using System.Security.Claims
+
+@inject AuthenticationStateProvider AuthProvider
+
 
 <PageTitle>New demand</PageTitle>
 
@@ -23,15 +27,16 @@
 </SectionContent>
 
 <div class="row">
-    <div class="col-md-4">
+    <div class="col-sm-7 boxes">
         <EditForm Method="post" Model="ScheduleDTO" OnValidSubmit="GenerateScheduling" FormName="AddSchedulingForm">
             <DataAnnotationsValidator />
-            <div>
+            <div class="inboxes">
                 <label for="deviceName" class="form-label">Device Name</label>
-                <InputSelect @bind-Value="ScheduleDTO.DeviceName" class="form-select" id="deviceName">
+                <InputSelect @bind-Value="selectedDeviceId" @bind-Value:after="OnDeviceSelected" class="form-select" id="deviceName">
+                    <option value=""></option>
                     @foreach (UserDeviceDto device in userDevices)
                     {
-                        <option value="@device.deviceNickname">@device.deviceNickname</option>
+                        <option value="@device.id">@device.deviceNickname</option>
                     }
                 </InputSelect>
                 <ValidationMessage For="() => ScheduleDTO.DeviceName" class="text-danger" />
@@ -39,7 +44,7 @@
             </div>   
             @if (isEVSelected)
             {
-                <div class="section-card mb-4">
+                <div class="section-card mb-4 inboxes">
                     <p>Current charge</p>
                     <p>Target charge</p>
                     <div class="mb-3">
@@ -54,10 +59,11 @@
             } 
             else 
             {
-                <div>
+                <div class="inboxes">
                     <label for="devicePreset" class="form-label">Device Preset</label>
                     <InputSelect @bind-Value="ScheduleDTO.Preset" class="form-select" id="devicePreset">
-                        @foreach (PresetDto preset in realPresets)
+                        <option value=""></option>
+                        @foreach (PresetDto preset in filteredPresets)
                         {
                             <option value="@preset.presetName">@preset.presetName</option>
                         }
@@ -66,22 +72,24 @@
                 </div>  
             }
 
-            <div>
+            <div class="inboxes">
                 <p>ALLOWED WINDOW</p>
                 <div>
                     <label class="form-label">START</label>
                     <div class="d-flex gap-2 align-items-center">
                         <InputSelect @bind-Value="ScheduleDTO.StartHour" class="form-select" id="startHour">
+                            <option value=""></option>
                             @foreach (var hour in Hours)
                             {
-                                <option value="@hour">@hour</option>
+                                <option value="@hour">@hour.ToString("D2")</option>
                             }
                         </InputSelect>
                         <span>:</span>
                         <InputSelect @bind-Value="ScheduleDTO.StartMinute" class="form-select" id="startMinute">
+                            <option value=""></option>
                             @foreach (var minute in Minutes)
                             {
-                                <option value="@minute">@minute</option>
+                                <option value="@minute">@minute.ToString("D2")</option>
                             }
                         </InputSelect>
                     </div>
@@ -93,16 +101,18 @@
                     <label class="form-label">END</label>
                     <div class="d-flex gap-2 align-items-center">
                         <InputSelect @bind-Value="ScheduleDTO.EndHour" class="form-select" id="endHour">
+                            <option value=""></option>
                             @foreach (var hour in Hours)
                             {
-                                <option value="@hour">@hour</option>
+                                <option value="@hour">@hour.ToString("D2")</option>
                             }
                         </InputSelect>
                         <span>:</span>
                         <InputSelect @bind-Value="ScheduleDTO.EndMinute" class="form-select" id="endMinute">
+                            <option value=""></option>
                             @foreach (var minute in Minutes)
                             {
-                                <option value="@minute">@minute</option>
+                                <option value="@minute">@minute.ToString("D2")</option>
                             }
                         </InputSelect>
                     </div>
@@ -111,7 +121,7 @@
                 <ValidationMessage For="() => ScheduleDTO.EndMinute" class="text-danger" />
             </div>
 
-            <div class="mb-4">
+            <div class="mb-4 inboxes">
                 <label class="form-label">Priority</label>
                 <InputRadioGroup @bind-Value="ScheduleDTO.Priority" class="priority-toggle">
                     <label class="priority-option">
@@ -133,16 +143,34 @@
             </div>
         </EditForm>
     </div>
-    <div class="col-md-8">
-        <div class="mb-4 prices">
+    <div class="col-sm-5">
+        <div class="mb-4 boxes">
             <h2>24HR prices</h2>
             <p>Here you will see price graph.</p>
         </div>
-        <div class="mb-4 prices">
-            <h2>Generated plan</h2>
-            <p>@ScheduleDTO.DeviceName</p>
-            <p>@ScheduleDTO.Priority</p>
+        <div class="mb-4 boxes">
+            <EditForm Method="post" Model="ScheduleDTO" OnValidSubmit="addPlan" FormName="AddPlanForm">
+
+                @if (displayPlan)
+                {
+                    <h2>Generated plan</h2>
+                    <p>Start time: @response.StartTime.ToString("MMM dd yyyy HH:mm")</p>
+                    <p>End time: @response.EndTime.ToString("MMM dd yyyy HH:mm")</p>
+                    <p>Estimated price: @response.EstimatedPrice</p>
+                    <p>Estimated CO2 emission: @response.EstimatedCo2Emissions</p>
+
+                }
+                else
+                {
+                    <h2>Generated plan</h2>
+                    <p>No plan generated yet.</p>
+                }
+                <div class="mb-3">
+                    <button type="submit" class="btn btn-primary">Save Plan</button>
+                </div>
+            </EditForm> 
         </div>
+        
         
     </div>
 </div>
@@ -151,56 +179,200 @@
 
 @code {
     private string date = DateTime.Today.ToString("ddd dd MMM yyyy", CultureInfo.InvariantCulture);
-    private string area = "Nordpool DK1";
+    private string area = "DK1";
 
     private ScheduleDTO ScheduleDTO = new();
 
+    private OptimizationResultDTO response = new();
+
     // hent alle devices 
     // hente presets ud fra hvilket device der er valgt i drop down
-    
-    private List<PresetDto> realPresets = new();
+
+    private List<PresetDto> filteredPresets = new();
+    private List<DevicePresetDto> allDevicePresets = new List<DevicePresetDto>();
+    private string? selectedDeviceId;
     private List<UserDeviceDto> userDevices = new();
-    
-    public int deviceId = 1;
-    public string userId = "404b854b-d1c0-425f-bd41-1239a66de7df";
+    private OptimizationRequestDTO optimizationRequest = new();
+
+
+    // public int deviceId = 1;
+    // public string userId = "404b854b-d1c0-425f-bd41-1239a66de7df";
+    private List<int> Hours { get; set; } = new();
+    private int [] Minutes = {00, 15, 30, 45};
+
     protected override async Task OnInitializedAsync()
     {
-        // userDevices = await Http.GetFromJsonAsync<List<UserDeviceDto>>($"api/preset-controller/get-user-device/{userId}") ?? new List<UserDeviceDto>();
-        realPresets = await Http.GetFromJsonAsync<List<PresetDto>>($"api/preset-controller/get-preset/{deviceId}") ?? new List<PresetDto>();
+        var state = await AuthProvider.GetAuthenticationStateAsync();
+        var userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        userDevices = await Http.GetFromJsonAsync<List<UserDeviceDto>>($"api/preset-controller/get-user-device/{userId}") ?? new List<UserDeviceDto>();
+
+        foreach (UserDeviceDto userDevice in userDevices)
+        {
+            // Console.WriteLine($" {userDevice.id}");
+
+            var presets = await Http.GetFromJsonAsync<List<PresetDto>>($"api/preset-controller/get-preset/{userDevice.deviceId}") ?? new List<PresetDto>();
+
+            foreach (var preset in presets)
+            {
+                allDevicePresets.Add(new DevicePresetDto
+                {
+                    deviceId = userDevice.id.ToString(),
+                    preset = preset
+                });
+            }
+        }
+
+        // Console.WriteLine($"User devices: {userDevices.Count}, Presets: {realPresets.Count}");
+
+        int currentHour = DateTime.Now.Hour;
+        Hours = Enumerable.Range(0, 24)
+            .Select(i => (currentHour + i) % 24)
+            .ToList();
     }
 
-    private List<string> Devices = new()
-    {
-        "Electric Vehicle",
-        "Dryer",
-        "Washing Machine",
-        "Dishwasher"
-    };
-    private List<string> Presets = new()
-    {
-        "Standard",
-        "Quick",
-        "Eco"
-    };
-
-    private int[] Hours = Enumerable.Range(0, 24).ToArray();
-    private int [] Minutes = {0, 15, 30, 45};
-
     private bool isEVSelected = false;
-    private async Task GenerateScheduling()
+
+    private bool displayPlan = false;
+
+    private void ClearSchedule()
     {
-        // TODO: send ScheduleDTO to API or process it
+        ScheduleDTO = new ScheduleDTO();
+        filteredPresets = new List<PresetDto>();
+        selectedDeviceId = string.Empty;
+    }
+
+    private void OnDeviceSelected()
+    {
+        // filter i all presets og vælg ud fra device id -> devicePreset
+        isEVSelected = userDevices.Any(
+            device => device.category == "ev_charger" 
+            && device.deviceNickname == ScheduleDTO.DeviceName
+        );
+        var selectedDevice = userDevices
+            .FirstOrDefault(x => x.id.ToString() == selectedDeviceId);
+
+        ScheduleDTO.DeviceName = selectedDevice?.deviceNickname ?? string.Empty;
+
+        filteredPresets = string.IsNullOrEmpty(selectedDeviceId) ? new List<PresetDto>() : allDevicePresets
+            .Where(x => x.deviceId == selectedDeviceId)
+            .Select(x => x.preset)
+            .ToList();
+
+        ScheduleDTO.Preset = string.Empty;
+    }
+
+    private DateTime GetScheduledDateTime(int hour, int minute)
+    {
+        var now = DateTime.Now;
+        var scheduledTime = now.Date.AddHours(hour).AddMinutes(minute);
+
+        if (scheduledTime < now)
+        {
+            scheduledTime = scheduledTime.AddDays(1);
+        }
+        return scheduledTime;
+    }
+    private async Task GenerateScheduling()
+    {   
+        var startTime = GetScheduledDateTime(ScheduleDTO.StartHour!.Value, ScheduleDTO.StartMinute!.Value);
+        var endTime = GetScheduledDateTime(ScheduleDTO.EndHour!.Value, ScheduleDTO.EndMinute!.Value);
+
+        if (endTime <= startTime)
+        {
+            endTime = endTime.AddDays(1);
+        }
+
+        var today = DateTime.Today;
+        var optimizationRequest = new OptimizationRequestDTO
+        {
+            Area = area,
+            DeviceName = ScheduleDTO.DeviceName,
+            ChargeStartPercentage = isEVSelected ? ScheduleDTO.ChargeStartPercentage : null,
+            ChargeStopPercentage = isEVSelected ? ScheduleDTO.ChargeStopPercentage : null,
+            Preset = isEVSelected ? null : ScheduleDTO.Preset,
+            StartTime = startTime,
+            EndTime = endTime,
+            Priority = ScheduleDTO.Priority
+        };
+
+        response = new OptimizationResultDTO
+        {
+            StartTime = optimizationRequest.StartTime,
+            EndTime = optimizationRequest.EndTime,
+            EstimatedPrice = 8.5m, 
+            EstimatedCo2Emissions = 20
+        };
+
+        displayPlan = true;
+
         await Task.CompletedTask;
         return ;
+    }
+
+    private async Task addPlan()
+    {
+        var selectedDevice = userDevices
+            .FirstOrDefault(d => d.id.ToString() == selectedDeviceId);
+
+        if (selectedDevice == null)
+        {
+            Console.WriteLine("No device selected");
+            return;
+        }
+    
+
+        var planToSave = new PlanDTO
+        {
+            UserDeviceId = selectedDevice.id,
+            StartTime = response.StartTime.ToUniversalTime(),
+            EndTime = response.EndTime.ToUniversalTime(),
+            NextPlan = null,
+            EstimatedPrice = response.EstimatedPrice,
+            EstimatedCO2Emission = response.EstimatedCo2Emissions
+        };
+
+        try
+        {
+            var result = await Http.PostAsJsonAsync("api/preset-controller/post-plan", planToSave);
+            if (result.IsSuccessStatusCode)
+            {
+                Console.WriteLine("Plan saved");
+                ClearSchedule();
+            }
+            else
+            {
+                var error = await result.Content.ReadAsStringAsync();
+                Console.WriteLine($"Failed to save plan: {result.StatusCode} - {error}");
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Error with saving plan: {e.Message}");
+        }
+        
     }
 }
 
 <style>
-    .prices {
+
+     .boxes {
+        background-color: #fff;
+        border: 1px solid #e5e2dc;
+        border-radius: 12px;
+        padding: 20px;
+
+        box-sizing: border-box;
+        aspect-ratio: 3 / 1;
+
         display: flex;
         flex-direction: column;
-        gap: 1rem;
-        background: #334155;
+        grid-template-rows: auto 1fr auto;
+    }
+
+    .inboxes {
+        padding: 15px;
+
     }
 
     .header {

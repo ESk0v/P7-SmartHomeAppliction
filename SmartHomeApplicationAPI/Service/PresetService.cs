@@ -21,4 +21,10 @@ public class PresetService : IPresetService
     {
         return await _repository.GetUserDevicesAsync(userId);
     }
+
+    public async Task<PlanDTO> PostPlanAsync(PlanDTO planDTO)
+    {
+        return await _repository.PostPlanAsync(planDTO);
+    }
+
 }

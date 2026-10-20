@@ -26,4 +26,12 @@ public class PresetController : ControllerBase
     {
         return await _service.GetUserDevicesAsync(userId);
     }
+
+    [HttpPost("post-plan")]
+    public async Task<ActionResult> PostPlan([FromBody] PlanDTO planDTO)
+    {
+        var savedPlan = await _service.PostPlanAsync(planDTO);
+
+        return Ok(savedPlan);
+    }
 }
