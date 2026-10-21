@@ -57,7 +57,7 @@
 
         var response = await Http.SendAsync(request);
         response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<StatisticsDto>();
+        return await response.Content.ReadFromJsonAsync<StatisticsDto>() ?? new StatisticsDto();
     }
 
     private async Task<StatisticsDto> GetCheapestPeriod()
@@ -69,9 +69,15 @@
 
     private async Task<StatisticsDto> GetScheduleSavings()
     {
-        return await Http.GetFromJsonAsync<StatisticsDto>(
-            "api/statistics-controller/schedule-savings"
-        ) ?? new StatisticsDto();
+        var state = await AuthProvider.GetAuthenticationStateAsync();
+        var userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        var request = new HttpRequestMessage(HttpMethod.Get, "api/statistics-controller/schedule-savings");
+        request.Headers.Add("UserId", userId);
+
+        var response = await Http.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<StatisticsDto>() ?? new StatisticsDto();
     }
 
     private async Task<StatisticsDto> GetPeakShift()

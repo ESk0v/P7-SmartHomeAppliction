@@ -5,5 +5,5 @@ namespace SmartHomeApplicationAPI.Repository;
 
 public interface IStatisticsRepository
 {
-    Task<List<Plan>> GetPlannedCostAsync(string UserID, DateTime start, DateTime end);
+    Task<List<Plan>> RetrievePlansAsync(string UserID, DateTime start, DateTime end);
 }

@@ -35,13 +35,12 @@ public class StatisticsController : ControllerBase
     }
 
     [HttpGet("schedule-savings")]
-    public async Task<StatisticsDto> GetScheduleSavings()
+    public async Task<ActionResult<StatisticsDto>> GetScheduleSavings([FromHeader(Name = "UserId")] string userId)
     {
-        return new StatisticsDto
-        {
-            Value = "6.15 kr",
-            Description = "25% cheaper"
-        };
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized();
+
+       return await _service.GetScheduleSavingAsync(userId);
     }
 
     [HttpGet("peak-shift")]
