@@ -31,7 +31,7 @@ public class DeviceController : ControllerBase
     [HttpPost("create-device")]
     public async Task<IActionResult> Create([FromBody] DevicesDto dto)
     {
-        _logger.LogError("Received request to create device: {@DevicesDto}", dto);
+        _logger.LogInformation("Received request to create device: {@DevicesDto}", dto);
         if (!ModelState.IsValid) { 
             _logger.LogWarning("ModelState invalid: {@ModelState}", ModelState);
             return ValidationProblem(ModelState);
@@ -45,7 +45,7 @@ public class DeviceController : ControllerBase
 
         var devicePreset = new DevicePreset
         {
-            DeviceId = device.Id,
+            Device = device,
             PresetName = dto.Preset,
             ConsumptionInKwh = dto.ConsumptionInKwh ?? 0m,
             DurationInMinutes = dto.DurationInMinutes ?? 0
@@ -53,15 +53,13 @@ public class DeviceController : ControllerBase
 
         var userDevice = new UserDevice
         {
-            DeviceId = device.Id,
+            Device = device,
             UserId = dto.UserId,
             Nickname = dto.Model,
             Icon = "default_icon",
             Color = "#ea580b",
             IsFavorite = false
         };
-
-        _logger.LogError("device.Id: {DeviceId}, devicePreset.DeviceId: {DevicePresetDeviceId}, userDevice.DeviceId: {UserDeviceDeviceId}", device.Id, devicePreset.DeviceId, userDevice.DeviceId);
 
         _db.Device.Add(device);
         _db.Preset.Add(devicePreset);

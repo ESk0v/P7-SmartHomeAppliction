@@ -22,7 +22,7 @@ namespace SmartHomeApplicationAPI.Infrastructure.Models
 		public string PresetName { get; set; } = "standard";
 
 		[Required]
-		[Precision(5, 3)]
+		[Precision(7, 3)]
 		[Column("consumption_in_kwh")]
 		public decimal ConsumptionInKwh { get; set; }
 
