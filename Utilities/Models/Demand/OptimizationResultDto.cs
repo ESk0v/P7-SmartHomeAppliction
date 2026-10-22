@@ -1,20 +1,9 @@
-using System.ComponentModel.DataAnnotations;
+namespace Utilities.Models;
 
-namespace Utilities.Models
-{
-	public class OptimizationResultDTO	
-	{  
-        [Required]
-        public DateTime StartTime { get; set; }
+public record OptimizationResultDTO(	  
+	DateTime StartTime,
+	DateTime EndTime,
+	decimal EstimatedPrice,
+	decimal EstimatedCo2Emissions
 
-        [Required]
-        public DateTime EndTime { get; set; }
-        
-		[Required]
-		public decimal EstimatedPrice { get; set; }
-
-		[Required]
-		public decimal EstimatedCo2Emissions { get; set; }
-
-	}
-}
+);

@@ -3,11 +3,11 @@ using SmartHomeApplicationAPI.Repository;
 
 namespace SmartHomeApplicationAPI.Service;
 
-public class PresetService : IPresetService
+public class CreatePlanService : ICreatePlanService
 {
-    private readonly IPresetRepository _repository;
+    private readonly ICreatePlanRepository _repository;
 
-    public PresetService(IPresetRepository repository)
+    public CreatePlanService(ICreatePlanRepository repository)
     {
         _repository = repository;
     }

@@ -2,7 +2,7 @@ using Utilities.Models;
 
 namespace SmartHomeApplicationAPI.Repository;
 
-public interface IPresetRepository
+public interface ICreatePlanRepository
 {
     Task<List<PresetDto>> GetPresetsAsync(int deviceId);
 

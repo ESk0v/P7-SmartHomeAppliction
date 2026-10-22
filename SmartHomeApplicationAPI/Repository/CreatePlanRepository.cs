@@ -5,11 +5,11 @@ using Utilities.Models;
 
 namespace SmartHomeApplicationAPI.Repository;
 
-public class PresetRepository : IPresetRepository
+public class CreatePlanRepository : ICreatePlanRepository
 {
     private readonly SmartHomeDbContext _db;
 
-    public PresetRepository(SmartHomeDbContext db)
+    public CreatePlanRepository(SmartHomeDbContext db)
     {
         _db = db;
     }

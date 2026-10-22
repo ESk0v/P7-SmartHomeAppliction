@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Utilities.Models
 {
-	public class ScheduleDTO	
+	public class ScheduleForm	
 	{
 	
 		[Required(ErrorMessage = "Please select a device.")]
@@ -15,27 +15,25 @@ namespace Utilities.Models
         [Range(0, 100)]
 		public int? ChargeStopPercentage { get; set; }
 
-        [StringLength(30)]
         public string Preset { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Please select a time.")]
-        [Range(0, 24)]
+        [Range(0, 23)]
         public int? StartHour { get; set; }
 
         [Required(ErrorMessage = "Please select a time.")]
-        [Range(0, 60)]
+        [Range(0, 59)]
         public int? StartMinute { get; set; }
 
         [Required(ErrorMessage = "Please select a time.")]
-        [Range(0, 24)]
+        [Range(0, 23)]
         public int? EndHour { get; set; }
 
         [Required(ErrorMessage = "Please select a time.")]        
-        [Range(0, 60)]
+        [Range(0, 59)]
         public int? EndMinute { get; set; }
 
 		[Required(ErrorMessage = "Please select a priority.")]
-		[StringLength(20)]
 		public string Priority { get; set; } = string.Empty;
 
 	}

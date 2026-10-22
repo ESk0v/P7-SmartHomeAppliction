@@ -5,12 +5,12 @@ using Microsoft.EntityFrameworkCore.Infrastructure.Internal;
 
 namespace Controller.Dashboard;
 [ApiController]
-[Route("api/preset-controller")]
-public class PresetController : ControllerBase
+[Route("api/createPlan-controller")]
+public class CreatePlanController : ControllerBase
 {
-    private readonly IPresetService _service;
+    private readonly ICreatePlanService _service;
 
-    public PresetController(IPresetService service)
+    public CreatePlanController(ICreatePlanService service)
     {
         _service = service;
     }

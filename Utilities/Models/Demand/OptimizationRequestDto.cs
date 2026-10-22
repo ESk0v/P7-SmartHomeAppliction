@@ -4,7 +4,7 @@ namespace Utilities.Models
 {
 	public class OptimizationRequestDTO	
 	{
-		[StringLength(3)]
+		[StringLength(3, MinimumLength = 3)]
         public string Area { get; set; } = string.Empty;
         
         [StringLength(50)]
@@ -16,7 +16,6 @@ namespace Utilities.Models
         [Range(0, 100)]
 		public int? ChargeStopPercentage { get; set; }
 
-        [StringLength(30)]
         public string? Preset { get; set; } = string.Empty;
 
         public DateTime StartTime { get; set; }

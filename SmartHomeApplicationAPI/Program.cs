@@ -116,8 +116,12 @@ builder.Services.AddScoped<
     PlanService>();
 
 builder.Services.AddScoped<
-    IPresetService,
-    PresetService>();
+    ICreatePlanService,
+    CreatePlanService>();
+
+builder.Services.AddScoped<
+    IOptimizationService,
+    OptimizationService>();
 
 builder.Services.AddScoped<
     IElectricityPriceRepository,
@@ -128,8 +132,8 @@ builder.Services.AddScoped<
     PlanRepository>();
 
 builder.Services.AddScoped<
-    IPresetRepository,
-    PresetRepository>();
+    ICreatePlanRepository,
+    CreatePlanRepository>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
