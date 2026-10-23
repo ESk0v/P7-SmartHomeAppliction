@@ -20,11 +20,14 @@ public class PlanRepository : IPlanRepository
             .AsNoTracking()
             .OrderBy(p => p.StartTime)
             .Select(p => new PlanDto(
+                planName: p.Name,
                 icon: p.UserDevice.Icon,
                 colorCode: p.UserDevice.Color,
                 deviceName: p.UserDevice.Nickname,
                 startTime: p.StartTime,
-                endTime: p.EndTime
+                endTime: p.EndTime,
+                estimatedCost: p.EstimatedPrice,
+                estimatedCo2Emissions: p.EstimatedCo2Emissions
             ))
             .ToListAsync();
     }

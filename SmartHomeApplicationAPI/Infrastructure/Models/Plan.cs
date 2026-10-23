@@ -14,6 +14,11 @@ namespace SmartHomeApplicationAPI.Infrastructure.Models
 
 		public int Id { get; set; }
 
+		[Required]
+		[MaxLength(100)]
+		[Column("name")]
+		public string Name { get; set; } = null!;
+
         //foreign key to UserDevice.Id
 		[Required]
 		[Column("user_device_id")]

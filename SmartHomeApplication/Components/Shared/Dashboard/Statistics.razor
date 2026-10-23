@@ -24,6 +24,8 @@
 
     [Parameter]
     public StatisticsType Type { get; set; }
+    [Parameter]
+    public StatisticsDto? OverrideData { get; set; }
     public StatisticsDto? Data { get; set;}
 
     private string Title => Type switch
@@ -32,48 +34,47 @@
         StatisticsType.CheapestPeriod => "Cheapest Window",
         StatisticsType.ScheduleSavings => "Saved vs unscheduled",
         StatisticsType.PeakShift => "Load moved off peak",
+        StatisticsType.EstimatedCost => "Estimated cost",
+        StatisticsType.MoneySaved => "You save",
+        StatisticsType.LoadDuration => "Load Duration",
+        StatisticsType.LoadFinish => "Load finished",
         _ => "Statistics"
     };
 
     protected override async Task OnInitializedAsync()
     {
+        if (OverrideData is not null)
+        {
+            Data = OverrideData;
+            return;
+        }
+
         Data = Type switch
         {
-            StatisticsType.PlannedCost => await GetPlannedCost(),
-            StatisticsType.CheapestPeriod => await GetCheapestPeriod(),
-            StatisticsType.ScheduleSavings => await GetScheduleSavings(),
-            StatisticsType.PeakShift => await GetPeakShift(),
-            _ => new StatisticsDto {Value = "error"}
-        
+            StatisticsType.PlannedCost => await GetStatistic("planned-cost"),
+            StatisticsType.CheapestPeriod => await GetStatistic("cheapest-period"),
+            StatisticsType.ScheduleSavings => await GetStatistic("schedule-savings"),
+            StatisticsType.PeakShift => await GetStatistic("peak-shift"),
+            StatisticsType.EstimatedCost => await GetStatistic("estimated-cost"),
+            StatisticsType.MoneySaved => await GetStatistic("money-saved"),
+            StatisticsType.LoadDuration => await GetStatistic("load-duration"),
+            StatisticsType.LoadFinish => await GetStatistic("load-finish"),
+            _ => new StatisticsDto {Value = "Error: No known statistic type given"}
+
         };
     }
 
-    private async Task<StatisticsDto> GetPlannedCost()
+    protected override void OnParametersSet()
     {
-        return await Http.GetFromJsonAsync<StatisticsDto>(
-            "api/statistics-controller/planned-cost"
-        ) ?? new StatisticsDto();
+        if (OverrideData is not null)
+        {
+            Data = OverrideData;
+        }
     }
 
-    private async Task<StatisticsDto> GetCheapestPeriod()
+    private async Task<StatisticsDto> GetStatistic(string uri)
     {
-        return await Http.GetFromJsonAsync<StatisticsDto>(
-            "api/statistics-controller/Cheapest-period"
-        ) ?? new StatisticsDto();
-    }
-
-    private async Task<StatisticsDto> GetScheduleSavings()
-    {
-        return await Http.GetFromJsonAsync<StatisticsDto>(
-            "api/statistics-controller/schedule-savings"
-        ) ?? new StatisticsDto();
-    }
-
-    private async Task<StatisticsDto> GetPeakShift()
-    {
-        return await Http.GetFromJsonAsync<StatisticsDto>(
-            "api/statistics-controller/peak-shift"
-        ) ?? new StatisticsDto();
+        return await Http.GetFromJsonAsync<StatisticsDto>("api/statistics-controller/" + uri) ?? new StatisticsDto();
     }
 }
 

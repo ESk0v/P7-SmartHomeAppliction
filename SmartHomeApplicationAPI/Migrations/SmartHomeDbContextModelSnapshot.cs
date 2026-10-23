@@ -190,7 +190,33 @@ namespace SmartHomeApplicationAPI.Migrations
                     b.ToTable("day_ahead_price", (string)null);
                 });
 
-            modelBuilder.Entity("SmartHomeApplicationAPI.Infrastructure.Models.DevicePresets", b =>
+            modelBuilder.Entity("SmartHomeApplicationAPI.Infrastructure.Models.Device", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("category");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("model");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("device");
+                });
+
+            modelBuilder.Entity("SmartHomeApplicationAPI.Infrastructure.Models.DevicePreset", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -225,32 +251,6 @@ namespace SmartHomeApplicationAPI.Migrations
                     b.ToTable("device_preset");
                 });
 
-            modelBuilder.Entity("SmartHomeApplicationAPI.Infrastructure.Models.Devices", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Category")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasColumnName("category");
-
-                    b.Property<string>("Model")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("model");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("device");
-                });
-
             modelBuilder.Entity("SmartHomeApplicationAPI.Infrastructure.Models.Plan", b =>
                 {
                     b.Property<int>("Id")
@@ -271,6 +271,12 @@ namespace SmartHomeApplicationAPI.Migrations
                     b.Property<decimal>("EstimatedPrice")
                         .HasColumnType("money")
                         .HasColumnName("estimated_price_in_kroner");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
 
                     b.Property<int?>("NextPlanId")
                         .HasColumnType("integer")
@@ -461,9 +467,9 @@ namespace SmartHomeApplicationAPI.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("SmartHomeApplicationAPI.Infrastructure.Models.DevicePresets", b =>
+            modelBuilder.Entity("SmartHomeApplicationAPI.Infrastructure.Models.DevicePreset", b =>
                 {
-                    b.HasOne("SmartHomeApplicationAPI.Infrastructure.Models.Devices", "Device")
+                    b.HasOne("SmartHomeApplicationAPI.Infrastructure.Models.Device", "Device")
                         .WithMany()
                         .HasForeignKey("DeviceId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -491,7 +497,7 @@ namespace SmartHomeApplicationAPI.Migrations
 
             modelBuilder.Entity("SmartHomeApplicationAPI.Infrastructure.Models.UserDevice", b =>
                 {
-                    b.HasOne("SmartHomeApplicationAPI.Infrastructure.Models.Devices", "Device")
+                    b.HasOne("SmartHomeApplicationAPI.Infrastructure.Models.Device", "Device")
                         .WithMany()
                         .HasForeignKey("DeviceId")
                         .OnDelete(DeleteBehavior.Cascade)

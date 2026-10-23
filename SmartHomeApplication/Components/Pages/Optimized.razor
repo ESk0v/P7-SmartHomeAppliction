@@ -3,6 +3,15 @@
 @inject OptimizedPlanState PlanState
 @attribute [Authorize]
 
+@using global::Shared.Dashboard
+@using System.Globalization
+@using System.Security.Claims
+@using Utilities.Models
+
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthProvider
+@inject ILogger<Optimized> Logger
+
 <PageTitle>Optimized plans</PageTitle>
 
 <SectionContent SectionName="TopBarActions">
@@ -51,10 +60,39 @@
             </button>
         </div>
     </div>
+
 </SectionContent>
 
+<div class="body">
+    <div class="statistics">
+        <Statistics Type="StatisticsType.EstimatedCost" OverrideData="EstimatedCost"/>
+        <Statistics Type="StatisticsType.MoneySaved" OverrideData="MoneySaved"/>
+        <Statistics Type="StatisticsType.LoadDuration" OverrideData="LoadDuration"/>
+        <Statistics Type="StatisticsType.LoadFinish" OverrideData="LoadFinish"/>
+    </div>
+
+    <div class="optimized-timeline">
+        @if (isLoading)
+        {
+            <p>Loading optimized plan...</p>
+        }
+        else if (loadError is not null)
+        {
+            <p class="optimized-error">@loadError</p>
+        }
+        else if (selectedSchedules.Count == 0)
+        {
+            <p class="optimized-empty">No optimized loads were found for @selectedPlan.Device.</p>
+        }
+        else
+        {
+            <PriceChart activeSchedules="selectedSchedules" />
+        }
+    </div>
+</div>
+
 @code {
-    private readonly List<Plan> plans =
+    private List<Plan> plans =
     [
         new("mixed-home", "Whole-home savings plan", "Home appliances", 75, "21:00–06:00", Icons.Cpu),
         new("evening-ev", "EV evening plan", "EV Charger", 80, "22:00–07:00", Icons.Car),
@@ -62,6 +100,9 @@
     ];
 
     private bool isPlanPickerOpen;
+    private bool isLoading = true;
+    private string? loadError;
+    private List<PlanDto> allSchedules = new List<PlanDto>();
 
     private string selectedPlanId
     {
@@ -69,7 +110,54 @@
         set => PlanState.SelectedPlanId = value;
     }
 
-    private Plan selectedPlan => plans.First(plan => plan.Id == selectedPlanId);
+    private Plan selectedPlan => plans.FirstOrDefault(plan => plan.Id == selectedPlanId) ?? plans[0];
+    private List<PlanDto> selectedSchedules => allSchedules
+        .Where(schedule => string.Equals(schedule.planName, selectedPlan.Name, StringComparison.OrdinalIgnoreCase))
+        .OrderBy(schedule => schedule.startTime)
+        .ToList();
+
+    private StatisticsDto EstimatedCost => new StatisticsDto()
+    {
+        Value = selectedSchedules.Count == 0
+            ? "--"
+            : selectedSchedules.Sum(schedule => schedule.estimatedCost).ToString("C", CultureInfo.CurrentCulture),
+        Description = "For selected device"
+    };
+
+    private StatisticsDto MoneySaved
+    {
+        get
+        {
+            decimal estimatedCost = selectedSchedules.Sum(schedule => schedule.estimatedCost);
+            decimal baselineCost = estimatedCost * 1.15m;   // Temporary baseline
+
+            return new StatisticsDto()
+            {
+                Value = selectedSchedules.Count == 0
+                    ? "--"
+                    : (baselineCost - estimatedCost).ToString("C", CultureInfo.CurrentCulture),
+                Description = "vs. starting ASAP"
+            };
+        }
+    }
+
+    private StatisticsDto LoadDuration => new StatisticsDto()
+    {
+        Value = selectedSchedules.Count == 0
+            ? "--"
+            : FormatDuration(selectedSchedules
+                .Select(schedule => schedule.endTime - schedule.startTime)
+                .Aggregate(TimeSpan.Zero, (total, duration) => total + duration)),
+        Description = "Total scheduled runtime"
+    };
+
+    private StatisticsDto LoadFinish => new StatisticsDto()
+    {
+        Value = selectedSchedules.Count == 0
+            ? "--"
+            : selectedSchedules.Max(schedule => schedule.endTime).ToString("HH:mm", CultureInfo.InvariantCulture),
+        Description = "Latest scheduled finish"
+    };
 
     private void TogglePlanPicker()
     {
@@ -80,6 +168,98 @@
     {
         selectedPlanId = planId;
         isPlanPickerOpen = false;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            AuthenticationState? state = await AuthProvider.GetAuthenticationStateAsync();
+            string? userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                loadError = "The current user could not be identified.";
+                return;
+            }
+
+            using HttpRequestMessage? request = new HttpRequestMessage(HttpMethod.Get, "api/plan-controller/get-plan");
+            request.Headers.Add("UserId", userId);
+
+            using HttpResponseMessage? response = await Http.SendAsync(request);
+            response.EnsureSuccessStatusCode();
+            allSchedules = await response.Content.ReadFromJsonAsync<List<PlanDto>>() ?? new();
+            BuildPlansFromSchedules();
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Failed to load optimized plan data");
+            loadError = "The optimized plan could not be loaded.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private static string FormatDuration(TimeSpan duration)
+    {
+        return duration.TotalHours >= 1
+            ? $"{(int)duration.TotalHours}h {duration.Minutes}m"
+            : $"{duration.Minutes}m";
+    }
+
+    private void BuildPlansFromSchedules()
+    {
+        if (allSchedules.Count == 0)
+        {
+            return;
+        }
+
+        plans = allSchedules
+            .GroupBy(schedule => schedule.planName, StringComparer.OrdinalIgnoreCase)
+            .Select(group =>
+            {
+                List<PlanDto>? schedules = group.OrderBy(schedule => schedule.startTime).ToList();
+                PlanDto? firstSchedule = schedules[0];
+                PlanDto? lastSchedule = schedules[^1];
+
+                return new Plan(
+                    CreatePlanId(group.Key),
+                    group.Key,
+                    schedules[0].deviceName,
+                    100,
+                    $"{firstSchedule.startTime:HH:mm}–{lastSchedule.endTime:HH:mm}",
+                    IconFor(group.Key));
+            })
+            .ToList();
+
+        if (!plans.Any(plan => plan.Id == selectedPlanId))
+        {
+            selectedPlanId = plans[0].Id;
+        }
+    }
+
+    private static string CreatePlanId(string deviceName) =>
+        string.Join("-", deviceName.Split(
+            [' ', '-', '_'],
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            .ToLowerInvariant();
+
+    private static RenderFragment IconFor(string deviceName)
+    {
+        if (deviceName.Contains("car", StringComparison.OrdinalIgnoreCase)
+            || deviceName.Contains("ev", StringComparison.OrdinalIgnoreCase))
+        {
+            return Icons.Car;
+        }
+
+        if (deviceName.Contains("wash", StringComparison.OrdinalIgnoreCase))
+        {
+            return Icons.WashingMachine;
+        }
+
+        return Icons.Cpu;
     }
 
     private sealed record Plan(
@@ -93,6 +273,49 @@
 
 
 <style>
+    .body {
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+        height: calc(100vh - 4.5rem);
+        min-height: 0;
+        overflow: hidden;
+        padding: 1.5rem 3vw;
+    }
+
+    .statistics {
+        display: grid;
+        flex: 0 0 auto;
+        gap: 3vw;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .optimized-timeline {
+        flex: 1 1 auto;
+        min-height: 0;
+        min-width: 0;
+    }
+
+    .optimized-timeline ::deep .chart-card {
+        height: 100%;
+    }
+
+    .optimized-empty,
+    .optimized-error {
+        background: #fff;
+        border: 1px solid #e5e2dc;
+        border-radius: 12px;
+        color: #777;
+        margin: 0;
+        padding: 2rem;
+        text-align: center;
+    }
+
+    .optimized-error {
+        color: #9f2d2d;
+    }
+
     .header {
         align-items: center;
         display: flex;
@@ -290,6 +513,12 @@
     }
 
     @@media (max-width: 640.98px) {
+        .body {
+            height: auto;
+            min-height: calc(100vh - 4.5rem);
+            overflow: visible;
+        }
+
         .header {
             align-items: flex-start;
             flex-direction: column;
@@ -316,6 +545,15 @@
 
         .optimized-action {
             flex: 1;
+        }
+
+        .statistics {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 1rem;
+        }
+
+        .optimized-timeline {
+            min-height: 16rem;
         }
     }
 </style>
