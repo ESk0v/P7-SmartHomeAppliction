@@ -16,3 +16,8 @@
 .DS_Store
 SmartHomeApplicationAPI/appsettings.Development.json
 SmartHomeApplicationAPI/appsettings.json
+
+# python
+.venv/
+Forecasting/.venv/
+Forecasting/.venv
