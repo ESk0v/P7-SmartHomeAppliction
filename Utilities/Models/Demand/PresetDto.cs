@@ -1,8 +1,13 @@
-namespace Utilities.Models;
+using System.ComponentModel.DataAnnotations;
 
-public record PresetDto(
-    int id,
-    string presetName,
-    decimal consumption,
-    int duration
-);
+namespace Utilities.Models
+{
+    public class PresetDto
+    {
+        public int id { get; set; }
+        public string presetName { get; set; } = string.Empty;
+        public decimal consumption { get; set; }
+        public int duration { get; set; }
+    }
+}
+

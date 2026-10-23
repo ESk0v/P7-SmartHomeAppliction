@@ -16,7 +16,7 @@ namespace Utilities.Models
         [Range(0, 100)]
 		public int? ChargeStopPercentage { get; set; }
 
-        public string? Preset { get; set; } = string.Empty;
+        public PresetDto? Preset { get; set; } = null;
 
         public DateTime StartTime { get; set; }
         public DateTime EndTime { get; set; }
