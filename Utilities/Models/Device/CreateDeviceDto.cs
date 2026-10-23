@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Utilities.Models
 {
-	public class DevicesDto	
+	public class CreateDeviceDto
 	{
 		public String UserId { get; set; } = string.Empty;
 

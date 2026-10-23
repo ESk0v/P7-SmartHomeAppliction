@@ -1,6 +1,7 @@
 @page "/appliance"
 @attribute [Authorize]
-@inject HttpClient http
+@inject SmartHomeApplication.Service.IDeviceService DeviceService
+@using Utilities.Models
 
 <PageTitle>Appliances</PageTitle>
 
@@ -23,37 +24,28 @@
 
 <h1>This is for seeing all appliances</h1>
 
+@foreach (var device in userdevices)
+{
+    <div class="card shadow-sm border-0 rounded-4 p-4 bg-white h-100 mb-3">
+        <h2 class="h5 mb-4">@device.Model</h2>
+        <p>Nickname: @device.Nickname</p>
+        <p>Category: @device.Category</p>
+    </div>
+}
+
+
 
 
 @code {
-    // Current amount of devices in the registry
-    private int amount = 5;    
-    /*
-    @inject HttpClient Http
+    private int amount = 0;
 
-    private DevicesDTO DeviceDTO { get; set; } = new DevicesDTO();
-
-    private async Task AddDevice()
+    private List<UserDeviceDto> userdevices = new List<UserDeviceDto>();
+    
+    protected override async Task OnInitializedAsync()
     {
-        var resp = await Http.GetAsJsonAsync("api/devices/", DeviceDTO);
-
-        if (resp.IsSuccessStatusCode)
-        {
-            // TODO: handle success, e.g., show a success message or redirect to another page
-            Console.WriteLine("Device added successfully.");
-            return;
-        }
-
-        if (resp.StatusCode == System.Net.HttpStatusCode.BadRequest ||
-            resp.StatusCode == System.Net.HttpStatusCode.UnprocessableEntity)
-        {
-            //TODO: read validation errors from response and display them in the form
-            Console.WriteLine("Validation error occurred while adding device.");
-           
-        }
-  
+        userdevices = (await DeviceService.GetUserDevicesAsync()).ToList();
+        amount = userdevices.Count;
     }
-*/
 }
 
 <style>

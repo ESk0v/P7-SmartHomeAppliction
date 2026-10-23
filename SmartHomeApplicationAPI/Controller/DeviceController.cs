@@ -4,6 +4,7 @@ using SmartHomeApplicationAPI.Infrastructure;
 using SmartHomeApplicationAPI.Infrastructure.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 
 namespace SmartHomeApplicationAPI.Controllers;
 
@@ -20,16 +21,45 @@ public class DeviceController : ControllerBase
         _logger = logger;
     }
 
-    [HttpGet("{id:int}")]
-    public async Task<IActionResult> GetById(int id)
+    [HttpGet("get-userdevices")]
+    public async Task<IActionResult> GetUserDevices([FromHeader(Name = "User-Id")] string userId, CancellationToken ct)
     {
-        var device = await _db.Device.FindAsync(id);
-        if (device == null) return NotFound();
-        return Ok(device);
+        _logger.LogInformation("Received request to get devices for userId={UserId}", userId);
+        var userDevices = await _db.UserDevice
+            .Where(ud => ud.UserId == userId)
+            .Select(ud => new UserDeviceDto
+            {
+                Model = ud.Device.Model,
+                Category = ud.Device.Category,
+                Nickname = ud.Nickname,
+                Icon = ud.Icon,
+                Color = ud.Color,
+                IsFavorite = ud.IsFavorite
+            })
+            .ToListAsync(ct);
+        _logger.LogInformation("Retrieved {DeviceCount} devices for userId={UserId}", userDevices.Count, userId);
+        return Ok(userDevices);
+    }
+
+    [HttpGet("get-all-devices")]
+    public async Task<IActionResult> GetAllDevices(CancellationToken ct)
+    {
+        _logger.LogInformation("Received request to get all devices");
+
+        var devices = await _db.Device
+            .Select(d => new CatalogueDeviceDto
+            {
+                Model = d.Model,
+                Category = d.Category
+            })
+            .ToListAsync(ct);
+
+        _logger.LogInformation("Retrieved {DeviceCount} devices", devices.Count);
+        return Ok(devices);
     }
 
     [HttpPost("create-device")]
-    public async Task<IActionResult> Create([FromBody] DevicesDto dto)
+    public async Task<IActionResult> Create([FromBody] CreateDeviceDto dto)
     {
         _logger.LogInformation("Received request to create device: {@DevicesDto}", dto);
         if (!ModelState.IsValid) { 
