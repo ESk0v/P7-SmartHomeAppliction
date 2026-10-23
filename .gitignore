@@ -21,3 +21,6 @@ SmartHomeApplicationAPI/appsettings.json
 .venv/
 Forecasting/.venv/
 Forecasting/.venv
+.vscode/
+Forecasting/__pycache__/
+Forecasting/__pycache__
