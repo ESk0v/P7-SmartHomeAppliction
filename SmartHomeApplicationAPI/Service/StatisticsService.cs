@@ -22,7 +22,11 @@ public class StatisticsService : IStatisticsService
 
         if (plans.Count == 0)
         {
-            return new StatisticsDto();
+            return new StatisticsDto
+            {
+                Value = "--",
+                Description = "No plans scheduled today"
+            };
         }
 
         decimal totalPrice = 0;
@@ -46,7 +50,11 @@ public class StatisticsService : IStatisticsService
 
         if (plans.Count == 0)
         {
-            return new StatisticsDto();
+            return new StatisticsDto
+            {
+                Value = "--",
+                Description = "No plans scheduled today"
+            };
         }
 
         decimal totalPrice = 0;
@@ -60,15 +68,11 @@ public class StatisticsService : IStatisticsService
 
         decimal savedPrice = totalUnscheduledPrice - totalPrice;
         decimal savedPricePercent = (totalUnscheduledPrice - totalPrice) / totalUnscheduledPrice * 100;
-        string arrow = savedPrice >= 0 ? "\u2193" : "\u2191";
+        string arrow = savedPrice > 0 ? "\u2193" : "";
         
         return new StatisticsDto{
             Value = "" + savedPrice + " Kr.",
-            Description = 
-                "" +
-                 arrow + 
-                savedPricePercent + 
-                " % cheaper"
+            Description = "" + arrow + " " + savedPricePercent + " % cheaper"
         };
     }
 }

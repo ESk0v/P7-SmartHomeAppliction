@@ -15,7 +15,7 @@
     @if (Data is not null)
     {
         <p class="statistics-value">@Data.Value</p>
-        <p class="statistics-description">@(Data.Description ?? "\u00A0")</p>
+        <p class="statistics-description @(Data.Description?.Contains("↓") == true ? "savings-positive" : "")">@(Data.Description ?? "\u00A0")</p>
     }
 </div>
 
@@ -131,5 +131,9 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+    }
+
+    .savings-positive {
+        color: green;
     }
 </style>
