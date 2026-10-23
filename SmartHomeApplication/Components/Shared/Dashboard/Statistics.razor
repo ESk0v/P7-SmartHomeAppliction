@@ -15,7 +15,7 @@
 
         @if (Data.Description is not null)
         {
-            <p class="statistics-description">@Data.Description</p>
+            <p class="statistics-description @DescriptionClass">@Data.Description</p>
         }
     }
 </div>
@@ -26,6 +26,8 @@
     public StatisticsType Type { get; set; }
     [Parameter]
     public StatisticsDto? OverrideData { get; set; }
+    [Parameter]
+    public string DescriptionClass { get; set; } = string.Empty;
     public StatisticsDto? Data { get; set;}
 
     private string Title => Type switch
@@ -113,6 +115,10 @@
         min-height: 1.2em;
         color: #888;
         font-size: 0.8rem;
+    }
+
+    .statistics-description.positive {
+        color: #159447;
     }
 
     .statistics-value,

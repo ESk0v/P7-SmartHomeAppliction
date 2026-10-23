@@ -65,7 +65,9 @@
 
 <div class="body">
     <div class="statistics">
-        <Statistics Type="StatisticsType.EstimatedCost" OverrideData="EstimatedCost"/>
+        <Statistics Type="StatisticsType.EstimatedCost"
+                    OverrideData="EstimatedCost"
+                    DescriptionClass="@(selectedSchedules.Count == 0 ? string.Empty : "positive")"/>
         <Statistics Type="StatisticsType.MoneySaved" OverrideData="MoneySaved"/>
         <Statistics Type="StatisticsType.LoadDuration" OverrideData="LoadDuration"/>
         <Statistics Type="StatisticsType.LoadFinish" OverrideData="LoadFinish"/>
@@ -121,7 +123,9 @@
         Value = selectedSchedules.Count == 0
             ? "--"
             : selectedSchedules.Sum(schedule => schedule.estimatedCost).ToString("C", CultureInfo.CurrentCulture),
-        Description = "For selected device"
+        Description = selectedSchedules.Count == 0
+            ? "No data available"
+            : $"↓ {BaselineDifferencePercent:0}% vs. baseline"
     };
 
     private StatisticsDto MoneySaved
@@ -136,7 +140,9 @@
                 Value = selectedSchedules.Count == 0
                     ? "--"
                     : (baselineCost - estimatedCost).ToString("C", CultureInfo.CurrentCulture),
-                Description = "vs. starting ASAP"
+                Description = selectedSchedules.Count == 0
+                    ? "No data available"
+                    : "vs. starting ASAP"
             };
         }
     }
@@ -148,7 +154,9 @@
             : FormatDuration(selectedSchedules
                 .Select(schedule => schedule.endTime - schedule.startTime)
                 .Aggregate(TimeSpan.Zero, (total, duration) => total + duration)),
-        Description = "Total scheduled runtime"
+        Description = selectedSchedules.Count == 0
+            ? "No data available"
+            : $"Starts at {selectedSchedules.Min(schedule => schedule.startTime):HH:mm}"
     };
 
     private StatisticsDto LoadFinish => new StatisticsDto()
@@ -156,8 +164,39 @@
         Value = selectedSchedules.Count == 0
             ? "--"
             : selectedSchedules.Max(schedule => schedule.endTime).ToString("HH:mm", CultureInfo.InvariantCulture),
-        Description = "Latest scheduled finish"
+        Description = selectedSchedules.Count == 0
+            ? "No data available"
+            : FormatDeadlineDescription()
     };
+
+    private decimal BaselineDifferencePercent
+    {
+        get
+        {
+            decimal estimatedCost = selectedSchedules.Sum(schedule => schedule.estimatedCost);
+            decimal baselineCost = estimatedCost * 1.15m;   // Temporary baseline
+
+            return baselineCost == 0
+                ? 0
+                : (baselineCost - estimatedCost) / baselineCost * 100;
+        }
+    }
+
+    private string FormatDeadlineDescription()
+    {
+        DateTime finish = selectedSchedules.Max(schedule => schedule.endTime);
+        DateTime deadline = finish;
+        TimeSpan remaining = deadline - finish;
+
+        if (remaining <= TimeSpan.Zero)
+        {
+            return remaining == TimeSpan.Zero
+                ? "Finishes right on deadline"
+                : "Finishes after deadline";    // Probably won't happen, but just in case
+        }
+
+        return $"Finishes {FormatDuration(remaining)} before deadline";
+    }
 
     private void TogglePlanPicker()
     {
