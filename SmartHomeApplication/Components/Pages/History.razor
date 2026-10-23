@@ -2,6 +2,7 @@
 @attribute [Authorize]
 
 @rendermode InteractiveServer
+@using global::Shared.Dashboard
 @using System.Globalization
 
 <PageTitle>History</PageTitle>
@@ -40,7 +41,14 @@
     </div>
 </SectionContent>
 
-<h1>This is for the history view</h1>
+<div>
+    <div class="statistics">
+        <Statistics Type="StatisticsType.PlannedCost"/>
+        <Statistics Type="StatisticsType.ScheduleSavings"/>
+        <Statistics Type="StatisticsType.PeakShift"/>
+        <Statistics Type="StatisticsType.CheapestPeriod"/>
+    </div>
+</div>
 
 
 @code {
@@ -98,6 +106,13 @@
 }
 
 <style>
+    .statistics {
+        flex: 0 0 15%;
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 3vw;
+    }
+    
     .header {
         align-items: center;
         display: flex;
