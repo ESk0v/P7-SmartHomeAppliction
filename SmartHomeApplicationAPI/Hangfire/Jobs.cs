@@ -22,16 +22,17 @@ public static class Jobs
                 TimeZone = Copenhagen
             });
         
-        RecurringJob.AddOrUpdate<ICo2ImportService>(
-            Co2ForecastImport,
-            service => service.ImportForecastAsync(),
-            "*/15 15-17 * * *",
-            options);
+//        RecurringJob.AddOrUpdate<ICo2ImportService>(
+//            Co2ForecastImport,
+//            service => service.ImportForecastAsync(),
+//           "*/15 15-17 * * *",
+//            options);
 
-        RecurringJob.AddOrUpdate<ICo2ImportService>(
-            Co2ActualsImport,
-            service => service.ImportActualsAsync(),
-            "5 * * * *",
-            options);
+//        RecurringJob.AddOrUpdate<ICo2ImportService>(
+//            Co2ActualsImport,
+//            service => service.ImportActualsAsync(),
+//            "5 * * * *",
+//            options);
+        
     }
 }

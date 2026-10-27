@@ -1,10 +1,10 @@
-// DTOs/EnergiDataService/DayAheadPriceRecord.cs
+// DTOs/EnergiDataService/ElectricityImportResponse.cs
 using System.Text.Json.Serialization;
 
 namespace SmartHomeApplicationAPI.DTOs.EnergiDataService;
 
 /// <summary>One 15-minute row from the DayAheadPrices dataset. Prices are per MWh.</summary>
-public sealed class DayAheadPriceRecord
+public sealed class ElectricityImportResponse
 {
     [JsonPropertyName("TimeUTC")]
     public DateTime TimeUtc { get; init; }
