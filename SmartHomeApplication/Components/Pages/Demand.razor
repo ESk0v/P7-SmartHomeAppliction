@@ -58,8 +58,10 @@
             {
                 <div class="inboxes">
                     <label for="devicePreset" class="form-label">Device Preset</label>
-                    <ButtonSelect Options="@(filteredPresets.Select(p => (p.presetName, p.presetName)))"
-                         @bind-Value="ScheduleForm.Preset.presetName" Placeholder="Select preset" />
+                    <ButtonSelect Options="@(filteredPresets.Select(p => (Value: p.id.ToString(), Text: p.presetName)))"
+                         @bind-Value="selectedPresetId"
+                         @bind-Value:after="UpdateSelectedPreset"
+                         Placeholder="Select preset" />
                     <ValidationMessage For="() => ScheduleForm.Preset" class="text-danger" />
                 </div>  
             }
@@ -93,6 +95,12 @@
                 </div>
                 <ValidationMessage For="() => ScheduleForm.EndHour" class="text-danger" />
                 <ValidationMessage For="() => ScheduleForm.EndMinute" class="text-danger" />
+                @if (!string.IsNullOrEmpty(schedulingError))
+                {
+                    <div class="alert alert-danger mt-5" roles="alert">
+                        @schedulingError
+                    </div>
+                }
             </div>
 
             <div class="mb-4 inboxes">
@@ -159,6 +167,7 @@
     private string area = "DK1";
     private ScheduleForm ScheduleForm = new();
     private List<PresetDto> filteredPresets = new();
+    private string? selectedPresetId;
     private List<UserDeviceDto> userDevices = new();
     private Dictionary<int, List<PresetDto>> presetsByDevice = new();
     private string? selectedDeviceId;
@@ -169,6 +178,7 @@
     Hours.Select(h => (h.ToString(), h.ToString("D2")));
     private IEnumerable<(string Value, string Text)> MinuteOptions =>
     Minutes.Select(m => (m.ToString(), m.ToString("D2")));
+    private string? schedulingError;
 
     private string? StartHourText
     {
@@ -252,8 +262,20 @@
         isEVSelected = selectedDevice?.category == "ev_charger";
 
         isApplianceSelected = selectedDevice?.category != "ev_charger";
-
+        
+        selectedPresetId = null;
         ScheduleForm.Preset = new PresetDto();
+    }
+
+    private void UpdateSelectedPreset()
+    {
+        var selectedPreset = filteredPresets.FirstOrDefault(p => p.id.ToString() == selectedPresetId);
+
+        if (selectedPreset is not null)
+        {
+            ScheduleForm.Preset = selectedPreset;
+        }
+        schedulingError = null;
     }
 
     private DateTime GetScheduledDateTime(int hour, int minute)
@@ -269,6 +291,7 @@
     }
     private async Task GenerateScheduling()
     {   
+        schedulingError = null;
         var startTime = GetScheduledDateTime(ScheduleForm.StartHour!.Value, ScheduleForm.StartMinute!.Value);
         var endTime = GetScheduledDateTime(ScheduleForm.EndHour!.Value, ScheduleForm.EndMinute!.Value);
 
@@ -279,11 +302,15 @@
 
         var timeWindow = (int)(endTime - startTime).TotalMinutes;
         Console.WriteLine($"duration{timeWindow}");
+        Console.WriteLine(ScheduleForm.Preset.duration);
 
-        // if (ScheduleForm.Preset !=null && ScheduleForm.Preset.duration > timeWindow)
-        // {
-            // Console.WriteLine("The time window is not large enough for the device program duration")
-        // }
+        if (ScheduleForm.Preset.duration > timeWindow)
+        {
+            schedulingError = $"The selected program requires {ScheduleForm.Preset.duration} minutes.";
+            ClearSchedule();
+            return;
+        }
+
 
         var optimizationRequest = new OptimizationRequestDTO
         {
@@ -348,7 +375,9 @@
             EndTime = response.EndTime.ToUniversalTime(),
             NextPlan = null,
             EstimatedPrice = response.EstimatedPrice,
-            EstimatedCO2Emission = response.EstimatedCo2Emissions
+            EstimatedCo2Emission = response.EstimatedCo2Emissions
+            // EstimatedUnsceduledPrice = response.EstimatedPrice + 1
+            // EstimatedUnsceduledCO2Emission = response.EstimatedCo2Emission + 1
         };
 
         try

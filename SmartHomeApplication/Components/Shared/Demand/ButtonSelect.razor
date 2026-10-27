@@ -1,7 +1,9 @@
 
-<div class="plan-picker @CssClass">
+<div class="plan-picker @CssClass" tabindex="0" @onfocusout="@((e) => onFocusOut(e))">
     <button type="button" class="plan-picker-trigger" @onclick="() => open = !open">
-        <span>@(Options.FirstOrDefault(x => x.Value == Value).Text ?? Placeholder)</span>
+        <span>
+            @(Options.FirstOrDefault(x => x.Value == Value).Text ?? Placeholder)
+        </span>
         <span class="plan-picker-chevron @(open ? "plan-picker-chevron-open" : "")"></span>
     </button>
 
@@ -32,6 +34,12 @@
     [Parameter] public string CssClass { get; set; } = "";
 
     private bool open;
+
+    private async Task onFocusOut(FocusEventArgs e)
+    {
+        await Task.Delay(150);
+        open = false;
+    }
 }
 
 <style>

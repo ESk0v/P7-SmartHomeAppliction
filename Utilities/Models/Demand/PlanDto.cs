@@ -14,7 +14,13 @@ namespace Utilities.Models
 
         public decimal EstimatedPrice { get; set; }
 
-        public decimal EstimatedCO2Emission { get; set; }
+        public decimal EstimatedCo2Emission { get; set; }
+
+        public decimal EstimatedUnscheduledPrice { get; set; }
+
+        public decimal EstimatedUnscheduledCo2Emission { get; set; }
+
+        public string Name { get; set; } = "Optimized plan";
 	
 	}
 }
