@@ -163,9 +163,6 @@
     private Dictionary<int, List<PresetDto>> presetsByDevice = new();
     private string? selectedDeviceId;
     private OptimizationResultDTO? response;
-
-    // public int deviceId = 1;
-    // public string userId = "404b854b-d1c0-425f-bd41-1239a66de7df";
     private List<int> Hours { get; set; } = new();
     private int [] Minutes = {00, 15, 30, 45};
     private IEnumerable<(string Value, string Text)> HourOptions =>
@@ -280,14 +277,13 @@
             endTime = endTime.AddDays(1);
         }
 
-        // tilføje at plan vinduet skal være lig med eller større end duration i device_preset
+        var timeWindow = (int)(endTime - startTime).TotalMinutes;
+        Console.WriteLine($"duration{timeWindow}");
 
-        var timeWindow = 300;
-
-        if (ScheduleForm.Preset && ScheduleForm.Preset.duration > timeWindow)
-        {
-            // fejl ligsom
-        }
+        // if (ScheduleForm.Preset !=null && ScheduleForm.Preset.duration > timeWindow)
+        // {
+            // Console.WriteLine("The time window is not large enough for the device program duration")
+        // }
 
         var optimizationRequest = new OptimizationRequestDTO
         {

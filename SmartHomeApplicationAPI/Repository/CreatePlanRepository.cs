@@ -18,12 +18,12 @@ public class CreatePlanRepository : ICreatePlanRepository
     {
         return await _db.Preset
             .Where(p => p.DeviceId == deviceId)
-            .Select(p => new PresetDto(
-                p.Id,
-                p.PresetName,
-                p.ConsumptionInKwh,
-                p.DurationInMinutes
-            ))
+            .Select(p => new PresetDto{
+                id = p.Id,
+                presetName = p.PresetName,
+                consumption = p.ConsumptionInKwh,
+                duration = p.DurationInMinutes
+            })
             .ToListAsync();
         
     }
