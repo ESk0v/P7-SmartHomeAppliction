@@ -106,7 +106,7 @@ public class ElectricityPriceImportService
             targetDate);
     }
 
-    private async Task<List<DayAheadPrice>> DownloadPricesAsync(
+    private async Task<List<Electricity>> DownloadPricesAsync(
         DateTime targetDate)
     {
         var filter = "{\"PriceArea\":[\"DK1\",\"DK2\"]}";
@@ -127,11 +127,11 @@ public class ElectricityPriceImportService
         }
 
         return response.Records
-            .Select(record => new DayAheadPrice
+            .Select(record => new Electricity
             {
                 Time = record.TimeDk,
                 PriceArea = record.PriceArea,
-                Price = record.DayAheadPriceDkk,
+                PricePerKwh = record.DayAheadPriceDkk / 1000m,
                 IsPredicted = false
             })
             .ToList();
