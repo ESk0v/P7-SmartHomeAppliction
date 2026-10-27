@@ -1,5 +1,6 @@
-using System.Text.Json.Serialization;
+using System.Text.Json;
 using Hangfire;
+using SmartHomeApplicationAPI.DTOs.EnergiDataService;
 using SmartHomeApplicationAPI.Hangfire.Repository;
 using SmartHomeApplicationAPI.Infrastructure.Models;
 
@@ -8,12 +9,9 @@ namespace SmartHomeApplicationAPI.Hangfire.Services;
 public class ElectricityPriceImportService
     : IElectricityPriceImportService
 {
-    private const string ApiUrl =
-        "https://api.energidataservice.dk/dataset/DayAheadPrices";
-
-    private static readonly TimeZoneInfo DanishTimeZone =
-        TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen");
-
+    private const string ApiUrl = "https://api.energidataservice.dk/dataset/DayAheadPrices";
+    private static readonly TimeZoneInfo DanishTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen");
+    
     private readonly HttpClient _httpClient;
     private readonly IElectricityPriceImportRepository _repository;
     private readonly ILogger<ElectricityPriceImportService> _logger;
@@ -28,86 +26,56 @@ public class ElectricityPriceImportService
         _logger = logger;
     }
 
-    public Task StartImportAsync()
+    public async Task StartImportAsync()
     {
-        var danishNow = TimeZoneInfo.ConvertTimeFromUtc(
+        var today = TimeZoneInfo.ConvertTimeFromUtc(
             DateTime.UtcNow,
-            DanishTimeZone);
-    
-        var today = danishNow.Date;
-        var tomorrow = today.AddDays(1);
-    
-        var retryWindowEnds = today.AddHours(14);
-    
-        BackgroundJob.Enqueue<IElectricityPriceImportService>(
-            service => service.ImportAttemptAsync(
-                today,
-                retryWindowEnds,
-                0));
-    
-        BackgroundJob.Enqueue<IElectricityPriceImportService>(
-            service => service.ImportAttemptAsync(
-                tomorrow,
-                retryWindowEnds,
-                0));
-    
-        return Task.CompletedTask;
+            DanishTimeZone).Date;
+
+        await ImportDayAsync(today);
+        await ImportDayAsync(today.AddDays(1));
     }
 
-    [AutomaticRetry(Attempts = 3)]
-    public async Task ImportAttemptAsync(
-        DateTime targetDate,
-        DateTime retryWindowEnds,
-        int attempt)
+    #region Helpers
+    private async Task ImportDayAsync(DateTime targetDate)
     {
-        var prices = await DownloadPricesAsync(targetDate);
-
-        await _repository.UpdateInsertAsync(prices);
+        var dayLength =
+            DanishMidnightToUtc(targetDate.AddDays(1)) - DanishMidnightToUtc(targetDate);
+        var expectedRecordCount = (int)(dayLength.TotalMinutes / 15) * 2;
 
         var storedCount = await _repository.CountForDateAsync(targetDate);
 
-        // DK1 and DK2 normally contain 96 quarter-hour records each.
-        const int expectedRecordCount = 192;
-
         if (storedCount >= expectedRecordCount)
         {
-            _logger.LogInformation(
-                "Day-ahead import completed for {Date}. Stored {Count} records.",
-                targetDate,
-                storedCount);
-
             return;
         }
 
-        var danishNow = TimeZoneInfo.ConvertTimeFromUtc(
-            DateTime.UtcNow,
-            DanishTimeZone);
-        
-        if (danishNow.AddMinutes(5) >= retryWindowEnds)
+        var prices = await DownloadPricesAsync(targetDate);
+
+        if (prices.Count == 0)
         {
-            _logger.LogWarning(
-                "Day-ahead import stopped for {Date}. Stored {Count} records.",
-                targetDate,
-                storedCount);
-        
+            _logger.LogInformation(
+                "Day-ahead prices for {Date} are not published yet.",
+                targetDate);
+
             return;
         }
-        
-        BackgroundJob.Schedule<IElectricityPriceImportService>(
-            service => service.ImportAttemptAsync(
-                targetDate,
-                retryWindowEnds,
-                attempt + 1),
-            TimeSpan.FromMinutes(5));
+
+        await _repository.UpdateInsertAsync(prices);
 
         _logger.LogInformation(
-            "Attempt {Attempt} scheduled for {Date}.",
-            attempt + 1,
-            targetDate);
+            "Day-ahead import for {Date}: {Count} rows upserted, {Expected} expected.",
+            targetDate,
+            prices.Count,
+            expectedRecordCount);
     }
 
-    private async Task<List<DayAheadPrice>> DownloadPricesAsync(
-        DateTime targetDate)
+    private static DateTime DanishMidnightToUtc(DateTime danishDate) =>
+        TimeZoneInfo.ConvertTimeToUtc(
+            DateTime.SpecifyKind(danishDate.Date, DateTimeKind.Unspecified),
+            DanishTimeZone);
+    
+    private async Task<List<Electricity>> DownloadPricesAsync(DateTime targetDate)
     {
         var filter = "{\"PriceArea\":[\"DK1\",\"DK2\"]}";
 
@@ -115,43 +83,33 @@ public class ElectricityPriceImportService
             $"{ApiUrl}" +
             $"?start={targetDate:yyyy-MM-dd}" +
             $"&end={targetDate.AddDays(1):yyyy-MM-dd}" +
+            "&columns=TimeUTC,TimeDK,PriceArea,DayAheadPriceDKK,DayAheadPriceEUR" +
             "&limit=10000" +
             $"&filter={Uri.EscapeDataString(filter)}";
 
-        var response = await _httpClient.GetFromJsonAsync<ApiResponse>(url);
+        var json = await _httpClient.GetFromJsonAsync<JsonElement>(url);
 
-        if (response?.Records is null)
+        // A missing "records" property is a real failure. An empty list only means "not published yet".
+        if (!json.TryGetProperty("records", out var recordsElement))
         {
             throw new InvalidOperationException(
-                "DayAheadPrices API returned no records.");
+                "DayAheadPrices reply had no 'records' property.");
         }
 
-        return response.Records
-            .Select(record => new DayAheadPrice
+        var rows = recordsElement.Deserialize<List<ElectricityImportResponse>>() ?? [];
+
+        return rows
+            .Where(record => record.DayAheadPriceDkk is not null)
+            .Select(record => new Electricity
             {
                 Time = record.TimeDk,
                 PriceArea = record.PriceArea,
-                Price = record.DayAheadPriceDkk,
+                PricePerKwh = record.DayAheadPriceDkk!.Value / 1000m,
                 IsPredicted = false
             })
             .ToList();
     }
+    
+    #endregion
 
-    private sealed class ApiResponse
-    {
-        [JsonPropertyName("records")]
-        public List<ApiRecord> Records { get; set; } = [];
-    }
-
-    private sealed class ApiRecord
-    {
-        [JsonPropertyName("TimeDK")]
-        public DateTime TimeDk { get; set; }
-
-        [JsonPropertyName("PriceArea")]
-        public string PriceArea { get; set; } = string.Empty;
-
-        [JsonPropertyName("DayAheadPriceDKK")]
-        public decimal DayAheadPriceDkk { get; set; }
-    }
 }

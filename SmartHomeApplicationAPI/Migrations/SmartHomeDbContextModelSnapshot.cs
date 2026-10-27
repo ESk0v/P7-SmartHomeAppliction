@@ -154,42 +154,6 @@ namespace SmartHomeApplicationAPI.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("SmartHomeApplicationAPI.Infrastructure.Models.DayAheadPrice", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<int>("Id"));
-
-                    b.Property<bool>("IsPredicted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("is_predicted");
-
-                    b.Property<decimal>("Price")
-                        .HasPrecision(10, 2)
-                        .HasColumnType("numeric(10,2)")
-                        .HasColumnName("price");
-
-                    b.Property<string>("PriceArea")
-                        .IsRequired()
-                        .HasMaxLength(3)
-                        .HasColumnType("character varying(3)")
-                        .HasColumnName("price_area");
-
-                    b.Property<DateTime>("Time")
-                        .HasColumnType("timestamp(0) without time zone")
-                        .HasColumnName("time");
-
-                    b.HasKey("Id")
-                        .HasName("day_ahead_price_pkey");
-
-                    b.ToTable("day_ahead_price", (string)null);
-                });
-
             modelBuilder.Entity("SmartHomeApplicationAPI.Infrastructure.Models.Device", b =>
                 {
                     b.Property<int>("Id")
@@ -253,6 +217,42 @@ namespace SmartHomeApplicationAPI.Migrations
                     b.HasIndex("DeviceId");
 
                     b.ToTable("device_preset");
+                });
+
+            modelBuilder.Entity("SmartHomeApplicationAPI.Infrastructure.Models.Electricity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal?>("Co2EmissionGramsPerKwh")
+                        .HasColumnType("numeric(10,2)")
+                        .HasColumnName("co2_emission_g_per_kwh");
+
+                    b.Property<bool>("IsPredicted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_predicted");
+
+                    b.Property<string>("PriceArea")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)")
+                        .HasColumnName("price_area");
+
+                    b.Property<decimal>("PricePerKwh")
+                        .HasColumnType("numeric(10,5)")
+                        .HasColumnName("price_per_kwh");
+
+                    b.Property<DateTime>("Time")
+                        .HasColumnType("timestamp(0) without time zone")
+                        .HasColumnName("time");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("electricity");
                 });
 
             modelBuilder.Entity("SmartHomeApplicationAPI.Infrastructure.Models.Plan", b =>
