@@ -24,7 +24,11 @@ public static class ServiceCollectionExtensions
 
         //HANGFIRE
         services.AddHttpClient<IElectricityPriceImportService, ElectricityPriceImportService>();
+        services.AddHttpClient<ICo2ImportService, Co2ImportService>();
+
         services.AddScoped<IElectricityPriceImportRepository, ElectricityPriceImportRepository>();
+        services.AddScoped<ICo2ImportRepository, Co2ImportRepository>();
+
 
         return services;
     }

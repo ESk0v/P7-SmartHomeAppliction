@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SmartHomeApplicationAPI.Infrastructure;
 using SmartHomeApplicationAPI.Infrastructure.Models;
+using SmartHomeApplicationAPI.Hangfire.Repository;
 
 namespace SmartHomeApplicationAPI.Hangfire.Repository;
 
@@ -14,43 +15,21 @@ public class ElectricityPriceImportRepository
         _db = db;
     }
 
-    public async Task UpdateInsertAsync(
-        IReadOnlyCollection<Electricity> prices,
+    public Task<List<Electricity>> GetRangeAsync(
+        DateTime from,
+        DateTime to,
         CancellationToken cancellationToken = default)
     {
-        foreach (var price in prices)
-        {
-            var existing = await _db.Electricity
-                .SingleOrDefaultAsync(
-                    item =>
-                        item.Time == price.Time &&
-                        item.PriceArea == price.PriceArea,
-                    cancellationToken);
-
-            if (existing is null)
-            {
-                _db.Electricity.Add(price);
-            }
-            else
-            {
-                existing.PricePerKwh = price.PricePerKwh;
-                existing.IsPredicted = price.IsPredicted;
-            }
-        }
-
-        await _db.SaveChangesAsync(cancellationToken);
+        return _db.Electricity
+            .Where(item => item.Time >= from && item.Time < to)
+            .ToListAsync(cancellationToken);
     }
 
-    public Task<int> CountForDateAsync(
-        DateTime date,
+    public async Task SaveAsync(
+        IReadOnlyCollection<Electricity> newRows,
         CancellationToken cancellationToken = default)
     {
-        var nextDate = date.Date.AddDays(1);
-
-        return _db.Electricity.CountAsync(
-            item =>
-                item.Time >= date.Date &&
-                item.Time < nextDate,
-            cancellationToken);
+        _db.Electricity.AddRange(newRows);
+        await _db.SaveChangesAsync(cancellationToken);
     }
 }
