@@ -60,8 +60,9 @@ public class CreatePlanRepository : ICreatePlanRepository
             EndTime = planDTO.EndTime,
             EstimatedPrice = planDTO.EstimatedPrice,
             EstimatedCo2Emissions = planDTO.EstimatedCo2Emission,
-            // EstimatedUnscheduledPrice = planDTO.EstimatedUnscheduledPrice,
+            EstimatedUnscheduledPrice = planDTO.EstimatedUnscheduledPrice
             // EstimatedUnscheduledCo2Emissions = planDTO.EstimatedUnscheduledCo2Emission
+            
         };
 
         _db.Plan.Add(plan);
@@ -75,7 +76,7 @@ public class CreatePlanRepository : ICreatePlanRepository
             EndTime = plan.EndTime,
             EstimatedPrice = plan.EstimatedPrice,
             EstimatedCo2Emission = plan.EstimatedCo2Emissions,
-            // EstimatedUnscheduledPrice = plan.EstimatedUnscheduledPrice,
+            EstimatedUnscheduledPrice = plan.EstimatedUnscheduledPrice
             // EstimatedUnscheduledCo2Emission = plan.EstimatedUnscheduledCo2Emissions
 
         

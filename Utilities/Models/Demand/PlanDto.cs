@@ -20,7 +20,7 @@ namespace Utilities.Models
 
         public decimal EstimatedUnscheduledCo2Emission { get; set; }
 
-        public string Name { get; set; } = "Optimized plan";
+        public string Name { get; set; } = "Optimized Plan";
 	
 	}
 }
