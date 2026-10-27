@@ -9,6 +9,7 @@ using SmartHomeApplicationAPI.Hangfire.Services;
 using SmartHomeApplicationAPI.Infrastructure;
 using SmartHomeApplicationAPI.Repository;
 using SmartHomeApplicationAPI.Service;
+using SmartHomeApplicationAPI.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -99,42 +100,7 @@ if (runHangfireServer)
     builder.Services.AddHangfireServer(o => o.WorkerCount = 2);
 }
 
-builder.Services.AddScoped<
-    IElectricityPriceImportRepository,
-    ElectricityPriceImportRepository>();
-
-builder.Services.AddHttpClient<
-    IElectricityPriceImportService,
-    ElectricityPriceImportService>();
-
-builder.Services.AddScoped<
-    IElectricityPriceService,
-    ElectricityPriceService>();
-
-builder.Services.AddScoped<
-    IPlanService,
-    PlanService>();
-
-builder.Services.AddScoped<
-    ICreatePlanService,
-    CreatePlanService>();
-
-builder.Services.AddScoped<
-    IOptimizationService,
-    OptimizationService>();
-
-builder.Services.AddScoped<
-    IElectricityPriceRepository,
-    ElectricityPriceRepository>();
-
-builder.Services.AddScoped<
-    IPlanRepository,
-    PlanRepository>();
-
-builder.Services.AddScoped<
-    ICreatePlanRepository,
-    CreatePlanRepository>();
-
+builder.Services.AddApplicationServices();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
