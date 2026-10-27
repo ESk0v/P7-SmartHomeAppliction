@@ -16,8 +16,11 @@ public class PlanController : ControllerBase
     }
 
     [HttpGet("get-plan")]
-    public async Task<ActionResult<List<PlanDto>>> getPlans()
+    public async Task<ActionResult<List<PlanDto>>> getPlans([FromHeader(Name = "UserId")] string userId)
     {
-        return await _service.GetPlansAsync();
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized();
+
+        return await _service.GetPlansAsync(userId);
     }
 }
