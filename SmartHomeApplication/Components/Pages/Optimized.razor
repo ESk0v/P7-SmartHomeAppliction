@@ -31,6 +31,7 @@
                     @if (isPlanPickerOpen)
                     {
                     <div class="plan-picker-menu">
+                        @if (plans.Count == 0) { <p class="optimized-empty">No optimized plans were found.</p> }
                         @foreach (Plan plan in plans)
                         {
                             <button type="button"
@@ -48,7 +49,7 @@
                     }
                 </div>
             </div>
-            <p style="padding: 0 0.85rem">@selectedPlan.Device • @selectedPlan.Target% target • Window: @selectedPlan.Window</p>
+            <p style="padding: 0 0.85rem">@(plans.Count == 0 ? string.Empty : $"{selectedPlan.Device} • Window: {selectedPlan.Window}")</p>
         </div>
 
         <div class="header-actions">
@@ -67,7 +68,7 @@
     <div class="statistics">
         <Statistics Type="StatisticsType.EstimatedCost"
                     OverrideData="EstimatedCost"
-                    DescriptionClass="@(selectedSchedules.Count == 0 ? string.Empty : "positive")"/>
+                    DescriptionClass="@(selectedSchedules.Count == 0 || BaselineDifferencePercent == 0 ? string.Empty : "positive")"/> @* Don't use green color if there are no plans or the estimated cost is not different from the baseline *@
         <Statistics Type="StatisticsType.MoneySaved" OverrideData="MoneySaved"/>
         <Statistics Type="StatisticsType.LoadDuration" OverrideData="LoadDuration"/>
         <Statistics Type="StatisticsType.LoadFinish" OverrideData="LoadFinish"/>
@@ -94,12 +95,7 @@
 </div>
 
 @code {
-    private List<Plan> plans =
-    [
-        new("mixed-home", "Whole-home savings plan", "Home appliances", 75, "21:00–06:00", Icons.Cpu),
-        new("evening-ev", "EV evening plan", "EV Charger", 80, "22:00–07:00", Icons.Car),
-        new("laundry-night", "Laundry night plan", "Washing machine", 65, "23:00–06:00", Icons.WashingMachine)
-    ];
+    private List<Plan> plans = new List<Plan>();
 
     private bool isPlanPickerOpen;
     private bool isLoading = true;
@@ -112,11 +108,8 @@
         set => PlanState.SelectedPlanId = value;
     }
 
-    private Plan selectedPlan => plans.FirstOrDefault(plan => plan.Id == selectedPlanId) ?? plans[0];
-    private List<PlanDto> selectedSchedules => allSchedules
-        .Where(schedule => string.Equals(schedule.planName, selectedPlan.Name, StringComparison.OrdinalIgnoreCase))
-        .OrderBy(schedule => schedule.startTime)
-        .ToList();
+    private Plan selectedPlan => plans.FirstOrDefault(plan => plan.Id == selectedPlanId) ?? EmptyPlan;
+    private List<PlanDto> selectedSchedules => selectedPlan.Schedules;
 
     private StatisticsDto EstimatedCost => new StatisticsDto()
     {
@@ -125,7 +118,9 @@
             : selectedSchedules.Sum(schedule => schedule.estimatedCost).ToString("C", CultureInfo.CurrentCulture),
         Description = selectedSchedules.Count == 0
             ? "No data available"
-            : $"↓ {BaselineDifferencePercent:0}% vs. baseline"
+            : BaselineDifferencePercent == 0
+                ? "0% vs. unscheduled"
+                : $"↓ {BaselineDifferencePercent:0}% vs. unscheduled"
     };
 
     private StatisticsDto MoneySaved
@@ -142,7 +137,7 @@
                     : (baselineCost - estimatedCost).ToString("C", CultureInfo.CurrentCulture),
                 Description = selectedSchedules.Count == 0
                     ? "No data available"
-                    : "vs. starting ASAP"
+                    : "vs. unscheduled"
             };
         }
     }
@@ -255,45 +250,62 @@
             return;
         }
 
-        plans = allSchedules
-            .GroupBy(schedule => schedule.planName, StringComparer.OrdinalIgnoreCase)
-            .Select(group =>
-            {
-                List<PlanDto>? schedules = group.OrderBy(schedule => schedule.startTime).ToList();
-                PlanDto? firstSchedule = schedules[0];
-                PlanDto? lastSchedule = schedules[^1];
+        Dictionary<int, PlanDto> plansById = allSchedules.ToDictionary(schedule => schedule.planId);
+        HashSet<int> continuationIds = allSchedules
+            .Where(schedule => schedule.nextPlanId.HasValue)
+            .Select(schedule => schedule.nextPlanId!.Value)
+            .ToHashSet();
 
-                return new Plan(
-                    CreatePlanId(group.Key),
-                    group.Key,
-                    schedules[0].deviceName,
-                    100,
-                    $"{firstSchedule.startTime:HH:mm}–{lastSchedule.endTime:HH:mm}",
-                    IconFor(group.Key));
-            })
+        plans = allSchedules
+            .Where(schedule => !continuationIds.Contains(schedule.planId))
+            .Select(root => CreatePlan(root, plansById))
             .ToList();
 
-        if (!plans.Any(plan => plan.Id == selectedPlanId))
+        if (plans.Count > 0 && !plans.Any(plan => plan.Id == selectedPlanId))
         {
             selectedPlanId = plans[0].Id;
         }
     }
 
-    private static string CreatePlanId(string deviceName) =>
-        string.Join("-", deviceName.Split(
-            [' ', '-', '_'],
-            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            .ToLowerInvariant();
-
-    private static RenderFragment IconFor(string deviceName)
+    private static Plan CreatePlan(PlanDto root, Dictionary<int, PlanDto> plansById)
     {
-        if (deviceName.Contains("car", StringComparison.OrdinalIgnoreCase)
+        List<PlanDto> schedules = new();
+        HashSet<int> visited = new();
+        PlanDto? current = root;
+
+        while (current is not null && visited.Add(current.planId))
+        {
+            schedules.Add(current);
+            current = current.nextPlanId is { } nextId
+                && plansById.TryGetValue(nextId, out PlanDto? next)
+                    ? next
+                    : null;
+        }
+
+        DateTime start = schedules.Min(schedule => schedule.startTime);
+        DateTime end = schedules.Max(schedule => schedule.endTime);
+
+        return new Plan(
+            root.planId.ToString(CultureInfo.InvariantCulture),
+            root.planName,
+            root.deviceName,
+            $"{start:HH:mm}–{end:HH:mm}",
+            schedules,
+            IconFor(root.icon, root.deviceName));
+    }
+
+    private static RenderFragment IconFor(string icon, string deviceName)
+    {
+        if (icon.Contains("car", StringComparison.OrdinalIgnoreCase)
+            || icon.Contains("ev", StringComparison.OrdinalIgnoreCase)
+            || deviceName.Contains("car", StringComparison.OrdinalIgnoreCase)
             || deviceName.Contains("ev", StringComparison.OrdinalIgnoreCase))
         {
             return Icons.Car;
         }
 
-        if (deviceName.Contains("wash", StringComparison.OrdinalIgnoreCase))
+        if (icon.Contains("wash", StringComparison.OrdinalIgnoreCase)
+            || deviceName.Contains("wash", StringComparison.OrdinalIgnoreCase))
         {
             return Icons.WashingMachine;
         }
@@ -305,9 +317,17 @@
         string Id,
         string Name,
         string Device,
-        int Target,
         string Window,
+        List<PlanDto> Schedules,
         RenderFragment Icon);
+
+    private static readonly Plan EmptyPlan = new(
+        string.Empty,
+        "No plan",
+        "No device",
+        "--",
+        new List<PlanDto>(),
+        Icons.Cpu);
 }
 
 
