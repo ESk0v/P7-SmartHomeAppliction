@@ -15,12 +15,12 @@ public class ElectricityPriceImportRepository
     }
 
     public async Task UpdateInsertAsync(
-        IReadOnlyCollection<DayAheadPrice> prices,
+        IReadOnlyCollection<Electricity> prices,
         CancellationToken cancellationToken = default)
     {
         foreach (var price in prices)
         {
-            var existing = await _db.DayAheadPrices
+            var existing = await _db.Electricity
                 .SingleOrDefaultAsync(
                     item =>
                         item.Time == price.Time &&
@@ -29,11 +29,11 @@ public class ElectricityPriceImportRepository
 
             if (existing is null)
             {
-                _db.DayAheadPrices.Add(price);
+                _db.Electricity.Add(price);
             }
             else
             {
-                existing.Price = price.Price;
+                existing.PricePerKwh = price.PricePerKwh;
                 existing.IsPredicted = price.IsPredicted;
             }
         }
@@ -47,7 +47,7 @@ public class ElectricityPriceImportRepository
     {
         var nextDate = date.Date.AddDays(1);
 
-        return _db.DayAheadPrices.CountAsync(
+        return _db.Electricity.CountAsync(
             item =>
                 item.Time >= date.Date &&
                 item.Time < nextDate,

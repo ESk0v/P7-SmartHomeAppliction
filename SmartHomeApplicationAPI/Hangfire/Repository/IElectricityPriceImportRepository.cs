@@ -5,7 +5,7 @@ namespace SmartHomeApplicationAPI.Hangfire.Repository;
 public interface IElectricityPriceImportRepository
 {
     Task UpdateInsertAsync(
-        IReadOnlyCollection<DayAheadPrice> prices,
+        IReadOnlyCollection<Electricity> prices,
         CancellationToken cancellationToken = default);
 
     Task<int> CountForDateAsync(

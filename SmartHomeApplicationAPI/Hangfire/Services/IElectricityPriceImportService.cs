@@ -1,13 +1,10 @@
-using SmartHomeApplicationAPI.Infrastructure.Models;
+using Hangfire;
 
 namespace SmartHomeApplicationAPI.Hangfire.Services;
 
 public interface IElectricityPriceImportService
 {
+    [AutomaticRetry(Attempts = 0)]
+    [DisableConcurrentExecution(timeoutInSeconds: 120)]
     Task StartImportAsync();
-
-    Task ImportAttemptAsync(
-        DateTime targetDate,
-        DateTime retryWindowEnds,
-        int attempt);
 }
