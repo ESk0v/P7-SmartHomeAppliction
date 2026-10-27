@@ -74,25 +74,112 @@
         <Statistics Type="StatisticsType.LoadFinish" OverrideData="LoadFinish"/>
     </div>
 
-    <div class="optimized-timeline">
-        @if (isLoading)
-        {
-            <p>Loading optimized plan...</p>
-        }
-        else if (loadError is not null)
-        {
-            <p class="optimized-error">@loadError</p>
-        }
-        else if (selectedSchedules.Count == 0)
-        {
-            <p class="optimized-empty">No optimized loads were found for @selectedPlan.Device.</p>
-        }
-        else
-        {
-            <PriceChart activeSchedules="selectedSchedules" />
+    @if (isLoading)
+    {
+        <p>Loading optimized plan...</p>
+    }
+    else if (loadError is not null)
+    {
+        <p class="optimized-error">@loadError</p>
+    }
+    else if (selectedSchedules.Count == 0)
+    {
+        <p class="optimized-empty">No optimized loads were found for @selectedPlan.Device.</p>
+    }
+    else
+    {
+        <div class="optimized-content">
+            <div class="optimized-main-column">
+                <div class="optimized-timeline">
+                    <PriceChart activeSchedules="selectedSchedules" />
+                </div>
+
+                <section class="optimized-card schedule-blocks-card">
+                    <div class="card-heading">
+                        <div>
+                            <h2>Schedule blocks</h2>
+                            <p>Contiguous parts of the selected plan</p>
+                        </div>
+                        <span class="demo-label">Estimated</span>
+                    </div>
+
+                    <div class="schedule-blocks">
+                        @foreach (PlanDto block in selectedSchedules)
+                        {
+                            <div class="schedule-block">
+                                <span class="schedule-block-icon">@Icons.Plus</span>
+                                <div class="schedule-block-details">
+                                    <strong>@block.startTime.ToString("HH:mm")–@block.endTime.ToString("HH:mm")</strong>
+                                    <span>@block.deviceName · @FormatDuration(block.endTime - block.startTime)</span>
+                                </div>
+                                <div class="schedule-block-value">
+                                    <strong>@block.estimatedCost.ToString("C", CultureInfo.CurrentCulture)</strong>
+                                    <span>Block @(selectedSchedules.IndexOf(block) + 1) of @selectedSchedules.Count</span>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </section>
+            </div>
+
+            <div class="optimized-side-column">
+                <section class="optimized-card plan-summary-card">
+                    <div class="card-heading">
+                        <h2>Plan summary</h2>
+                    </div>
+                    <div class="summary-row">
+                        <div>
+                            <span>Finishes</span>
+                            <small>@FinishDescription</small>
+                        </div>
+                        <strong class="summary-positive">@selectedSchedules.Max(schedule => schedule.endTime).ToString("HH:mm")</strong>
+                    </div>
+                    <div class="summary-row">
+                        <div>
+                            <span>Peak household load</span>
+                            <small>Temporary demo estimate</small>
+                        </div>
+                        <strong>9.1 kW</strong>
+                    </div>
+                    <div class="summary-row">
+                        <div>
+                            <span>Optimization status</span>
+                            <small>Based on the selected schedule</small>
+                        </div>
+                        <strong>Optimized</strong>
+                    </div>
+                </section>
+
+                <section class="optimized-card load-impact-card">
+                    <div class="card-heading">
+                        <div>
+                            <h2>Peak household load</h2>
+                            <p>Temporary demo estimate</p>
+                        </div>
+                    </div>
+                    <div class="load-metric">
+                        <div>
+                            <span>Selected load</span>
+                            <strong>7.4 kW</strong>
+                        </div>
+                        <div class="load-bar"><span class="selected-load"></span></div>
+                    </div>
+                    <div class="load-metric">
+                        <div>
+                            <span>Base load</span>
+                            <strong>1.7 kW</strong>
+                        </div>
+                        <div class="load-bar"><span class="base-load"></span></div>
+                    </div>
+                    <div class="load-total">
+                        <span>Total peak</span>
+                        <strong>9.1 kW <small>/ 11 kW limit</small></strong>
+                    </div>
+                </section>
+            </div>
+        </div>
         }
     </div>
-</div>
 
 @code {
     private List<Plan> plans = new List<Plan>();
@@ -163,6 +250,11 @@
             ? "No data available"
             : FormatDeadlineDescription()
     };
+
+    private string FinishDescription =>
+        selectedSchedules.Count == 0
+            ? "No schedule data"
+            : FormatDeadlineDescription();
 
     private decimal BaselineDifferencePercent
     {
@@ -321,7 +413,7 @@
         List<PlanDto> Schedules,
         RenderFragment Icon);
 
-    private static readonly Plan EmptyPlan = new(
+    private static readonly Plan EmptyPlan = new Plan(
         string.Empty,
         "No plan",
         "No device",
@@ -358,6 +450,248 @@
 
     .optimized-timeline ::deep .chart-card {
         height: 100%;
+    }
+
+    .optimized-content {
+        display: grid;
+        flex: 1 1 0;
+        gap: clamp(0.75rem, 1.5vw, 1.5rem);
+        grid-template-columns: minmax(0, 1.6fr) minmax(18rem, 1fr);
+        min-height: 0;
+    }
+
+    .optimized-main-column,
+    .optimized-side-column {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+        min-height: 0;
+    }
+
+    .optimized-main-column .optimized-timeline {
+        flex: 1 1 auto;
+    }
+
+    .optimized-card {
+        background: #fff;
+        border: 1px solid #e5e2dc;
+        border-radius: 0.9rem;
+        box-sizing: border-box;
+        overflow: hidden;
+    }
+
+    .schedule-blocks-card {
+        flex: 0 0 auto;
+        padding: 1.25rem;
+    }
+
+    .card-heading {
+        align-items: flex-start;
+        display: flex;
+        gap: 1rem;
+        justify-content: space-between;
+        padding: 1.25rem;
+    }
+
+    .schedule-blocks-card .card-heading {
+        padding: 0 0 1rem;
+    }
+
+    .card-heading h2 {
+        color: #242321;
+        font-size: 1rem;
+        font-weight: 650;
+        margin: 0;
+    }
+
+    .card-heading p,
+    .card-heading small {
+        color: #9a9691;
+        font-size: 0.78rem;
+        margin: 0.35rem 0 0;
+    }
+
+    .demo-label {
+        background: #f3f0ff;
+        border-radius: 999px;
+        color: #6558c9;
+        font-size: 0.68rem;
+        padding: 0.25rem 0.55rem;
+        white-space: nowrap;
+    }
+
+    .schedule-blocks {
+        display: grid;
+        gap: 0.7rem;
+    }
+
+    .schedule-block {
+        align-items: center;
+        border: 1px solid #e5e2dc;
+        border-radius: 0.75rem;
+        display: grid;
+        gap: 0.8rem;
+        grid-template-columns: 2rem minmax(0, 1fr) auto;
+        padding: 0.8rem;
+    }
+
+    .schedule-block-icon {
+        align-items: center;
+        background: #ebe8ff;
+        border-radius: 0.55rem;
+        color: #7569e8;
+        display: inline-flex;
+        height: 2rem;
+        justify-content: center;
+        width: 2rem;
+    }
+
+    .schedule-block-icon svg {
+        height: 1rem;
+        width: 1rem;
+    }
+
+    .schedule-block-details,
+    .schedule-block-value {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        min-width: 0;
+    }
+
+    .schedule-block-details strong,
+    .schedule-block-value strong {
+        color: #242321;
+        font-size: 0.95rem;
+    }
+
+    .schedule-block-details span,
+    .schedule-block-value span {
+        color: #9a9691;
+        font-size: 0.75rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .schedule-block-value {
+        align-items: flex-end;
+    }
+
+    .optimized-side-column {
+        height: 100%;
+        overflow: visible;
+    }
+
+    .plan-summary-card,
+    .load-impact-card {
+        display: flex;
+        flex: 1 1 0;
+        flex-direction: column;
+        min-height: 0;
+    }
+
+    .summary-row {
+        align-items: center;
+        border-top: 1px solid #eeeae5;
+        display: flex;
+        flex: 1 1 0;
+        gap: 1rem;
+        justify-content: space-between;
+        min-height: 0;
+        padding: clamp(0.45rem, 1.2vh, 0.8rem) clamp(0.8rem, 1.5vw, 1.25rem);
+    }
+
+    .summary-row div,
+    .load-metric div {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .summary-row span,
+    .load-metric span,
+    .load-total span {
+        color: #98938d;
+        font-size: 0.82rem;
+    }
+
+    .summary-row small {
+        color: #b0aaa3;
+        font-size: 0.74rem;
+    }
+
+    .summary-row strong,
+    .load-metric strong,
+    .load-total strong {
+        color: #242321;
+        font-size: 0.95rem;
+        white-space: nowrap;
+    }
+
+    .summary-positive {
+        color: #159447 !important;
+    }
+
+    .load-impact-card {
+        padding-bottom: clamp(0.45rem, 1.2vh, 0.8rem);
+    }
+
+    .load-impact-card .card-heading {
+        padding-bottom: clamp(0.3rem, 0.8vh, 0.5rem);
+    }
+
+    .load-metric {
+        display: flex;
+        flex: 1 1 0;
+        flex-direction: column;
+        justify-content: center;
+        padding: clamp(0.3rem, 0.8vh, 0.5rem) clamp(0.8rem, 1.5vw, 1.25rem) 0;
+    }
+
+    .load-metric > div:first-child {
+        align-items: center;
+        flex-direction: row;
+        justify-content: space-between;
+    }
+
+    .load-bar {
+        background: #eeeae5;
+        border-radius: 999px;
+        height: 0.45rem;
+        margin-top: 0.45rem;
+        overflow: hidden;
+    }
+
+    .load-bar span {
+        border-radius: inherit;
+        display: block;
+        height: 100%;
+    }
+
+    .selected-load {
+        background: #7569e8;
+        width: 67%;
+    }
+
+    .base-load {
+        background: #c9c5bf;
+        width: 16%;
+    }
+
+    .load-total {
+        align-items: center;
+        border-top: 1px solid #eeeae5;
+        display: flex;
+        justify-content: space-between;
+        margin-top: clamp(0.4rem, 1vh, 0.7rem);
+        padding: clamp(0.45rem, 1vh, 0.7rem) clamp(0.8rem, 1.5vw, 1.25rem) 0;
+    }
+
+    .load-total small {
+        color: #aaa49d;
+        font-size: 0.75rem;
+        font-weight: 400;
     }
 
     .optimized-empty,
@@ -609,6 +943,25 @@
         .statistics {
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 1rem;
+        }
+
+        .optimized-content {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .optimized-main-column {
+            min-height: 24rem;
+        }
+
+        .optimized-side-column {
+            height: auto;
+            overflow: visible;
+        }
+
+        .plan-summary-card,
+        .load-impact-card {
+            flex: 0 0 auto;
         }
 
         .optimized-timeline {
