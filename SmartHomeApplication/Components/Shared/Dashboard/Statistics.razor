@@ -15,11 +15,7 @@
     @if (Data is not null)
     {
         <p class="statistics-value">@Data.Value</p>
-
-        @if (Data.Description is not null)
-        {
-            <p class="statistics-description @DescriptionClass">@Data.Description</p>
-        }
+        <p class="statistics-description @(Data.Description?.Contains("↓") == true ? "savings-positive" : "")">@(Data.Description ?? "\u00A0")</p>
     }
 </div>
 
@@ -70,7 +66,15 @@
 
     private async Task<StatisticsDto> GetPlannedCost()
     {
-        return await GetUserStatistic("planned-cost");
+        AuthenticationState? state = await AuthProvider.GetAuthenticationStateAsync();
+        string? userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        
+        HttpRequestMessage? request = new HttpRequestMessage(HttpMethod.Get, "api/statistics-controller/planned-cost");
+        request.Headers.Add("UserId", userId);
+
+        HttpResponseMessage? response = await Http.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<StatisticsDto>() ?? new StatisticsDto();
     }
 
     private async Task<StatisticsDto> GetCheapestPeriod()
@@ -82,7 +86,15 @@
 
     private async Task<StatisticsDto> GetScheduleSavings()
     {
-        return await GetUserStatistic("schedule-savings");
+        AuthenticationState? state = await AuthProvider.GetAuthenticationStateAsync();
+        string? userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        HttpRequestMessage? request = new HttpRequestMessage(HttpMethod.Get, "api/statistics-controller/schedule-savings");
+        request.Headers.Add("UserId", userId);
+
+        HttpResponseMessage? response = await Http.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<StatisticsDto>() ?? new StatisticsDto();
     }
 
     private async Task<StatisticsDto> GetPeakShift()
@@ -99,8 +111,8 @@
 
     private async Task<StatisticsDto> GetUserStatistic(string uri)
     {
-        var state = await AuthProvider.GetAuthenticationStateAsync();
-        var userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        AuthenticationState? state = await AuthProvider.GetAuthenticationStateAsync();
+        string? userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
 
         if (string.IsNullOrWhiteSpace(userId))
         {
@@ -108,10 +120,10 @@
             return new StatisticsDto();
         }
 
-        using var request = new HttpRequestMessage(HttpMethod.Get, "api/statistics-controller/" + uri);
+        using HttpRequestMessage? request = new HttpRequestMessage(HttpMethod.Get, "api/statistics-controller/" + uri);
         request.Headers.Add("UserId", userId);
 
-        using var response = await Http.SendAsync(request);
+        using HttpResponseMessage? response = await Http.SendAsync(request);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<StatisticsDto>() ?? new StatisticsDto();
     }
@@ -163,7 +175,7 @@
         text-overflow: ellipsis;
     }
 
-    .statistics-description.positive {
-        color: #159447;
+    .savings-positive {
+        color: green;
     }
 </style>
