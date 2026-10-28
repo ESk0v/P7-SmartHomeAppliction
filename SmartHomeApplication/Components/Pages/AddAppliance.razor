@@ -122,7 +122,8 @@
     private List<CatalogueDeviceDto> devices = [];
    
     private IQueryable<CatalogueDeviceDto> FilteredDevices => 
-    devices.AsQueryable().Where(d => d.Model.Contains(CreateDeviceDto.Model ?? "",StringComparison.OrdinalIgnoreCase));
+    devices.AsQueryable().Where(d => d.Model.Contains(CreateDeviceDto.Model ?? "",StringComparison.OrdinalIgnoreCase) && 
+    (string.IsNullOrEmpty(CreateDeviceDto.Category) || d.Category.Equals(CreateDeviceDto.Category, StringComparison.OrdinalIgnoreCase)));
 
     protected override async Task OnInitializedAsync()
     {

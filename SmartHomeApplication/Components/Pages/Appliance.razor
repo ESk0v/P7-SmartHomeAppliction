@@ -1,4 +1,4 @@
-@page "/appliance"
+﻿@page "/appliance"
 @attribute [Authorize]
 @inject SmartHomeApplication.Service.IDeviceService DeviceService
 @using Utilities.Models
@@ -133,6 +133,7 @@
                 .Where(n => n != nameof(DeviceIcon.default_icon))
                 .ToArray();
 
+
     private int amount = 0;
 
     private string? message;
@@ -146,6 +147,7 @@
     {
         userdevices = (await DeviceService.GetUserDevicesAsync()).ToList();
         amount = userdevices.Count;
+        Select(userdevices.FirstOrDefault());
     }
 
     private void Select(UserDeviceDto device)
@@ -184,8 +186,14 @@
     }
 }
 
-    private void Cancel() => Select(selected);
- 
+    private void Cancel()
+    {
+        if (selected is not null)
+        {
+            Select(selected);   
+        }
+    }
+    
 }
 
 <style>
