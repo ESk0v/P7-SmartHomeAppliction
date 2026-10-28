@@ -19,6 +19,8 @@ namespace Utilities.Models
         public decimal EstimatedUnscheduledPrice { get; set; }
 
         public decimal EstimatedUnscheduledCo2Emission { get; set; }
+
+        public string Name { get; set; } = "Optimized Plan";
 	
 	}
 }
