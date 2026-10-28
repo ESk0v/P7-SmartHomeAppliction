@@ -1,11 +1,11 @@
 public enum StatisticsType
 {
-    CheapestPeriod,
-    PlannedCost,
-    ScheduleSavings,
-    PeakShift,
+    PlannedCost,                //Dashboard
+    ScheduleSavingsCost,        //Dashboard
+    PlannedCo2,                 //Dashboard
+    ScheduleSavingsCo2,         //Dashboard
     EstimatedCost,
     MoneySaved,
-    LoadFinish,
-    LoadDuration
+    LoadDuration,
+    LoadFinish
 }

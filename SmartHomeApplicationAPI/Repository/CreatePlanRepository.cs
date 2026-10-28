@@ -82,7 +82,6 @@ public class CreatePlanRepository : ICreatePlanRepository
             EstimatedCo2Emission = plan.EstimatedCo2Emissions,
             EstimatedUnscheduledPrice = plan.EstimatedUnscheduledPrice,
             EstimatedUnscheduledCo2Emission = plan.EstimatedUnscheduledCo2Emissions
-
         
         };
         
