@@ -2,6 +2,7 @@
 @attribute [Authorize]
 
 @inject HttpClient Http
+@inject NavigationManager NavigationManager
 
 @using global::Shared.Dashboard
 @using SmartHomeApplication.Components.Shared.Demand
@@ -32,86 +33,90 @@
 <div class="row">
     <div class="col-sm-7 boxes">
         <EditForm Method="post" Model="ScheduleForm" OnValidSubmit="GenerateScheduling" FormName="AddSchedulingForm">
-            <DataAnnotationsValidator />
-            <div class="inboxes">
-                <label for="deviceName" class="form-label">Device Name</label>
-                <ButtonSelect Options="@(userDevices.Select(d => (d.id.ToString(), d.deviceNickname)))"
-                    @bind-Value="selectedDeviceId" @bind-Value:after="OnDeviceSelected" Placeholder="Select device" />
-                <ValidationMessage For="() => ScheduleForm.DeviceName" class="text-danger" />
-        
-            </div>   
+            <div class="mb-4 boxes">
+                
+                <DataAnnotationsValidator />
+                <div class="inboxes">
+                    <label for="deviceName" class="form-label">Device Name</label>
+                    <ButtonSelect Options="@(userDevices.Select(d => (d.id.ToString(), d.deviceNickname)))"
+                        @bind-Value="selectedDeviceId" @bind-Value:after="OnDeviceSelected" Placeholder="Select device" />
+                    <ValidationMessage For="() => ScheduleForm.DeviceName" class="text-danger" />
             
-            @if (isEVSelected)
-            {
-                <div class="charge-settings mb-4">
+                </div>   
+                
+                @if (isEVSelected)
+                {
+                    <div class="charge-settings mb-4">
 
-                    <div class="charge-slider">
-                        <div class="charge-slider-header">
-                            <label for="chargeStop">Charge to</label>
-                            <span>@ScheduleForm.ChargeStopPercentage%</span>
+                        <div class="charge-slider">
+                            <div class="charge-slider-header">
+                                <label for="chargeStop">Charge to</label>
+                                <span>@ScheduleForm.ChargeStopPercentage%</span>
+                            </div>
+
+                            <InputNumber id="chargeStop"
+                                        class="charge-range"
+                                        @bind-Value="ScheduleForm.ChargeStopPercentage"
+                                        min="5"
+                                        max="100"
+                                        step="5"
+                                        type="range" />
                         </div>
 
-                        <InputNumber id="chargeStop"
-                                    class="charge-range"
-                                    @bind-Value="ScheduleForm.ChargeStopPercentage"
-                                    min="5"
-                                    max="100"
-                                    step="5"
-                                    type="range" />
-                    </div>
-
-                </div>
-            }
-
-            @if (isApplianceSelected)
-            {
-                <div class="inboxes">
-                    <label for="devicePreset" class="form-label">Device Preset</label>
-                    <ButtonSelect Options="@(filteredPresets.Select(p => (Value: p.id.ToString(), Text: p.presetName)))"
-                         @bind-Value="selectedPresetId"
-                         @bind-Value:after="UpdateSelectedPreset"
-                         Placeholder="Select preset" />
-                    <ValidationMessage For="() => ScheduleForm.Preset" class="text-danger" />
-                </div>  
-            }
-
-            <div class="inboxes">
-                <p>ALLOWED WINDOW</p>
-                <div>
-                    <label class="form-label">START</label>
-                    <div class="d-flex gap-2 align-items-center">
-                        <ButtonSelect Options="HourOptions" @bind-Value="StartHourText" 
-                            CssClass="time-picker" Placeholder="" />
-                        <span>:</span>
-
-                        <ButtonSelect Options="MinuteOptions" @bind-Value="StartMinuteText"
-                            CssClass="time-picker" Placeholder="" />
-                    </div>
-                    <ValidationMessage For="() => ScheduleForm.StartHour" class="text-danger" />
-                    <ValidationMessage For="() => ScheduleForm.StartMinute" class="text-danger" />
-                </div>
-
-                <div>
-                    <label class="form-label">END</label>
-                    <div class="d-flex gap-2 align-items-center">
-                        <ButtonSelect Options="HourOptions" @bind-Value="EndHourText" 
-                            CssClass="time-picker" Placeholder="" />
-                        <span>:</span>
-
-                        <ButtonSelect Options="MinuteOptions" @bind-Value="EndMinuteText"
-                            CssClass="time-picker" Placeholder="" />
-                    </div>
-                </div>
-                <ValidationMessage For="() => ScheduleForm.EndHour" class="text-danger" />
-                <ValidationMessage For="() => ScheduleForm.EndMinute" class="text-danger" />
-                @if (!string.IsNullOrEmpty(schedulingError))
-                {
-                    <div class="alert alert-danger mt-5" roles="alert">
-                        @schedulingError
                     </div>
                 }
-            </div>
 
+                @if (isApplianceSelected)
+                {
+                    <div class="inboxes">
+                        <label for="devicePreset" class="form-label">Device Preset</label>
+                        <ButtonSelect Options="@(filteredPresets.Select(p => (Value: p.id.ToString(), Text: p.presetName)))"
+                            @bind-Value="selectedPresetId"
+                            @bind-Value:after="UpdateSelectedPreset"
+                            Placeholder="Select preset" />
+                        <ValidationMessage For="() => ScheduleForm.Preset" class="text-danger" />
+                    </div>  
+                }
+            </div>
+            <div class="mb-4 boxes">
+
+                <div class="inboxes">
+                    <p>ALLOWED WINDOW</p>
+                    <div>
+                        <label class="form-label">START</label>
+                        <div class="d-flex gap-2 align-items-center">
+                            <ButtonSelect Options="HourOptions" @bind-Value="StartHourText" 
+                                CssClass="time-picker" Placeholder="" />
+                            <span>:</span>
+
+                            <ButtonSelect Options="MinuteOptions" @bind-Value="StartMinuteText"
+                                CssClass="time-picker" Placeholder="" />
+                        </div>
+                        <ValidationMessage For="() => ScheduleForm.StartHour" class="text-danger" />
+                        <ValidationMessage For="() => ScheduleForm.StartMinute" class="text-danger" />
+                    </div>
+
+                    <div>
+                        <label class="form-label">END</label>
+                        <div class="d-flex gap-2 align-items-center">
+                            <ButtonSelect Options="HourOptions" @bind-Value="EndHourText" 
+                                CssClass="time-picker" Placeholder="" />
+                            <span>:</span>
+
+                            <ButtonSelect Options="MinuteOptions" @bind-Value="EndMinuteText"
+                                CssClass="time-picker" Placeholder="" />
+                        </div>
+                    </div>
+                    <ValidationMessage For="() => ScheduleForm.EndHour" class="text-danger" />
+                    <ValidationMessage For="() => ScheduleForm.EndMinute" class="text-danger" />
+                    @if (!string.IsNullOrEmpty(schedulingError))
+                    {
+                        <div class="alert alert-danger mt-5" roles="alert">
+                            @schedulingError
+                        </div>
+                    }
+                </div>
+            </div> 
             <div class="mb-4 inboxes">
 
                 <div class="priority-toggle @(ScheduleForm.Priority == "Greenest" ? "is-right" : "is-left")"
@@ -152,19 +157,32 @@
         </div>
         <div class="mb-4 boxes">
             <EditForm Method="post" Model="ScheduleForm" OnValidSubmit="addPlan" FormName="AddPlanForm">
+                <h2>Generated plan</h2>
 
                 @if (displayPlan && response != null)
                 {
-                    <h2>Generated plan</h2>
-                    <p>Start time: @response.StartTime.ToString("MMM dd yyyy HH:mm")</p>
-                    <p>End time: @response.EndTime.ToString("MMM dd yyyy HH:mm")</p>
-                    <p>Estimated price: @response.EstimatedPrice</p>
-                    <p>Estimated CO2 emission: @response.EstimatedCo2Emissions</p>
+                    <p>
+                        <span>Scheduled time</span>
+                        <span class="time-value">
+                            @response.StartTime.ToString("MMM dd HH:mm")
+                            -
+                            @response.EndTime.ToString("HH:mm")
+                        </span>
+                    </p>
+                    <p>
+                        <span>Price</span>
+                        <span class="price-value">
+                            @response.EstimatedPrice
+                        </span>
+                    </p>
+                    <p>
+                        <span>CO2 emission</span>
+                        <span>@response.EstimatedCo2Emissions</span>
+                    </p>
                 }
                 else
                 {
-                    <h2>Generated plan</h2>
-                    <p>No plan generated yet.</p>
+                     <p class="empty-message">No plan generated yet.</p>
                 }
                 <div class="mb-3">
                     <button type="submit" class="btn btn-primary">Save Plan</button>
@@ -266,6 +284,7 @@
         response = null;
         displayPlan = false;
         isEVSelected = false;
+        isApplianceSelected = false;
     }
 
     private void OnDeviceSelected()
@@ -280,9 +299,9 @@
         filteredPresets = selectedDevice != null && presetsByDevice.TryGetValue(selectedDevice.id, out var presets)
         ? presets : new List<PresetDto>();
 
-        isEVSelected = selectedDevice?.category != "ev_charger";
+        isEVSelected = selectedDevice?.category == "ev_charger";
 
-        isApplianceSelected = selectedDevice?.category == "ev_charger";
+        isApplianceSelected = selectedDevice?.category != "ev_charger";
         
         selectedPresetId = null;
         ScheduleForm.Preset = new PresetDto();
@@ -328,7 +347,6 @@
         if (ScheduleForm.Preset.duration > timeWindow)
         {
             schedulingError = $"The selected program requires {ScheduleForm.Preset.duration} minutes.";
-            ClearSchedule();
             return;
         }
 
@@ -337,7 +355,6 @@
         {
             Area = area,
             DeviceName = ScheduleForm.DeviceName,
-            ChargeStartPercentage = isEVSelected ? ScheduleForm.ChargeStartPercentage : null,
             ChargeStopPercentage = isEVSelected ? ScheduleForm.ChargeStopPercentage : null,
             Preset = isEVSelected ? null : ScheduleForm.Preset,
             StartTime = startTime,
@@ -408,6 +425,8 @@
             {
                 Console.WriteLine("Plan saved");
                 ClearSchedule();
+                NavigationManager.NavigateTo("/optimized");
+
             }
             else
             {
@@ -425,19 +444,97 @@
 
 <style>
 
-     .boxes {
-        background-color: #fff;
-        border: 1px solid #e5e2dc;
-        border-radius: 12px;
-        padding: 20px;
-
-        box-sizing: border-box;
-        aspect-ratio: 3 / 1;
-
-        display: flex;
-        flex-direction: column;
-        grid-template-rows: auto 1fr auto;
+     
+    .boxes {
+        background-color: #ffffff;
+        border: 1px solid #e4e0da;
+        border-radius: 24px;
+        padding: 24px 40px;
+        margin-bottom: 24px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.06);
+        color: #222222;
+        font-family: Arial, sans-serif;
     }
+
+    /* Card heading */
+    .boxes h2 {
+        font-size: 26px;
+        font-weight: 600;
+        color: #222222;
+        margin: 16px 0 24px;
+    }
+
+    /* Information rows */
+    .boxes p {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        font-size: 20px;
+        line-height: 1.5;
+        margin-bottom: 20px;
+    }
+
+    /* Labels */
+    .boxes p span:first-child {
+        color: #9e9895;
+    }
+
+    /* Values */
+    .boxes p span:last-child {
+        color: #222222;
+        font-weight: 300;
+        text-align: right;
+    }
+
+    /* Save Plan button */
+    .boxes .btn-primary {
+        background: #7569e8;
+        border: 1px solid #7569e8;
+        border-radius: 8px;
+        padding: 10px 22px;
+        font-size: 16px;
+        font-weight: 300;
+        transition: background-color 0.2s ease;
+    }
+
+    .boxes .btn-primary:hover {
+        background-color: #5f54c9;
+        border-color: #5f54c9;
+    }
+
+    /* Responsive layout */
+    @@media (max-width: 576px) {
+        .boxes {
+            padding: 20px 24px;
+            border-radius: 18px;
+        }
+
+        .boxes h2 {
+            font-size: 20px;
+        }
+
+        .boxes p {
+            font-size: 14px;
+            gap: 12px;
+        }
+    }
+
+    .boxes p span.price-value {
+        color: #16a34a;
+        font-weight: 300;
+    }
+
+    .boxes p span.time-value {
+        color: #7967ff;
+        font-weight: 300;
+    }
+
+    .boxes .empty-message {
+        color: #9e9895;
+    }
+
+
 
     .inboxes {
         padding: 15px;

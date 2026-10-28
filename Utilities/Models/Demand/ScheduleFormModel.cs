@@ -10,9 +10,6 @@ namespace Utilities.Models
 		public string DeviceName { get; set; } = string.Empty;
 
         [Range(0, 100)]
-		public int? ChargeStartPercentage { get; set; }
-
-        [Range(0, 100)]
 		public int? ChargeStopPercentage { get; set; }
 
         public PresetDto? Preset { get; set; } = new();
