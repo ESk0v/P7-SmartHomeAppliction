@@ -16,3 +16,5 @@
 .DS_Store
 SmartHomeApplicationAPI/appsettings.Development.json
 SmartHomeApplicationAPI/appsettings.json
+
+*.log
