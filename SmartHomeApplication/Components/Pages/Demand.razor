@@ -3,6 +3,7 @@
 
 @inject HttpClient Http
 
+@using global::Shared.Dashboard
 @using SmartHomeApplication.Components.Shared.Demand
 @using System.Globalization
 @using System.Reflection
@@ -39,21 +40,46 @@
                 <ValidationMessage For="() => ScheduleForm.DeviceName" class="text-danger" />
         
             </div>   
+            
             @if (isEVSelected)
             {
-                <div class="section-card mb-4 inboxes">
-                    <p>Current charge</p>
-                    <p>Target charge</p>
-                    <div class="mb-3">
-                        <label class="form-label">Charge from: @(ScheduleForm.ChargeStartPercentage)%</label>
-                        <InputNumber @bind-Value="ScheduleForm.ChargeStartPercentage" max="100" min="0" step="10" type="range" />
+                <div class="charge-settings mb-4">
+
+                    <div class="charge-slider">
+                        <div class="charge-slider-header">
+                            <label for="chargeStart">Charge from</label>
+                            <span>@ScheduleForm.ChargeStartPercentage%</span>
+                        </div>
+
+                        <InputNumber id="chargeStart"
+                                    class="charge-range"
+                                    @bind-Value="ScheduleForm.ChargeStartPercentage"
+                                    @bind-Value:after="OnStartChanged"
+                                    min="0"
+                                    max="@(100 - step)"
+                                    step="@step"
+                                    type="range" />
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Charge to: @(ScheduleForm.ChargeStopPercentage)%</label>
-                        <InputNumber @bind-Value="ScheduleForm.ChargeStopPercentage" max="100" min="0" step="10" type="range" />
+
+                    <div class="charge-slider">
+                        <div class="charge-slider-header">
+                            <label for="chargeStop">Charge to</label>
+                            <span>@ScheduleForm.ChargeStopPercentage%</span>
+                        </div>
+
+                        <InputNumber id="chargeStop"
+                                    class="charge-range"
+                                    @bind-Value="ScheduleForm.ChargeStopPercentage"
+                                    @bind-Value:after="OnStopChanged"
+                                    min="@step"
+                                    max="100"
+                                    step="@step"
+                                    type="range" />
                     </div>
+
                 </div>
-            } 
+            }
+
             @if (isApplianceSelected)
             {
                 <div class="inboxes">
@@ -134,8 +160,12 @@
     </div>
     <div class="col-sm-5">
         <div class="mb-4 boxes">
-            <h2>24HR prices</h2>
-            <p>Here you will see price graph.</p>
+            <div class="priceoverview">
+                @if (activeSchedules is not null)
+                {
+                    <PriceChart activeSchedules="activeSchedules"/>
+                }
+            </div>
         </div>
         <div class="mb-4 boxes">
             <EditForm Method="post" Model="ScheduleForm" OnValidSubmit="addPlan" FormName="AddPlanForm">
@@ -164,6 +194,7 @@
 
 
 @code {
+    private List<PlanDto>? activeSchedules;
     private string area = "DK1";
     private ScheduleForm ScheduleForm = new();
     private List<PresetDto> filteredPresets = new();
@@ -207,6 +238,7 @@
             int.TryParse(value, out var minute) ? minute : null;
     }
     private bool isEVSelected = false;
+    private const int step = 5;
     private bool isApplianceSelected = false;
     private bool displayPlan = false;
 
@@ -215,6 +247,13 @@
     {
         var state = await AuthProvider.GetAuthenticationStateAsync();
         var userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        var request = new HttpRequestMessage(HttpMethod.Get, "api/plan-controller/get-plan");
+        request.Headers.Add("UserId", userId);
+
+        var response = await Http.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        activeSchedules = await response.Content.ReadFromJsonAsync<List<PlanDto>>();
 
         userDevices = await Http.GetFromJsonAsync<List<UserDeviceDto>>($"api/createPlan-controller/get-user-device/{userId}") ?? new List<UserDeviceDto>();
 
@@ -229,6 +268,18 @@
         Hours = Enumerable.Range(0, 24)
             .Select(i => (currentHour + i) % 24)
             .ToList();
+    }
+
+    private void OnStartChanged()
+    {
+        if (ScheduleForm.ChargeStopPercentage <= ScheduleForm.ChargeStartPercentage)
+            ScheduleForm.ChargeStopPercentage = ScheduleForm.ChargeStartPercentage + step;
+    }
+
+    private void OnStopChanged()
+    {
+     if (ScheduleForm.ChargeStartPercentage >= ScheduleForm.ChargeStopPercentage)
+            ScheduleForm.ChargeStartPercentage = ScheduleForm.ChargeStopPercentage - step;
     }
 
     private void SetPriority(string value)
@@ -529,5 +580,72 @@
         flex: 1;
         min-width: 0;
     }
+    
+
+    .charge-settings {
+        padding: 20px;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+    }
+
+    .charge-slider + .charge-slider {
+        margin-top: 24px;
+        padding-top: 20px;
+        border-top: 1px solid #f0f0f0;
+    }
+
+    .charge-slider-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 14px;
+    }
+
+    .charge-slider-header label {
+        margin: 0;
+        color: #374151;
+        font-size: 14px;
+        font-weight: 500;
+    }
+
+    .charge-slider-header span {
+        color: #111827;
+        font-size: 14px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .charge-range {
+        display: block;
+        width: 100%;
+        height: 6px;
+        margin: 0;
+        padding: 0;
+        background: transparent;
+        cursor: pointer;
+        appearance: none;
+        -webkit-appearance: none;
+    }
+
+    /* Chrome, Edge and Safari */
+    .charge-range::-webkit-slider-runnable-track {
+        height: 4px;
+        background: #e5e7eb;
+        border-radius: 4px;
+    }
+
+    .charge-range::-webkit-slider-thumb {
+        width: 16px;
+        height: 16px;
+        margin-top: -6px;
+        border: 2px solid #fff;
+        border-radius: 50%;
+        background: #374151;
+        box-shadow: 0 0 0 1px #374151;
+        appearance: none;
+        -webkit-appearance: none;
+    }
+
 
 </style>
