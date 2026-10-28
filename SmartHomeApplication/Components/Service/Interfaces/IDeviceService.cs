@@ -13,4 +13,8 @@ public interface IDeviceService
 
     Task<IEnumerable<UserDeviceDto>> GetUserDevicesAsync(
         CancellationToken cancellationToken = default);
+
+    Task UpdateUserDeviceAsync(
+        UpdateUserDeviceDto UpdateUserDeviceDto,
+        CancellationToken cancellationToken = default);
 }

@@ -4,6 +4,8 @@ namespace Utilities.Models
 {
 	public class UserDeviceDto
 	{
+        public int  Id { get; set; }
+
         public String Model { get; set; } = string.Empty;
 
         public String Category { get; set; } = string.Empty;

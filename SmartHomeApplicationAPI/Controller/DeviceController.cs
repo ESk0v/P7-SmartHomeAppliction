@@ -21,6 +21,35 @@ public class DeviceController : ControllerBase
         _logger = logger;
     }
 
+    [HttpPut("update-userdevice")]
+    public async Task<IActionResult> UpdateDevice([FromBody] UpdateUserDeviceDto dto)
+    {
+        _logger.LogWarning("Received request to update device: {@UpdateUserDeviceDto}", dto);
+        if (!ModelState.IsValid)
+        {
+            _logger.LogWarning("ModelState invalid: {@ModelState}", ModelState);
+            return ValidationProblem(ModelState);
+        }
+        _logger.LogWarning("Attempting to find device with with id {DeviceId} and nickname {Nickname}", dto.Id, dto.Nickname);
+
+        var userDevice = await _db.UserDevice.FindAsync(dto.Id);
+        if (userDevice == null)
+        {
+            _logger.LogWarning("Device not found: {DeviceId}", dto.Id);
+            return NotFound();
+        }
+
+        userDevice.Nickname = dto.Nickname;
+        userDevice.Icon = dto.Icon;
+        userDevice.Color = dto.Color;
+        userDevice.IsFavorite = dto.IsFavorite;
+
+        await _db.SaveChangesAsync();
+
+        _logger.LogInformation("Device updated successfully with id={DeviceId}", dto.Id);
+        return Ok(new { message = "Device updated successfully", id = dto.Id });
+    }
+
     [HttpGet("get-userdevices")]
     public async Task<IActionResult> GetUserDevices([FromHeader(Name = "User-Id")] string userId, CancellationToken ct)
     {
@@ -29,6 +58,7 @@ public class DeviceController : ControllerBase
             .Where(ud => ud.UserId == userId)
             .Select(ud => new UserDeviceDto
             {
+                Id = ud.Id,
                 Model = ud.Device.Model,
                 Category = ud.Device.Category,
                 Nickname = ud.Nickname,

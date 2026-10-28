@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Components.Authorization;
 using System.Net.Http.Json;
 using Utilities.Models;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.VisualBasic;
 
 namespace SmartHomeApplication.Service
 {
@@ -91,5 +92,22 @@ namespace SmartHomeApplication.Service
             return userDevices ?? Enumerable.Empty<UserDeviceDto>();
         }
 
+        public async Task UpdateUserDeviceAsync(UpdateUserDeviceDto UpdateUserDeviceDto, CancellationToken cancellationToken = default)
+        {
+
+            var response = await httpClient.PutAsJsonAsync(
+                $"api/device-controller/update-userdevice",
+                UpdateUserDeviceDto,
+                cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                throw new HttpRequestException(
+                    $"Error updating user device: {response.StatusCode}, {errorContent}",
+                    null,
+                    response.StatusCode);
+            }
+
+        }
     }
 }
