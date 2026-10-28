@@ -15,6 +15,8 @@ public class StatisticsController : ControllerBase
         _service = service;
     }
 
+    #region Dashboard Statistics
+
     [HttpGet("planned-cost")]
     public async Task<ActionResult<StatisticsDto>> getPlannedCost([FromHeader(Name = "UserId")] string userId)
     {
@@ -24,72 +26,33 @@ public class StatisticsController : ControllerBase
         return await _service.GetPlannedCostAsync(userId);
     }
 
-    [HttpGet("cheapest-period")]
-    public async Task<StatisticsDto> GetCheapestPeriod()
-    {
-        return new StatisticsDto
-        {
-            Value = "01-06",
-            Description = " avg 17 øre/kWh"
-        };
-    }
-
-    [HttpGet("schedule-savings")]
-    public async Task<ActionResult<StatisticsDto>> GetScheduleSavings([FromHeader(Name = "UserId")] string userId)
+    [HttpGet("schedule-savings-cost")]
+    public async Task<ActionResult<StatisticsDto>> GetScheduleSavingsCost([FromHeader(Name = "UserId")] string userId)
     {
         if (string.IsNullOrEmpty(userId))
             return Unauthorized();
 
-       return await _service.GetScheduleSavingAsync(userId);
+       return await _service.GetScheduleSavingCostAsync(userId);
     }
 
-    [HttpGet("peak-shift")]
-    public async Task<StatisticsDto> GetPeakShift()
+    [HttpGet("planned-co2")]
+    public async Task<ActionResult<StatisticsDto>> getPlannedCo2([FromHeader(Name = "UserId")] string userId)
     {
-        return new StatisticsDto
-        {
-            Value = "14.8 kWh",
-            Description = "Moved to offpeak"
-        };
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized();
+
+        return await _service.GetPlannedCo2Async(userId);
     }
 
-    [HttpGet("estimated-cost")]
-    public async Task<StatisticsDto> GetEstimatedCost()
+    [HttpGet("schedule-savings-c02")]
+    public async Task<ActionResult<StatisticsDto>> GetScheduleSavingsCo2([FromHeader(Name = "UserId")] string userId)
     {
-        return new StatisticsDto
-        {
-            Value = "6.15 kr",
-            Description = "↓ 25% cheaper vs. starting now"
-        };
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized();
+
+       return await _service.GetScheduleSavingCo2Async(userId);
     }
 
-    [HttpGet("money-saved")]
-    public async Task<StatisticsDto> GetMoneySaved()
-    {
-        return new StatisticsDto
-        {
-            Value = "4.25 kr",
-            Description = "vs. unscheduled"
-        };
-    }
+    #endregion
 
-    [HttpGet("load-duration")]
-    public async Task<StatisticsDto> GetLoadDuration()
-    {
-        return new StatisticsDto
-        {
-            Value = "3h 15m",
-            Description = "starting at 22:00"
-        };
-    }
-
-    [HttpGet("load-finish")]
-    public async Task<StatisticsDto> GetLoadFinish()
-    {
-        return new StatisticsDto
-        {
-            Value = "01:15",
-            Description = "4h 45m before deadline"
-        };
-    }
 }

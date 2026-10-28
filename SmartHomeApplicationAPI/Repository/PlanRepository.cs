@@ -16,9 +16,9 @@ public class PlanRepository : IPlanRepository
     public async Task<List<PlanDto>> GetPlansAsync(string userId, DateTime date)
     {
         return await _db.Plan
-            .Where(p => p.UserDevice.UserId == userId && p.EndTime >= date)
+            .Where(p => p.UserDevice.UserId == userId && p.PlanEndTime >= date)
             .AsNoTracking()
-            .OrderBy(p => p.StartTime)
+            .OrderBy(p => p.PlanStartTime)
             .Select(p => new PlanDto(
                 planId: p.Id,
                 nextPlanId: p.NextPlanId,
@@ -26,8 +26,8 @@ public class PlanRepository : IPlanRepository
                 icon: p.UserDevice.Icon,
                 colorCode: p.UserDevice.Color,
                 deviceName: p.UserDevice.Nickname,
-                startTime: p.StartTime,
-                endTime: p.EndTime,
+                startTime: p.PlanStartTime,
+                endTime: p.PlanEndTime,
                 estimatedCost: p.EstimatedPrice,
                 estimatedCo2Emissions: p.EstimatedCo2Emissions
             ))
