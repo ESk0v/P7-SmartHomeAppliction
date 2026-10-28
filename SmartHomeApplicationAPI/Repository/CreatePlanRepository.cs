@@ -57,12 +57,15 @@ public class CreatePlanRepository : ICreatePlanRepository
         {
             Name = planDTO.Name,
             UserDeviceId = planDTO.UserDeviceId,
-            StartTime = planDTO.StartTime,
-            EndTime = planDTO.EndTime,
+            PlanStartTime = planDTO.StartTime,
+            PlanEndTime = planDTO.EndTime,
+            WindowStartTime = planDTO.StartTime,
+            WindowEndTime = planDTO.EndTime,
+            OptimizationObjective = "Cheapest",
             EstimatedPrice = planDTO.EstimatedPrice,
             EstimatedCo2Emissions = planDTO.EstimatedCo2Emission,
-            EstimatedUnscheduledPrice = planDTO.EstimatedUnscheduledPrice
-            // EstimatedUnscheduledCo2Emissions = planDTO.EstimatedUnscheduledCo2Emission
+            EstimatedUnscheduledPrice = planDTO.EstimatedUnscheduledPrice,
+            EstimatedUnscheduledCo2Emissions = planDTO.EstimatedUnscheduledCo2Emission
             
         };
 
@@ -73,12 +76,12 @@ public class CreatePlanRepository : ICreatePlanRepository
         return new PlanDTO
         {
             UserDeviceId = plan.UserDeviceId,
-            StartTime = plan.StartTime,
-            EndTime = plan.EndTime,
+            StartTime = plan.PlanStartTime,
+            EndTime = plan.PlanEndTime,
             EstimatedPrice = plan.EstimatedPrice,
             EstimatedCo2Emission = plan.EstimatedCo2Emissions,
-            EstimatedUnscheduledPrice = plan.EstimatedUnscheduledPrice
-            // EstimatedUnscheduledCo2Emission = plan.EstimatedUnscheduledCo2Emissions
+            EstimatedUnscheduledPrice = plan.EstimatedUnscheduledPrice,
+            EstimatedUnscheduledCo2Emission = plan.EstimatedUnscheduledCo2Emissions
 
         
         };
