@@ -28,7 +28,7 @@ public class CreatePlanRepository : ICreatePlanRepository
         
     }
 
-    public async Task<List<UserDeviceDto>> GetUserDevicesAsync(string userId)
+    public async Task<List<PlanUserDeviceDto>> GetUserDevicesAsync(string userId)
     {
         return await _db.UserDevice
             .AsNoTracking()
@@ -36,7 +36,7 @@ public class CreatePlanRepository : ICreatePlanRepository
             .Join(_db.Device,
                 ud => ud.DeviceId,
                 d => d.Id,
-                (ud, d) => new UserDeviceDto(
+                (ud, d) => new PlanUserDeviceDto(
                     ud.Id,
                     ud.DeviceId,
                     ud.Nickname,

@@ -199,7 +199,7 @@
     private ScheduleForm ScheduleForm = new();
     private List<PresetDto> filteredPresets = new();
     private string? selectedPresetId;
-    private List<UserDeviceDto> userDevices = new();
+    private List<PlanUserDeviceDto> userDevices = new();
     private Dictionary<int, List<PresetDto>> presetsByDevice = new();
     private string? selectedDeviceId;
     private OptimizationResultDTO? response;
@@ -255,9 +255,9 @@
         response.EnsureSuccessStatusCode();
         activeSchedules = await response.Content.ReadFromJsonAsync<List<PlanDto>>();
 
-        userDevices = await Http.GetFromJsonAsync<List<UserDeviceDto>>($"api/createPlan-controller/get-user-device/{userId}") ?? new List<UserDeviceDto>();
+        userDevices = await Http.GetFromJsonAsync<List<PlanUserDeviceDto>>($"api/createPlan-controller/get-user-device/{userId}") ?? new List<PlanUserDeviceDto>();
 
-        foreach (UserDeviceDto userDevice in userDevices)
+        foreach (PlanUserDeviceDto userDevice in userDevices)
         {
             var presets = await Http.GetFromJsonAsync<List<PresetDto>>($"api/createPlan-controller/get-preset/{userDevice.deviceId}") ?? new List<PresetDto>();
 

@@ -22,7 +22,7 @@ public class CreatePlanController : ControllerBase
     }
 
     [HttpGet("get-user-device/{userId}")]
-    public async Task<ActionResult<List<UserDeviceDto>>> GetUserDevices(string userId)
+    public async Task<ActionResult<List<PlanUserDeviceDto>>> GetUserDevices(string userId)
     {
         return await _service.GetUserDevicesAsync(userId);
     }

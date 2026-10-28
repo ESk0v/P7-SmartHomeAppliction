@@ -17,7 +17,7 @@ public class CreatePlanService : ICreatePlanService
         return await _repository.GetPresetsAsync(deviceId);
     }
 
-    public async Task<List<UserDeviceDto>> GetUserDevicesAsync(string userId)
+    public async Task<List<PlanUserDeviceDto>> GetUserDevicesAsync(string userId)
     {
         return await _repository.GetUserDevicesAsync(userId);
     }

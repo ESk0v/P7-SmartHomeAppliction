@@ -1,6 +1,6 @@
 namespace Utilities.Models;
 
-public record UserDeviceDto(
+public record PlanUserDeviceDto(
     int id,
     int deviceId,
     string deviceNickname,
