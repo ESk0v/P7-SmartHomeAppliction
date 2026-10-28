@@ -55,6 +55,7 @@ public class CreatePlanRepository : ICreatePlanRepository
 
         var plan = new Plan
         {
+            Name = planDTO.Name,
             UserDeviceId = planDTO.UserDeviceId,
             StartTime = planDTO.StartTime,
             EndTime = planDTO.EndTime,
