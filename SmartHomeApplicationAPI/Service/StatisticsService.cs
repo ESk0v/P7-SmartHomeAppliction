@@ -13,6 +13,7 @@ public class StatisticsService : IStatisticsService
         _repository = repository;
     }
 
+    #region Dashboard Statistics
     public async Task<StatisticsDto> GetPlannedCostAsync(string userID)
     {
         var start = DateTime.UtcNow.Date;
@@ -139,4 +140,6 @@ public class StatisticsService : IStatisticsService
             Description = "" + arrow + " " + savedCo2Percent + " % cheaper"
         };
     }
+    #endregion
+    
 }
