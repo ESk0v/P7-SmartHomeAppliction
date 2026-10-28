@@ -11,7 +11,6 @@ namespace SmartHomeApplicationAPI.Infrastructure.Models
 	{
 		[Key]
 		[Column("id")]
-
 		public int Id { get; set; }
 
 		[Required]
@@ -22,18 +21,26 @@ namespace SmartHomeApplicationAPI.Infrastructure.Models
         //foreign key to UserDevice.Id
 		[Required]
 		[Column("user_device_id")]
-        public int UserDeviceId { get; set; }
+		public int UserDeviceId { get; set; }
 
 		[ForeignKey(nameof(UserDeviceId))]
-        public UserDevice UserDevice { get; set; } = null!;
+		public UserDevice UserDevice { get; set; } = null!;
 
 		[Required]
-        [Column("start_time")]
-        public DateTime StartTime { get; set; }
+		[Column("plan_start_time", TypeName = "timestamp without time zone")]
+		public DateTime PlanStartTime { get; set; }
 
 		[Required]
-		[Column("end_time")]
-		public DateTime EndTime { get; set; }
+		[Column("plan_end_time", TypeName = "timestamp without time zone")]
+		public DateTime PlanEndTime { get; set; }
+
+		[Required]
+		[Column("window_start_time", TypeName = "timestamp without time zone")]
+		public DateTime WindowStartTime { get; set; }
+
+		[Required]
+		[Column("window_end_time", TypeName = "timestamp without time zone")]
+		public DateTime WindowEndTime { get; set; }
 
 		// If this schedule is split over two periods, point to the next/continuation schedule here.
 		// Nullable because not every schedule is split.
@@ -52,8 +59,17 @@ namespace SmartHomeApplicationAPI.Infrastructure.Models
 		public decimal EstimatedUnscheduledPrice { get; set; }
 
 		[Required]
-		[Column("estimated_co2_emissions_in_percent")]
+		[Column("estimated_co2_emissions_in_grams")]
 		public decimal EstimatedCo2Emissions { get; set; }
+
+		[Required]
+		[Column("estimated_unscheduled_co2_emissions_in_grams")]
+		public decimal EstimatedUnscheduledCo2Emissions { get; set; }
+
+		[Required]
+		[MaxLength(10)]
+		[Column("optimization_objective")]
+		public string OptimizationObjective { get; set; } = null!;
 
     }
 }

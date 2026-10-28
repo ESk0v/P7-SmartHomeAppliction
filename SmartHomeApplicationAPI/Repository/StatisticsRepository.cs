@@ -17,7 +17,7 @@ public class StatisticsRepository : IStatisticsRepository
     public async Task<List<Plan>> RetrievePlansAsync(string userId, DateTime start, DateTime end)
     {
         return await _db.Plan
-            .Where(p => p.UserDevice.UserId == userId && p.EndTime <= end && p.StartTime >= start) 
+            .Where(p => p.UserDevice.UserId == userId && p.PlanEndTime <= end && p.PlanStartTime >= start)
             .AsNoTracking()
             .ToListAsync();   
     }
