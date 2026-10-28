@@ -43,6 +43,10 @@ namespace SmartHomeApplicationAPI.Infrastructure.Models
 		public decimal EstimatedPrice { get; set; }
 
 		[Required]
+		[Column("estimated_unscheduled_price_in_kroner", TypeName = "money")]
+		public decimal EstimatedUnscheduledPrice { get; set; }
+
+		[Required]
 		[Column("estimated_co2_emissions_in_percent")]
 		public decimal EstimatedCo2Emissions { get; set; }
 

@@ -1,5 +1,3 @@
-// Job that calls the Energi Data Service API for the "DayAheadPrices" dataset and stores the data in the database. We use Hangfire to schedule this job to run every day at 13.00 (run every five minutes until 14.00 same day to ensure the data is up-to-date) to ensure that the data for the previous day is available.
-// Here, jobs should only be declared, while the actual execution should be done in a service file in "Hangfire/Services" folder. We might include repositories and models to maintain the pattern used elsewhere.
 using Hangfire;
 using SmartHomeApplicationAPI.Hangfire.Services;
 
@@ -7,19 +5,37 @@ namespace SmartHomeApplicationAPI.Hangfire;
 
 public static class Jobs
 {
-    public const string ElectricityPriceImport =
-        "electricity-price-import";
+    public const string ElectricityPriceImport = "electricity-price-import";
+    public const string Co2Import = "co2-import";
+
+    private static readonly TimeZoneInfo Copenhagen =
+        TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen");
 
     public static void Register()
     {
         RecurringJob.AddOrUpdate<IElectricityPriceImportService>(
             ElectricityPriceImport,
             service => service.StartImportAsync(),
-            Cron.Daily(13, 00),
+            "*/5 13 * * *",
             new RecurringJobOptions
             {
-                TimeZone = TimeZoneInfo.FindSystemTimeZoneById(
-                    "Europe/Copenhagen")
+                TimeZone = Copenhagen
             });
+
+        RecurringJob.AddOrUpdate<ICo2ImportService>(
+            Co2Import,
+            service => service.StartImportAsync(),
+            "*/15 15-19 * * *",
+            new RecurringJobOptions
+            {
+                TimeZone = Copenhagen
+            });
+
+//        RecurringJob.AddOrUpdate<ICo2ImportService>(
+//            Co2ActualsImport,
+//            service => service.ImportActualsAsync(),
+//            "5 * * * *",
+//            options);
+        
     }
 }
