@@ -101,7 +101,7 @@ public class StatisticsService : IStatisticsService
         string arrow = savedPrice > 0 ? "\u2193" : "";
         
         return new StatisticsDto{
-            Value = "" + savedPrice + " Kr",
+            Value = "" + savedPrice + " kr",
             Description = "" + arrow + " " + savedPricePercent + " % cheaper"
         };
     }
@@ -141,5 +141,5 @@ public class StatisticsService : IStatisticsService
         };
     }
     #endregion
-    
+
 }
