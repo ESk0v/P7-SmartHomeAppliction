@@ -1,0 +1,37 @@
+using Microsoft.AspNetCore.Mvc;
+using Utilities.Models;
+using SmartHomeApplicationAPI.Service;
+using Microsoft.EntityFrameworkCore.Infrastructure.Internal;
+
+namespace Controller.Dashboard;
+[ApiController]
+[Route("api/createPlan-controller")]
+public class CreatePlanController : ControllerBase
+{
+    private readonly ICreatePlanService _service;
+
+    public CreatePlanController(ICreatePlanService service)
+    {
+        _service = service;
+    }
+
+    [HttpGet("get-preset/{deviceId:int}")]
+    public async Task<ActionResult<List<PresetDto>>> GetPresets(int deviceId)
+    {
+        return await _service.GetPresetsAsync(deviceId);
+    }
+
+    [HttpGet("get-user-device/{userId}")]
+    public async Task<ActionResult<List<PlanUserDeviceDto>>> GetUserDevices(string userId)
+    {
+        return await _service.GetUserDevicesAsync(userId);
+    }
+
+    [HttpPost("post-plan")]
+    public async Task<ActionResult> PostPlan([FromBody] PlanDTO planDTO)
+    {
+        var savedPlan = await _service.PostPlanAsync(planDTO);
+
+        return Ok(savedPlan);
+    }
+}

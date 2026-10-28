@@ -1,0 +1,176 @@
+
+<div class="plan-picker @CssClass" tabindex="0" @onfocusout="@((e) => onFocusOut(e))">
+    <button type="button" class="plan-picker-trigger" @onclick="() => open = !open">
+        <span>
+            @(Options.FirstOrDefault(x => x.Value == Value).Text ?? Placeholder)
+        </span>
+        <span class="plan-picker-chevron @(open ? "plan-picker-chevron-open" : "")"></span>
+    </button>
+
+    @if (open)
+    {
+        <div class="plan-picker-menu">
+            @foreach (var option in Options)
+            {
+                <button type="button"
+                        class="plan-picker-option @(option.Value == Value ? "plan-picker-option-selected" : "")"
+                        @onclick="async () => { await ValueChanged.InvokeAsync(option.Value); open = false; }">
+                    @option.Text
+                    @if (option.Value == Value)
+                    {
+                        <span class="plan-picker-check">✓</span>
+                    }
+                </button>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public IEnumerable<(string Value, string Text)> Options { get; set; } = [];
+    [Parameter] public string? Value { get; set; }
+    [Parameter] public EventCallback<string?> ValueChanged { get; set; }
+    [Parameter] public string Placeholder { get; set; } = "Select";
+    [Parameter] public string CssClass { get; set; } = "";
+
+    private bool open;
+
+    private async Task onFocusOut(FocusEventArgs e)
+    {
+        await Task.Delay(150);
+        open = false;
+    }
+}
+
+<style>
+
+
+    .plan-picker {
+        position: relative;
+    }
+
+    .plan-picker-trigger {
+        align-items: center;
+        appearance: none;
+        background: #fff;
+        border: 0;
+        border-radius: 0.75rem;
+        color: #222;
+        cursor: pointer;
+        display: flex;
+        font: inherit;
+        font-size: 1.1rem;
+        font-weight: 600;
+        gap: 0.75rem;
+        min-width: 20rem;
+        padding: 0.1rem 0.85rem;
+        text-align: left;
+        transition: background-color 150ms ease, box-shadow 150ms ease;
+    }
+
+    .plan-picker-trigger:hover,
+    .plan-picker-trigger:focus-visible {
+        background: #f8f7ff;
+        outline: none;
+    }
+
+    .plan-picker-icon {
+        color: #7569e8;
+        display: inline-flex;
+        flex-shrink: 0;
+        height: 1.4rem;
+        width: 1.4rem;
+    }
+
+    .plan-picker-icon svg {
+        height: 100%;
+        width: 100%;
+    }
+
+    .plan-picker-chevron {
+        border-bottom: 2px solid #999;
+        border-right: 2px solid #999;
+        height: 0.6rem;
+        margin-left: auto;
+        transform: rotate(45deg) translateY(-0.15rem);
+        transition: border-color 150ms ease, transform 150ms ease;
+        width: 0.6rem;
+    }
+
+    .plan-picker-chevron-open {
+        border-color: #7569e8;
+        transform: rotate(225deg) translateY(-0.05rem);
+    }
+
+    .plan-picker-menu {
+        background: #f2f2ee;
+        border: 1px solid #e2ded9;
+        border-radius: 0.75rem;
+        box-shadow: 0 0.5rem 1.2rem rgba(34, 34, 34, 0.14);
+        left: 0;
+        overflow: hidden;
+        padding: 0.25rem 0;
+        position: absolute;
+        right: 0;
+        top: calc(100% + 0.4rem);
+        z-index: 10;
+    }
+
+    .plan-picker-option {
+        align-items: center;
+        background: #f2f1f3;
+        border: 0;
+        color: #222;
+        cursor: pointer;
+        display: flex;
+        font: inherit;
+        font-size: 1rem;
+        gap: 0.75rem;
+        padding: 0.85rem 1rem;
+        text-align: left;
+        width: 100%;
+    }
+
+    .plan-picker-option:hover,
+    .plan-picker-option:focus-visible {
+        background: #f0efff;
+        outline: none;
+    }
+
+    .plan-picker-option-selected {
+        background: #ebeaff;
+    }
+
+    .plan-picker-check {
+        color: #7569e8;
+        font-size: 1.2rem;
+        font-weight: 700;
+        margin-left: auto;
+    }
+
+    .plan-picker-trigger {
+        min-width: 0;
+        width: 100%;
+        background-color: #f2f1f7;
+
+    }
+
+    .time-picker {
+        width: 5rem;
+    }
+
+    .time-picker .plan-picker-trigger {
+        padding: 0.4rem;
+        font-size: 1rem;
+        justify-content: center;
+    }
+
+    .time-picker .plan-picker-menu {
+        min-width: 5rem;
+    }
+
+    .time-picker .plan-picker-option {
+        padding: 0.6rem 0.4rem;
+    }
+
+</Style>
