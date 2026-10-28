@@ -27,19 +27,19 @@ namespace SmartHomeApplicationAPI.Infrastructure.Models
 		public UserDevice UserDevice { get; set; } = null!;
 
 		[Required]
-		[Column("plan_start_time", TypeName = "timestamp without time zone")]
+		[Column("plan_start_time")]
 		public DateTime PlanStartTime { get; set; }
 
 		[Required]
-		[Column("plan_end_time", TypeName = "timestamp without time zone")]
+		[Column("plan_end_time")]
 		public DateTime PlanEndTime { get; set; }
 
 		[Required]
-		[Column("window_start_time", TypeName = "timestamp without time zone")]
+		[Column("window_start_time")]
 		public DateTime WindowStartTime { get; set; }
 
 		[Required]
-		[Column("window_end_time", TypeName = "timestamp without time zone")]
+		[Column("window_end_time")]
 		public DateTime WindowEndTime { get; set; }
 
 		// If this schedule is split over two periods, point to the next/continuation schedule here.
@@ -51,11 +51,11 @@ namespace SmartHomeApplicationAPI.Infrastructure.Models
 		public Plan? NextPlan { get; set; }
 
 		[Required]
-		[Column("estimated_price_in_kroner", TypeName = "money")]
+		[Column("estimated_price_in_kroner")]
 		public decimal EstimatedPrice { get; set; }
 
 		[Required]
-		[Column("estimated_unscheduled_price_in_kroner", TypeName = "money")]
+		[Column("estimated_unscheduled_price_in_kroner")]
 		public decimal EstimatedUnscheduledPrice { get; set; }
 
 		[Required]
