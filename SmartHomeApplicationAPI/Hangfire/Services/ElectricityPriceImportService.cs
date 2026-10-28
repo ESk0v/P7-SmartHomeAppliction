@@ -43,9 +43,11 @@ public class ElectricityPriceImportService
             DanishMidnightToUtc(targetDate.AddDays(1)) - DanishMidnightToUtc(targetDate);
         var expectedRecordCount = (int)(dayLength.TotalMinutes / 15) * 2;
 
-        var storedCount = await _repository.CountForDateAsync(targetDate);
+        var existing = await _repository.GetRangeAsync(
+            targetDate,
+            targetDate.AddDays(1));
 
-        if (storedCount >= expectedRecordCount)
+        if (existing.Count >= expectedRecordCount)
         {
             return;
         }
@@ -61,11 +63,28 @@ public class ElectricityPriceImportService
             return;
         }
 
-        await _repository.UpdateInsertAsync(prices);
+        // Merge in memory: update the price on rows that exist, collect the rest as inserts.
+        var existingByKey = existing.ToDictionary(row => (row.Time, row.PriceArea));
+        var newRows = new List<Electricity>();
+
+        foreach (var price in prices)
+        {
+            if (existingByKey.TryGetValue((price.Time, price.PriceArea), out var row))
+            {
+                row.PricePerKwh = price.PricePerKwh;   // price only, CO2 and IsPredicted are left alone
+            }
+            else
+            {
+                newRows.Add(price);
+            }
+        }
+
+        await _repository.SaveAsync(newRows);
 
         _logger.LogInformation(
-            "Day-ahead import for {Date}: {Count} rows upserted, {Expected} expected.",
+            "Day-ahead import for {Date}: {New} inserted, {Total} fetched, {Expected} expected.",
             targetDate,
+            newRows.Count,
             prices.Count,
             expectedRecordCount);
     }
