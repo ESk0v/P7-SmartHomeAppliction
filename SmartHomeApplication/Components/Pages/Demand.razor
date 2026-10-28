@@ -47,22 +47,6 @@
 
                     <div class="charge-slider">
                         <div class="charge-slider-header">
-                            <label for="chargeStart">Charge from</label>
-                            <span>@ScheduleForm.ChargeStartPercentage%</span>
-                        </div>
-
-                        <InputNumber id="chargeStart"
-                                    class="charge-range"
-                                    @bind-Value="ScheduleForm.ChargeStartPercentage"
-                                    @bind-Value:after="OnStartChanged"
-                                    min="0"
-                                    max="@(100 - step)"
-                                    step="@step"
-                                    type="range" />
-                    </div>
-
-                    <div class="charge-slider">
-                        <div class="charge-slider-header">
                             <label for="chargeStop">Charge to</label>
                             <span>@ScheduleForm.ChargeStopPercentage%</span>
                         </div>
@@ -70,10 +54,9 @@
                         <InputNumber id="chargeStop"
                                     class="charge-range"
                                     @bind-Value="ScheduleForm.ChargeStopPercentage"
-                                    @bind-Value:after="OnStopChanged"
-                                    min="@step"
+                                    min="5"
                                     max="100"
-                                    step="@step"
+                                    step="5"
                                     type="range" />
                     </div>
 
@@ -238,7 +221,6 @@
             int.TryParse(value, out var minute) ? minute : null;
     }
     private bool isEVSelected = false;
-    private const int step = 5;
     private bool isApplianceSelected = false;
     private bool displayPlan = false;
 
@@ -270,18 +252,6 @@
             .ToList();
     }
 
-    private void OnStartChanged()
-    {
-        if (ScheduleForm.ChargeStopPercentage <= ScheduleForm.ChargeStartPercentage)
-            ScheduleForm.ChargeStopPercentage = ScheduleForm.ChargeStartPercentage + step;
-    }
-
-    private void OnStopChanged()
-    {
-     if (ScheduleForm.ChargeStartPercentage >= ScheduleForm.ChargeStopPercentage)
-            ScheduleForm.ChargeStartPercentage = ScheduleForm.ChargeStopPercentage - step;
-    }
-
     private void SetPriority(string value)
     {
         ScheduleForm.Priority = value;
@@ -310,9 +280,9 @@
         filteredPresets = selectedDevice != null && presetsByDevice.TryGetValue(selectedDevice.id, out var presets)
         ? presets : new List<PresetDto>();
 
-        isEVSelected = selectedDevice?.category == "ev_charger";
+        isEVSelected = selectedDevice?.category != "ev_charger";
 
-        isApplianceSelected = selectedDevice?.category != "ev_charger";
+        isApplianceSelected = selectedDevice?.category == "ev_charger";
         
         selectedPresetId = null;
         ScheduleForm.Preset = new PresetDto();
