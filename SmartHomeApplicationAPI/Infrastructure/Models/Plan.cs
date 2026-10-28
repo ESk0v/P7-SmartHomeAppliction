@@ -14,6 +14,11 @@ namespace SmartHomeApplicationAPI.Infrastructure.Models
 
 		public int Id { get; set; }
 
+		[Required]
+		[MaxLength(100)]
+		[Column("name")]
+		public string Name { get; set; } = null!;
+
         //foreign key to UserDevice.Id
 		[Required]
 		[Column("user_device_id")]
@@ -41,6 +46,10 @@ namespace SmartHomeApplicationAPI.Infrastructure.Models
 		[Required]
 		[Column("estimated_price_in_kroner", TypeName = "money")]
 		public decimal EstimatedPrice { get; set; }
+
+		[Required]
+		[Column("estimated_unscheduled_price_in_kroner", TypeName = "money")]
+		public decimal EstimatedUnscheduledPrice { get; set; }
 
 		[Required]
 		[Column("estimated_co2_emissions_in_percent")]

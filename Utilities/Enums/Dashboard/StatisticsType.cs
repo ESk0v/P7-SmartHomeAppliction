@@ -3,5 +3,9 @@ public enum StatisticsType
     CheapestPeriod,
     PlannedCost,
     ScheduleSavings,
-    PeakShift
+    PeakShift,
+    EstimatedCost,
+    MoneySaved,
+    LoadFinish,
+    LoadDuration
 }

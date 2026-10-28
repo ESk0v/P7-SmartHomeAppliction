@@ -1,8 +1,9 @@
 @inject ILogger<Statistics> Logger
+@inject AuthenticationStateProvider AuthProvider
 @inject HttpClient Http
+@attribute [Authorize]
 
-@using Utilities.Models
-@using System.Globalization
+@using System.Security.Claims
 
 @namespace Shared.Dashboard
 
@@ -12,11 +13,7 @@
     @if (Data is not null)
     {
         <p class="statistics-value">@Data.Value</p>
-
-        @if (Data.Description is not null)
-        {
-            <p class="statistics-description">@Data.Description</p>
-        }
+        <p class="statistics-description @(Data.Description?.Contains("↓") == true ? "savings-positive" : "")">@(Data.Description ?? "\u00A0")</p>
     }
 </div>
 
@@ -24,6 +21,8 @@
 
     [Parameter]
     public StatisticsType Type { get; set; }
+    [Parameter]
+    public string DescriptionClass { get; set; } = string.Empty;
     public StatisticsDto? Data { get; set;}
 
     private string Title => Type switch
@@ -32,6 +31,10 @@
         StatisticsType.CheapestPeriod => "Cheapest Window",
         StatisticsType.ScheduleSavings => "Saved vs unscheduled",
         StatisticsType.PeakShift => "Load moved off peak",
+        StatisticsType.EstimatedCost => "Estimated cost",
+        StatisticsType.MoneySaved => "You save",
+        StatisticsType.LoadDuration => "Load Duration",
+        StatisticsType.LoadFinish => "Load finished",
         _ => "Statistics"
     };
 
@@ -43,30 +46,45 @@
             StatisticsType.CheapestPeriod => await GetCheapestPeriod(),
             StatisticsType.ScheduleSavings => await GetScheduleSavings(),
             StatisticsType.PeakShift => await GetPeakShift(),
-            _ => new StatisticsDto {Value = "error"}
-        
+            StatisticsType.EstimatedCost => await GetStatistic("estimated-cost"),
+            StatisticsType.MoneySaved => await GetStatistic("money-saved"),
+            StatisticsType.LoadDuration => await GetStatistic("load-duration"),
+            StatisticsType.LoadFinish => await GetStatistic("load-finish"),
+            _ => new StatisticsDto { Value = "Error: No known statistic type given" }
         };
     }
 
     private async Task<StatisticsDto> GetPlannedCost()
     {
-        return await Http.GetFromJsonAsync<StatisticsDto>(
-            "api/statistics-controller/planned-cost"
-        ) ?? new StatisticsDto();
+        AuthenticationState? state = await AuthProvider.GetAuthenticationStateAsync();
+        string? userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        
+        HttpRequestMessage? request = new HttpRequestMessage(HttpMethod.Get, "api/statistics-controller/planned-cost");
+        request.Headers.Add("UserId", userId);
+
+        HttpResponseMessage? response = await Http.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<StatisticsDto>() ?? new StatisticsDto();
     }
 
     private async Task<StatisticsDto> GetCheapestPeriod()
     {
         return await Http.GetFromJsonAsync<StatisticsDto>(
-            "api/statistics-controller/Cheapest-period"
+            "api/statistics-controller/cheapest-period"
         ) ?? new StatisticsDto();
     }
 
     private async Task<StatisticsDto> GetScheduleSavings()
     {
-        return await Http.GetFromJsonAsync<StatisticsDto>(
-            "api/statistics-controller/schedule-savings"
-        ) ?? new StatisticsDto();
+        AuthenticationState? state = await AuthProvider.GetAuthenticationStateAsync();
+        string? userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        HttpRequestMessage? request = new HttpRequestMessage(HttpMethod.Get, "api/statistics-controller/schedule-savings");
+        request.Headers.Add("UserId", userId);
+
+        HttpResponseMessage? response = await Http.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<StatisticsDto>() ?? new StatisticsDto();
     }
 
     private async Task<StatisticsDto> GetPeakShift()
@@ -75,6 +93,31 @@
             "api/statistics-controller/peak-shift"
         ) ?? new StatisticsDto();
     }
+
+    private async Task<StatisticsDto> GetStatistic(string uri)
+    {
+        return await Http.GetFromJsonAsync<StatisticsDto>("api/statistics-controller/" + uri) ?? new StatisticsDto();
+    }
+
+    private async Task<StatisticsDto> GetUserStatistic(string uri)
+    {
+        AuthenticationState? state = await AuthProvider.GetAuthenticationStateAsync();
+        string? userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            Logger.LogWarning("Cannot load statistic '{Statistic}': authenticated user has no name identifier.", uri);
+            return new StatisticsDto();
+        }
+
+        using HttpRequestMessage? request = new HttpRequestMessage(HttpMethod.Get, "api/statistics-controller/" + uri);
+        request.Headers.Add("UserId", userId);
+
+        using HttpResponseMessage? response = await Http.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<StatisticsDto>() ?? new StatisticsDto();
+    }
+
 }
 
 <style>
@@ -120,5 +163,9 @@
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+    }
+
+    .savings-positive {
+        color: green;
     }
 </style>

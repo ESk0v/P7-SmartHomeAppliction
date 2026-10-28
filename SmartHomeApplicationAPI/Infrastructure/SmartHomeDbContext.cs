@@ -11,19 +11,14 @@ public partial class SmartHomeDbContext : IdentityDbContext<User>
     {
     }
 
-    public virtual DbSet<DayAheadPrice> DayAheadPrices { get; set; } = null!;
+    public virtual DbSet<Electricity> Electricity { get; set; } = null!;
     public virtual DbSet<Device> Device { get; set; } = null!;
     public virtual DbSet<DevicePreset> Preset { get; set; } = null!;
     public virtual DbSet<UserDevice> UserDevice { get; set; } = null!;
     public virtual DbSet<Plan> Plan { get; set; } = null!;
 
-
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-
-        // Scans the assembly for all classes that implement IEntityTypeConfiguration<T> and applies any pending migrations
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(SmartHomeDbContext).Assembly);
     }
-
 }

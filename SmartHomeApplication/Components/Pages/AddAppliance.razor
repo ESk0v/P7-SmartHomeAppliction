@@ -1,0 +1,218 @@
+﻿@page "/addAppliance"
+@rendermode InteractiveServer
+@inject NavigationManager NavigationManager
+@inject SmartHomeApplication.Service.IDeviceService DeviceService
+@using Utilities.Models
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.QuickGrid
+
+<PageTitle>Add Appliance</PageTitle>
+
+<SectionContent SectionName="TopBarActions">
+    <div class="header">
+        <div class="heading">
+            <h1>Appliance registry</h1>
+            <p>@amount devices</p>
+        </div>
+
+        <div class="header-actions">
+            <NavLink class="nav-link" href="Appliance" Match="NavLinkMatch.All">
+                <PrimaryButton ShowPlusIcon="false">
+                Go back
+                </PrimaryButton>
+            </NavLink>
+        </div>
+    </div>
+</SectionContent>
+
+<div class="row">
+    <div class="col-12 col-lg-6">
+        <div class="card shadow-sm border-0 rounded-4 p-4 bg-white h-100">
+            <h2 class="h5 mb-4">Add a new device</h2>
+                    <EditForm Method="post" Model="CreateDeviceDto" OnValidSubmit="CreateDevice" FormName="AddDeviceForm" data-enhance="false">
+                        <AntiforgeryToken/>
+                        <DataAnnotationsValidator />   
+                        <div class="mb-3">
+                            <label for="deviceModel" class="form-label">Device Model</label>
+                            <InputText id="deviceModel"
+                               class="form-control"
+                               Value="@CreateDeviceDto.Model"
+                               ValueChanged="@((string? v) => CreateDeviceDto.Model = v ?? "")"
+                               ValueExpression="@(() => CreateDeviceDto.Model)"
+                               @oninput="e => CreateDeviceDto.Model = e.Value?.ToString() ?? string.Empty" />
+                            <ValidationMessage For="() => CreateDeviceDto.Model" class="text-danger" />
+                        </div> 
+                        <div class="mb-3">
+                            <label for="deviceCategory" class="form-label">Device Category</label>
+                            <InputSelect id="deviceCategory" class="form-control" @bind-Value="CreateDeviceDto.Category" >
+                            <option value="">-- Select a Category --</option>
+                            @foreach (var category in categories)
+                            {
+                                <option value="@category">@category</option>
+                            }
+                            </InputSelect>
+                            <ValidationMessage For="() => CreateDeviceDto.Category" class="text-danger" /> 
+                        </div>
+                        <div class="mb-3">
+                            <label for="devicePreset" class="form-label">Preset</label>
+                            <InputText id="devicePreset" class="form-control" @bind-Value="CreateDeviceDto.Preset" />
+                            <ValidationMessage For="() => CreateDeviceDto.Preset" class="text-danger" /> 
+                        </div>
+                        <div class="mb-3">
+                            <label for="deviceConsumption" class="form-label">Consumption (kWh)</label>
+                            <InputNumber id="deviceConsumption" class="form-control" @bind-Value="CreateDeviceDto.ConsumptionInKwh" />
+                            <ValidationMessage For="() => CreateDeviceDto.ConsumptionInKwh" class="text-danger" /> 
+                        </div>
+                        <div class="mb-3">
+                            <label for="deviceDuration" class="form-label">Duration (minutes)</label>
+                            <InputNumber id="deviceDuration" class="form-control" @bind-Value="CreateDeviceDto.DurationInMinutes" />
+                            <ValidationMessage For="() => CreateDeviceDto.DurationInMinutes" class="text-danger" />
+                        </div>
+                        <div class="mb-3">
+                            <button type="submit" class="btn btn-primary">Save Device</button>
+                        </div>
+                    </EditForm>
+        </div>
+    </div>
+    <div class="col-12 col-lg-6">
+        <div class="card shadow-sm border-0 rounded-4 p-4 bg-white h-100 catalogue-card">
+             <h2 class="h5">Device catalogue</h2>
+                <section class="border rounded p-3 catalogue-scroll" aria-label="Device catalogue">
+                    <QuickGrid Class="table table-striped" Items="FilteredDevices">
+                        <PropertyColumn Property="@(d => d.Model)" Title="Model" Sortable="true" />
+                        <PropertyColumn Property="@(d => d.Category)" Title="Category" Sortable="true" />
+                    </QuickGrid>
+                </section>
+        </div>
+    </div>
+</div>
+
+
+@code  
+{
+    private int amount = 0;
+
+    private void GoToAppliance()
+    {
+        NavigationManager.NavigateTo("/appliance");
+    }
+
+    private List<string> categories = new()
+    {
+        "Interruptible",
+        "Non-Interruptible"
+    };
+
+    private CreateDeviceDto CreateDeviceDto { get; set; } = new CreateDeviceDto();
+
+    public async Task CreateDevice()
+    {
+        try 
+        {
+            await DeviceService.CreateDeviceAsync(CreateDeviceDto);
+            GoToAppliance();
+        }
+        catch (Exception ex)
+        {
+            // Handle the exception (e.g., log it, show an error message, etc.)
+            Console.WriteLine($"Error creating device: {ex.Message}");
+        }
+    }
+    
+    private List<CatalogueDeviceDto> devices = [];
+   
+    private IQueryable<CatalogueDeviceDto> FilteredDevices => 
+    devices.AsQueryable().Where(d => d.Model.Contains(CreateDeviceDto.Model ?? "",StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        devices = (await DeviceService.GetAllDevicesAsync()).ToList();
+        amount = (await DeviceService.GetUserDevicesAsync()).Count();
+    }
+    
+}
+
+<style>
+    .form-control {
+        background-color: #f8f9fa;
+        border: 1px solid #ced4da;
+    }
+
+    .form-control:focus {
+        background-color: #ffffff;
+    }
+
+    .header {
+        align-items: center;
+        display: flex;
+        gap: 1rem;
+        justify-content: space-between;
+        width: 100%;
+    }
+
+    .heading h1 {
+        color: #222;
+        font-size: 1.1rem;
+        font-weight: 600;
+        line-height: 0.6;
+        margin: 0;
+    }
+
+    .heading p {
+        color: #999;
+        font-size: 0.70rem;
+        line-height: 0.75;
+        margin: 0;
+    }
+
+    .heading {
+        display: flex;
+        flex-direction: column;
+        gap: 0.7rem;
+    }
+
+    .header-actions {
+        align-items: center;
+        display: flex;
+        flex-shrink: 0;
+        gap: 0.5rem;
+    }
+
+    @@media (max-width: 640.98px) {
+        .header {
+            align-items: flex-start;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .header-actions {
+            width: 100%;
+        }
+    }
+
+   .catalogue-card {
+    display: flex;
+    flex-direction: column;
+}
+
+.catalogue-scroll {
+    overflow-y: auto;
+    max-height: 400px; 
+}
+
+@@media (min-width: 992px) {
+    .catalogue-scroll {
+        flex: 1 1 0;
+        height: 0;       
+        min-height: 0;
+        max-height: none;
+    }
+}
+
+    .catalogue-scroll thead th {
+    position: sticky;
+    top: 0;
+    background: #fff;
+}
+    
+    </style>
