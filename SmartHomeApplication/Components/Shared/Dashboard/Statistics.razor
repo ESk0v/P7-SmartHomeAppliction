@@ -3,8 +3,6 @@
 @inject HttpClient Http
 @attribute [Authorize]
 
-@using Utilities.Models
-@using System.Globalization
 @using System.Security.Claims
 
 @namespace Shared.Dashboard
@@ -24,8 +22,6 @@
     [Parameter]
     public StatisticsType Type { get; set; }
     [Parameter]
-    public StatisticsDto? OverrideData { get; set; }
-    [Parameter]
     public string DescriptionClass { get; set; } = string.Empty;
     public StatisticsDto? Data { get; set;}
 
@@ -44,12 +40,6 @@
 
     protected override async Task OnInitializedAsync()
     {
-        if (OverrideData is not null)
-        {
-            Data = OverrideData;
-            return;
-        }
-
         Data = Type switch
         {
             StatisticsType.PlannedCost => await GetPlannedCost(),

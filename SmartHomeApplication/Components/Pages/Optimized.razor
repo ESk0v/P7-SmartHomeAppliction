@@ -66,12 +66,10 @@
 
 <div class="body">
     <div class="statistics">
-        <Statistics Type="StatisticsType.EstimatedCost"
-                    OverrideData="EstimatedCost"
-                    DescriptionClass="@(selectedSchedules.Count == 0 || BaselineDifferencePercent == 0 ? string.Empty : "positive")"/> @* Don't use green color if there are no plans or the estimated cost is not different from the baseline *@
-        <Statistics Type="StatisticsType.MoneySaved" OverrideData="MoneySaved"/>
-        <Statistics Type="StatisticsType.LoadDuration" OverrideData="LoadDuration"/>
-        <Statistics Type="StatisticsType.LoadFinish" OverrideData="LoadFinish"/>
+        <Statistics Type="StatisticsType.EstimatedCost"/>
+        <Statistics Type="StatisticsType.MoneySaved"/>
+        <Statistics Type="StatisticsType.LoadDuration"/>
+        <Statistics Type="StatisticsType.LoadFinish"/>
     </div>
 
     @if (isLoading)

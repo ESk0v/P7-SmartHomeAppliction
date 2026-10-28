@@ -59,7 +59,7 @@ public class StatisticsController : ControllerBase
         return new StatisticsDto
         {
             Value = "6.15 kr",
-            Description = "25% cheaper vs. starting now"
+            Description = "↓ 25% cheaper vs. starting now"
         };
     }
 
