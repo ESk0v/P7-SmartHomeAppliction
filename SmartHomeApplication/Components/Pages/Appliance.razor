@@ -1,6 +1,8 @@
 @page "/appliance"
 @attribute [Authorize]
-@inject HttpClient http
+@inject SmartHomeApplication.Service.IDeviceService DeviceService
+@using Utilities.Models
+@using global::Shared.Dashboard
 
 <PageTitle>Appliances</PageTitle>
 
@@ -12,21 +14,178 @@
         </div>
 
         <div class="header-actions">
-            <PrimaryButton>
+            <NavLink class="nav-link" href="addAppliance" Match="NavLinkMatch.All">
+                <PrimaryButton>
                 New device
-            </PrimaryButton>
+                </PrimaryButton>
+            </NavLink>
         </div>
     </div>
+
 </SectionContent>
 
-<h1>This is for seeing all appliances</h1>
+@if (message is not null)
+{
+    <div class="alert @(isError ? "alert-danger" : "alert-success") alert-dismissible" role="alert">
+        @message
+        <button type="button" class="btn-close" @onclick="() => message = null"></button>
+    </div>
+}
 
+<div class="appliance-layout">
+
+    <div class="device-list">
+        @if (userdevices.Count == 0)
+        {
+            <p class="p-3 text-muted">No devices yet.</p>
+        }
+        @foreach (var device in userdevices)
+        {
+           <button type="button"
+            class="device-item @(selected?.Id == device.Id ? "active" : "")"
+            @onclick="() => Select(device)">
+            <div class="device-icon" style="color: @device.Color;">
+                <i class="bi @ScheduleIcons.Get(device.Icon)"></i>
+            </div>
+            <div>
+                <div class="device-name">@device.Nickname</div>
+            </div>
+        </button>
+        }
+    </div>
+
+    <div class="device-detail">
+        @if (editDevice is null)
+        {
+            <p class="text-muted">Select a device to see its details.</p>
+        }
+        else
+        {
+            <EditForm Model="editDevice" OnValidSubmit="SaveChanges">
+                <AntiforgeryToken />
+                <DataAnnotationsValidator />
+
+                <div class="row g-2 mb-3">
+                    <div class="mb-3">
+                        <label class="form-label" for="name">Nickname</label>
+                        <InputText id="name" class="form-control" @bind-Value="editDevice.Nickname" />
+                        <ValidationMessage For="() => editDevice.Nickname" class="text-danger" />
+                    </div>
+                        <div class="mb-3">
+                        <label class="form-label">Icon</label>
+                        <div class="icon-picker">
+                            @foreach (var name in iconOptions)
+                            {
+                                <button type="button"
+                                        class="icon-option @(editDevice.Icon == name ? "selected" : "")"
+                                        title="@name"
+                                        @onclick="() => editDevice.Icon = name">
+                                    <i class="bi @ScheduleIcons.Get(name)"></i>
+                                </button>
+                            }
+                        </div>
+                    </div>
+                        <div class="mb-3">  
+                        <label class="form-label">Color</label>
+                        <div class="color-picker">
+                            @foreach (var c in colorOptions)
+                            {
+                                <button type="button"
+                                        class="color-swatch @(editDevice.Color == c ? "selected" : "")"
+                                        style="background:@c"
+                                        title="@c"
+                                        @onclick="() => editDevice.Color = c"></button>
+                            }
+                            <InputText type="color" class="form-control form-control-color" @bind-Value="editDevice.Color" />
+                        </div>
+                    </div>  
+                    <div class="mb-3">
+                        <label class="form-label">Favorite</label>
+                        <input class="form-check-input" type="checkbox" @bind="editDevice.IsFavorite" />
+                        <ValidationMessage For="() => editDevice.IsFavorite" class="text-danger" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Model</label>
+                        <input class="form-control" value="@selected!.Model" disabled />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Category</label>
+                        <input class="form-control" value="@selected!.Category" disabled />
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary">Save</button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="Cancel">Cancel</button>
+                </div>
+            </EditForm>
+        }
+    </div>
+</div>
 
 @code {
-    // Current amount of devices in the registry
-    private int amount = 5;
+    private static readonly string[] colorOptions = new string[]
+    {
+        "#FF5733", "#33FF57", "#3357FF", "#F1C40F", "#8E44AD", "#E67E22", "#2ECC71", "#3498DB"
+    };
 
-    
+    private static readonly string[] iconOptions =
+            Enum.GetNames<DeviceIcon>()
+                .Where(n => n != nameof(DeviceIcon.default_icon))
+                .ToArray();
+
+    private int amount = 0;
+
+    private string? message;
+    private bool isError = false;
+
+    private List<UserDeviceDto> userdevices = new();
+    private UserDeviceDto? selected;
+    private UpdateUserDeviceDto? editDevice;
+
+    protected override async Task OnInitializedAsync()
+    {
+        userdevices = (await DeviceService.GetUserDevicesAsync()).ToList();
+        amount = userdevices.Count;
+    }
+
+    private void Select(UserDeviceDto device)
+    {
+        selected = device;
+        editDevice = new UpdateUserDeviceDto
+        {   Id = device.Id,
+            Nickname = device.Nickname,
+            Icon = device.Icon,
+            IsFavorite = device.IsFavorite,
+            Color = device.Color,
+        };  
+    }
+
+  private async Task SaveChanges()
+{
+    if (selected is null || editDevice is null) return;
+
+    try
+    {
+        await DeviceService.UpdateUserDeviceAsync(editDevice);
+
+        selected.Id = editDevice.Id;
+        selected.Nickname = editDevice.Nickname;
+        selected.Icon = editDevice.Icon;
+        selected.Color = editDevice.Color;
+        selected.IsFavorite = editDevice.IsFavorite;
+
+        isError = false;
+        message = "Device updated successfully!";
+    }
+    catch (Exception ex)
+    {
+        isError = true;
+        message = $"Error updating device: {ex.Message}";
+    }
+}
+
+    private void Cancel() => Select(selected);
+ 
 }
 
 <style>
@@ -76,6 +235,89 @@
         .header-actions {
             width: 100%;
         }
-
     }
+
+    .appliance-layout {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 1.5rem;
+    align-items: start;
+    }
+
+    .device-list {
+        background: #fff;
+        border-radius: 1rem;
+        border: 1px solid #e5e5e5;
+        overflow: hidden;
+    }
+
+    .device-item {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        width: 100%;
+        padding: 1rem;
+        background: none;
+        border: 0;
+        border-bottom: 1px solid #eee;
+        text-align: left;
+    }
+
+    .device-item:hover { background: #f7f7fb; }
+
+    .device-item.active {
+        background: #e9e8fb;
+        box-shadow: inset -3px 0 0 #7b6ee6;   
+    }
+
+    .device-icon {
+    width: 44px; height: 44px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+    }
+
+    .device-name { font-weight: 600; }
+    .device-sub  { font-size: .85rem; color: #888; }
+
+    .device-detail {    
+        background: #fff;
+        border-radius: 1rem;
+        border: 1px solid #e5e5e5;
+        padding: 2rem;
+    }
+    
+    .icon-picker { display: flex; flex-wrap: wrap; gap: .5rem; }
+
+    .icon-option {
+        width: 44px; height: 44px;
+        border-radius: 12px;
+        border: 1px solid #ddd;
+        background: #fff;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.25rem;
+    }
+
+    .icon-option:hover { background: #f7f7fb; }
+
+    .icon-option.selected {
+        border-color: #7b6ee6;
+        background: #e9e8fb;
+        color: #7b6ee6;
+    }
+
+    .color-picker { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; }
+
+    .color-swatch {
+        width: 28px; height: 28px;
+        border-radius: 50%;
+        border: 2px solid transparent;
+    }
+
+.color-swatch.selected { border-color: #222; }
+
+    @@media (max-width: 991.98px) {
+        .appliance-layout { grid-template-columns: 1fr; }
+    }
+    
 </style>
