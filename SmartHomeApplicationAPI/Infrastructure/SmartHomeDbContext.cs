@@ -17,7 +17,6 @@ public partial class SmartHomeDbContext : IdentityDbContext<User>
     public virtual DbSet<UserDevice> UserDevice { get; set; } = null!;
     public virtual DbSet<Plan> Plan { get; set; } = null!;
 
-
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

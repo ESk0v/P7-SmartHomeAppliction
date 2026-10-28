@@ -1,7 +1,18 @@
 @page "/demand"
 @attribute [Authorize]
 
+@inject HttpClient Http
+
+@using global::Shared.Dashboard
+@using SmartHomeApplication.Components.Shared.Demand
 @using System.Globalization
+@using System.Reflection
+@rendermode InteractiveServer
+@using Utilities.Models
+@using System.Security.Claims
+
+@inject AuthenticationStateProvider AuthProvider
+
 
 <PageTitle>New demand</PageTitle>
 
@@ -9,7 +20,7 @@
     <div class="header">
         <div class="heading">
             <h1>New demand</h1>
-            <p>Configure a new scheduling demand</p>
+            <p>Configure a new scheduling demand..</p>
         </div>
 
         <div class="header-actions">
@@ -18,12 +29,451 @@
     </div>
 </SectionContent>
 
+<div class="row">
+    <div class="col-sm-7 boxes">
+        <EditForm Method="post" Model="ScheduleForm" OnValidSubmit="GenerateScheduling" FormName="AddSchedulingForm">
+            <DataAnnotationsValidator />
+            <div class="inboxes">
+                <label for="deviceName" class="form-label">Device Name</label>
+                <ButtonSelect Options="@(userDevices.Select(d => (d.id.ToString(), d.deviceNickname)))"
+                    @bind-Value="selectedDeviceId" @bind-Value:after="OnDeviceSelected" Placeholder="Select device" />
+                <ValidationMessage For="() => ScheduleForm.DeviceName" class="text-danger" />
+        
+            </div>   
+            
+            @if (isEVSelected)
+            {
+                <div class="charge-settings mb-4">
+
+                    <div class="charge-slider">
+                        <div class="charge-slider-header">
+                            <label for="chargeStart">Charge from</label>
+                            <span>@ScheduleForm.ChargeStartPercentage%</span>
+                        </div>
+
+                        <InputNumber id="chargeStart"
+                                    class="charge-range"
+                                    @bind-Value="ScheduleForm.ChargeStartPercentage"
+                                    @bind-Value:after="OnStartChanged"
+                                    min="0"
+                                    max="@(100 - step)"
+                                    step="@step"
+                                    type="range" />
+                    </div>
+
+                    <div class="charge-slider">
+                        <div class="charge-slider-header">
+                            <label for="chargeStop">Charge to</label>
+                            <span>@ScheduleForm.ChargeStopPercentage%</span>
+                        </div>
+
+                        <InputNumber id="chargeStop"
+                                    class="charge-range"
+                                    @bind-Value="ScheduleForm.ChargeStopPercentage"
+                                    @bind-Value:after="OnStopChanged"
+                                    min="@step"
+                                    max="100"
+                                    step="@step"
+                                    type="range" />
+                    </div>
+
+                </div>
+            }
+
+            @if (isApplianceSelected)
+            {
+                <div class="inboxes">
+                    <label for="devicePreset" class="form-label">Device Preset</label>
+                    <ButtonSelect Options="@(filteredPresets.Select(p => (Value: p.id.ToString(), Text: p.presetName)))"
+                         @bind-Value="selectedPresetId"
+                         @bind-Value:after="UpdateSelectedPreset"
+                         Placeholder="Select preset" />
+                    <ValidationMessage For="() => ScheduleForm.Preset" class="text-danger" />
+                </div>  
+            }
+
+            <div class="inboxes">
+                <p>ALLOWED WINDOW</p>
+                <div>
+                    <label class="form-label">START</label>
+                    <div class="d-flex gap-2 align-items-center">
+                        <ButtonSelect Options="HourOptions" @bind-Value="StartHourText" 
+                            CssClass="time-picker" Placeholder="" />
+                        <span>:</span>
+
+                        <ButtonSelect Options="MinuteOptions" @bind-Value="StartMinuteText"
+                            CssClass="time-picker" Placeholder="" />
+                    </div>
+                    <ValidationMessage For="() => ScheduleForm.StartHour" class="text-danger" />
+                    <ValidationMessage For="() => ScheduleForm.StartMinute" class="text-danger" />
+                </div>
+
+                <div>
+                    <label class="form-label">END</label>
+                    <div class="d-flex gap-2 align-items-center">
+                        <ButtonSelect Options="HourOptions" @bind-Value="EndHourText" 
+                            CssClass="time-picker" Placeholder="" />
+                        <span>:</span>
+
+                        <ButtonSelect Options="MinuteOptions" @bind-Value="EndMinuteText"
+                            CssClass="time-picker" Placeholder="" />
+                    </div>
+                </div>
+                <ValidationMessage For="() => ScheduleForm.EndHour" class="text-danger" />
+                <ValidationMessage For="() => ScheduleForm.EndMinute" class="text-danger" />
+                @if (!string.IsNullOrEmpty(schedulingError))
+                {
+                    <div class="alert alert-danger mt-5" roles="alert">
+                        @schedulingError
+                    </div>
+                }
+            </div>
+
+            <div class="mb-4 inboxes">
+
+                <div class="priority-toggle @(ScheduleForm.Priority == "Greenest" ? "is-right" : "is-left")"
+                    role="radiogroup" aria-labelledby="priority-label">
+                    <span class="priority-thumb" aria-hidden="true"></span>
+
+                    <button type="button" role="radio"
+                            class="priority-option @(ScheduleForm.Priority == "Cheapest" ? "active" : "")"
+                            aria-checked="@(ScheduleForm.Priority == "Cheapest")"
+                            @onclick='() => SetPriority("Cheapest")'>
+                        Cheapest
+                    </button>
+
+                    <button type="button" role="radio"
+                            class="priority-option @(ScheduleForm.Priority == "Greenest" ? "active" : "")"
+                            aria-checked="@(ScheduleForm.Priority == "Greenest")"
+                            @onclick='() => SetPriority("Greenest")'>
+                        Greenest
+                    </button>
+                </div>
+
+                <ValidationMessage For="() => ScheduleForm.Priority" class="text-danger" />
+            </div>
+
+            <div class="mb-3">
+                <button type="submit" class="btn btn-primary">Generate Plan</button>
+            </div>
+        </EditForm>
+    </div>
+    <div class="col-sm-5">
+        <div class="mb-4 boxes">
+            <div class="priceoverview">
+                @if (activeSchedules is not null)
+                {
+                    <PriceChart activeSchedules="activeSchedules"/>
+                }
+            </div>
+        </div>
+        <div class="mb-4 boxes">
+            <EditForm Method="post" Model="ScheduleForm" OnValidSubmit="addPlan" FormName="AddPlanForm">
+
+                @if (displayPlan && response != null)
+                {
+                    <h2>Generated plan</h2>
+                    <p>Start time: @response.StartTime.ToString("MMM dd yyyy HH:mm")</p>
+                    <p>End time: @response.EndTime.ToString("MMM dd yyyy HH:mm")</p>
+                    <p>Estimated price: @response.EstimatedPrice</p>
+                    <p>Estimated CO2 emission: @response.EstimatedCo2Emissions</p>
+                }
+                else
+                {
+                    <h2>Generated plan</h2>
+                    <p>No plan generated yet.</p>
+                }
+                <div class="mb-3">
+                    <button type="submit" class="btn btn-primary">Save Plan</button>
+                </div>
+            </EditForm> 
+        </div>
+    </div>
+</div>
+
+
+
 @code {
-    private string date = DateTime.Today.ToString("ddd dd MMM yyyy", CultureInfo.InvariantCulture);
-    private string area = "Nordpool DK1";
+    private List<PlanDto>? activeSchedules;
+    private string area = "DK1";
+    private ScheduleForm ScheduleForm = new();
+    private List<PresetDto> filteredPresets = new();
+    private string? selectedPresetId;
+    private List<PlanUserDeviceDto> userDevices = new();
+    private Dictionary<int, List<PresetDto>> presetsByDevice = new();
+    private string? selectedDeviceId;
+    private OptimizationResultDTO? response;
+    private List<int> Hours { get; set; } = new();
+    private int [] Minutes = {00, 15, 30, 45};
+    private IEnumerable<(string Value, string Text)> HourOptions =>
+    Hours.Select(h => (h.ToString(), h.ToString("D2")));
+    private IEnumerable<(string Value, string Text)> MinuteOptions =>
+    Minutes.Select(m => (m.ToString(), m.ToString("D2")));
+    private string? schedulingError;
+
+    private string? StartHourText
+    {
+        get => ScheduleForm.StartHour?.ToString();
+        set => ScheduleForm.StartHour =
+            int.TryParse(value, out var hour) ? hour : null;
+    }
+
+    private string? StartMinuteText
+    {
+        get => ScheduleForm.StartMinute?.ToString();
+        set => ScheduleForm.StartMinute =
+            int.TryParse(value, out var minute) ? minute : null;
+    }
+    private string? EndHourText
+    {
+        get => ScheduleForm.EndHour?.ToString();
+        set => ScheduleForm.EndHour =
+            int.TryParse(value, out var hour) ? hour : null;
+    }
+
+    private string? EndMinuteText
+    {
+        get => ScheduleForm.EndMinute?.ToString();
+        set => ScheduleForm.EndMinute =
+            int.TryParse(value, out var minute) ? minute : null;
+    }
+    private bool isEVSelected = false;
+    private const int step = 5;
+    private bool isApplianceSelected = false;
+    private bool displayPlan = false;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthProvider.GetAuthenticationStateAsync();
+        var userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        var request = new HttpRequestMessage(HttpMethod.Get, "api/plan-controller/get-plan");
+        request.Headers.Add("UserId", userId);
+
+        var response = await Http.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        activeSchedules = await response.Content.ReadFromJsonAsync<List<PlanDto>>();
+
+        userDevices = await Http.GetFromJsonAsync<List<PlanUserDeviceDto>>($"api/createPlan-controller/get-user-device/{userId}") ?? new List<PlanUserDeviceDto>();
+
+        foreach (PlanUserDeviceDto userDevice in userDevices)
+        {
+            var presets = await Http.GetFromJsonAsync<List<PresetDto>>($"api/createPlan-controller/get-preset/{userDevice.deviceId}") ?? new List<PresetDto>();
+
+            presetsByDevice[userDevice.id] = presets;
+        }
+
+        int currentHour = DateTime.Now.Hour;
+        Hours = Enumerable.Range(0, 24)
+            .Select(i => (currentHour + i) % 24)
+            .ToList();
+    }
+
+    private void OnStartChanged()
+    {
+        if (ScheduleForm.ChargeStopPercentage <= ScheduleForm.ChargeStartPercentage)
+            ScheduleForm.ChargeStopPercentage = ScheduleForm.ChargeStartPercentage + step;
+    }
+
+    private void OnStopChanged()
+    {
+     if (ScheduleForm.ChargeStartPercentage >= ScheduleForm.ChargeStopPercentage)
+            ScheduleForm.ChargeStartPercentage = ScheduleForm.ChargeStopPercentage - step;
+    }
+
+    private void SetPriority(string value)
+    {
+        ScheduleForm.Priority = value;
+
+    }
+
+    private void ClearSchedule()
+    {
+        ScheduleForm = new ScheduleForm();
+        filteredPresets = new List<PresetDto>();
+        selectedDeviceId = string.Empty;
+        response = null;
+        displayPlan = false;
+        isEVSelected = false;
+    }
+
+    private void OnDeviceSelected()
+    {
+        // filter i all presets og vælg ud fra device id -> devicePreset
+
+        var selectedDevice = userDevices
+            .FirstOrDefault(x => x.id.ToString() == selectedDeviceId);
+
+        ScheduleForm.DeviceName = selectedDevice?.deviceNickname ?? string.Empty;
+
+        filteredPresets = selectedDevice != null && presetsByDevice.TryGetValue(selectedDevice.id, out var presets)
+        ? presets : new List<PresetDto>();
+
+        isEVSelected = selectedDevice?.category == "ev_charger";
+
+        isApplianceSelected = selectedDevice?.category != "ev_charger";
+        
+        selectedPresetId = null;
+        ScheduleForm.Preset = new PresetDto();
+    }
+
+    private void UpdateSelectedPreset()
+    {
+        var selectedPreset = filteredPresets.FirstOrDefault(p => p.id.ToString() == selectedPresetId);
+
+        if (selectedPreset is not null)
+        {
+            ScheduleForm.Preset = selectedPreset;
+        }
+        schedulingError = null;
+    }
+
+    private DateTime GetScheduledDateTime(int hour, int minute)
+    {
+        var now = DateTime.Now;
+        var scheduledTime = now.Date.AddHours(hour).AddMinutes(minute);
+
+        if (scheduledTime < now)
+        {
+            scheduledTime = scheduledTime.AddDays(1);
+        }
+        return scheduledTime;
+    }
+    private async Task GenerateScheduling()
+    {   
+        schedulingError = null;
+        var startTime = GetScheduledDateTime(ScheduleForm.StartHour!.Value, ScheduleForm.StartMinute!.Value);
+        var endTime = GetScheduledDateTime(ScheduleForm.EndHour!.Value, ScheduleForm.EndMinute!.Value);
+
+        if (endTime <= startTime)
+        {
+            endTime = endTime.AddDays(1);
+        }
+
+        var timeWindow = (int)(endTime - startTime).TotalMinutes;
+        Console.WriteLine($"duration{timeWindow}");
+        Console.WriteLine(ScheduleForm.Preset.duration);
+
+        if (ScheduleForm.Preset.duration > timeWindow)
+        {
+            schedulingError = $"The selected program requires {ScheduleForm.Preset.duration} minutes.";
+            ClearSchedule();
+            return;
+        }
+
+
+        var optimizationRequest = new OptimizationRequestDTO
+        {
+            Area = area,
+            DeviceName = ScheduleForm.DeviceName,
+            ChargeStartPercentage = isEVSelected ? ScheduleForm.ChargeStartPercentage : null,
+            ChargeStopPercentage = isEVSelected ? ScheduleForm.ChargeStopPercentage : null,
+            Preset = isEVSelected ? null : ScheduleForm.Preset,
+            StartTime = startTime,
+            EndTime = endTime,
+            Priority = ScheduleForm.Priority
+        };
+
+        try
+        {
+            var result = await Http.PostAsJsonAsync("api/optimization-controller/optimize", optimizationRequest);
+
+            if (!result.IsSuccessStatusCode)
+            {
+                Console.WriteLine($"Optimization did not work {result.StatusCode}");
+            }
+            else
+            {
+                response = await result.Content.ReadFromJsonAsync<OptimizationResultDTO>();
+                
+                displayPlan = true;
+
+                Console.WriteLine("Optimization worked");
+            }    
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Error with opptimization: {e.Message}");
+        }
+
+        await Task.CompletedTask;
+        return ;
+    }
+
+    private async Task addPlan()
+    {
+        var selectedDevice = userDevices
+            .FirstOrDefault(d => d.id.ToString() == selectedDeviceId);
+
+        if (selectedDevice == null)
+        {
+            Console.WriteLine("No device selected");
+            return;
+        }
+
+        if (response is null)
+        {
+            Console.WriteLine("OptimizationResult is null");
+            return;
+        }
+
+
+        var planToSave = new PlanDTO
+        {
+            UserDeviceId = selectedDevice.id,
+            StartTime = response.StartTime.ToUniversalTime(),
+            EndTime = response.EndTime.ToUniversalTime(),
+            NextPlan = null,
+            EstimatedPrice = response.EstimatedPrice,
+            EstimatedCo2Emission = response.EstimatedCo2Emissions,
+            EstimatedUnscheduledPrice = response.EstimatedPrice + 1
+            // EstimatedUnsceduledCO2Emission = response.EstimatedCo2Emission + 1
+        };
+
+        try
+        {
+            var result = await Http.PostAsJsonAsync("api/createPlan-controller/post-plan", planToSave);
+            if (result.IsSuccessStatusCode)
+            {
+                Console.WriteLine("Plan saved");
+                ClearSchedule();
+            }
+            else
+            {
+                var error = await result.Content.ReadAsStringAsync();
+                Console.WriteLine($"Failed to save plan: {result.StatusCode} - {error}");
+            }
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"Error with saving plan: {e.Message}");
+        }
+
+    }
 }
 
 <style>
+
+     .boxes {
+        background-color: #fff;
+        border: 1px solid #e5e2dc;
+        border-radius: 12px;
+        padding: 20px;
+
+        box-sizing: border-box;
+        aspect-ratio: 3 / 1;
+
+        display: flex;
+        flex-direction: column;
+        grid-template-rows: auto 1fr auto;
+    }
+
+    .inboxes {
+        padding: 15px;
+
+    }
+
     .header {
         align-items: center;
         display: flex;
@@ -72,4 +522,130 @@
         }
 
     }
+
+    .form-label {
+        font-weight: 600;
+        color: #1e293b;
+    }
+
+    .priority-toggle {
+        position: relative;
+        display: inline-flex;
+        padding: 4px;
+        background: #f1f3f5;
+        border-radius: 14px;
+    }
+
+    .priority-thumb {
+        position: absolute;
+        top: 4px;
+        bottom: 4px;
+        left: 4px;
+        width: calc(50% - 4px);
+        background: #dde1e6;
+        border-radius: 10px;
+        transition: transform 0.25s ease;
+        pointer-events: none;
+    }
+
+    .priority-toggle.is-right .priority-thumb {
+        transform: translateX(100%);
+    }
+
+    .priority-option {
+        position: relative;
+        z-index: 1;
+        flex: 1 1 0;
+        min-width: 110px;
+        padding: 8px 18px;
+        border: 0;
+        background: transparent;
+        border-radius: 10px;
+        font-weight: 500;
+        color: #6c757d;
+        cursor: pointer;
+        transition: color 0.2s ease;
+    }
+
+    .priority-option.active {
+        color: #212529;
+    }
+
+    .priority-option:focus-visible {
+        outline: 2px solid #0d6efd;
+        outline-offset: 2px;
+    }
+
+    .time-select {
+        flex: 1;
+        min-width: 0;
+    }
+    
+
+    .charge-settings {
+        padding: 20px;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+    }
+
+    .charge-slider + .charge-slider {
+        margin-top: 24px;
+        padding-top: 20px;
+        border-top: 1px solid #f0f0f0;
+    }
+
+    .charge-slider-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 14px;
+    }
+
+    .charge-slider-header label {
+        margin: 0;
+        color: #374151;
+        font-size: 14px;
+        font-weight: 500;
+    }
+
+    .charge-slider-header span {
+        color: #111827;
+        font-size: 14px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .charge-range {
+        display: block;
+        width: 100%;
+        height: 6px;
+        margin: 0;
+        padding: 0;
+        background: transparent;
+        cursor: pointer;
+        appearance: none;
+        -webkit-appearance: none;
+    }
+
+    /* Chrome, Edge and Safari */
+    .charge-range::-webkit-slider-runnable-track {
+        height: 4px;
+        background: #e5e7eb;
+        border-radius: 4px;
+    }
+
+    .charge-range::-webkit-slider-thumb {
+        width: 16px;
+        height: 16px;
+        margin-top: -6px;
+        border: 2px solid #fff;
+        border-radius: 50%;
+        background: #374151;
+        box-shadow: 0 0 0 1px #374151;
+        appearance: none;
+        -webkit-appearance: none;
+    }
+
+
 </style>

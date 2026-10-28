@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using SmartHomeApplication.Components;
 using SmartHomeApplication.State;
+using SmartHomeApplication.Service;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +14,8 @@ builder.Services.AddHttpClient("Api", client =>
     client.BaseAddress = new Uri(apiBaseUrl);
 });
 builder.Services.AddScoped<OptimizedPlanState>();
+
+builder.Services.AddScoped<IDeviceService, DeviceService>();
 
 builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("Api"));
 

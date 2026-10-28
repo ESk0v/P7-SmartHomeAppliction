@@ -190,8 +190,10 @@ namespace SmartHomeApplicationAPI.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<decimal>("ConsumptionInKwh")
-                        .HasPrecision(5, 3)
-                        .HasColumnType("numeric(5,3)")
+
+                        .HasPrecision(7, 3)
+                        .HasColumnType("numeric(7,3)")
+
                         .HasColumnName("consumption_in_kwh");
 
                     b.Property<int>("DeviceId")
@@ -204,8 +206,10 @@ namespace SmartHomeApplicationAPI.Migrations
 
                     b.Property<string>("PresetName")
                         .IsRequired()
+
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)")
+
                         .HasColumnName("preset_name");
 
                     b.HasKey("Id");
@@ -272,6 +276,11 @@ namespace SmartHomeApplicationAPI.Migrations
                         .HasColumnType("money")
                         .HasColumnName("estimated_price_in_kroner");
 
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
                     b.Property<decimal>("EstimatedUnscheduledPrice")
                         .HasColumnType("money")
                         .HasColumnName("estimated_unscheduled_price_in_kroner");

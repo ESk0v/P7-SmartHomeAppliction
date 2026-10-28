@@ -18,13 +18,11 @@ namespace SmartHomeApplicationAPI.Infrastructure.Models
 		[ForeignKey(nameof(DeviceId))]
 		public Device? Device { get; set; }
 
-		[Required]
-		[MaxLength(30)]
 		[Column("preset_name")]
-		public string PresetName { get; set; } = null!;
+		public string PresetName { get; set; } = "standard";
 
 		[Required]
-		[Precision(5, 3)]
+		[Precision(7, 3)]
 		[Column("consumption_in_kwh")]
 		public decimal ConsumptionInKwh { get; set; }
 
