@@ -87,17 +87,7 @@
                     </div>
                         <div class="mb-3">  
                         <label class="form-label">Color</label>
-                        <div class="color-picker">
-                            @foreach (var c in colorOptions)
-                            {
-                                <button type="button"
-                                        class="color-swatch @(editDevice.Color == c ? "selected" : "")"
-                                        style="background:@c"
-                                        title="@c"
-                                        @onclick="() => editDevice.Color = c"></button>
-                            }
-                            <InputText type="color" class="form-control form-control-color" @bind-Value="editDevice.Color" />
-                        </div>
+                        <InputText type="color" class="form-control form-control-color" @bind-Value="editDevice.Color" />
                     </div>  
                     <div class="mb-3">
                         <label class="form-label">Favorite</label>
@@ -123,11 +113,6 @@
 </div>
 
 @code {
-    private static readonly string[] colorOptions = new string[]
-    {
-        "#FF5733", "#33FF57", "#3357FF", "#F1C40F", "#8E44AD", "#E67E22", "#2ECC71", "#3498DB"
-    };
-
     private static readonly string[] iconOptions =
             Enum.GetNames<DeviceIcon>()
                 .Where(n => n != nameof(DeviceIcon.default_icon))
@@ -313,16 +298,6 @@
         background: #e9e8fb;
         color: #7b6ee6;
     }
-
-    .color-picker { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; }
-
-    .color-swatch {
-        width: 28px; height: 28px;
-        border-radius: 50%;
-        border: 2px solid transparent;
-    }
-
-.color-swatch.selected { border-color: #222; }
 
     @@media (max-width: 991.98px) {
         .appliance-layout { grid-template-columns: 1fr; }
