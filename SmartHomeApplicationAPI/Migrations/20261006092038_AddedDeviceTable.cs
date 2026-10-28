@@ -13,7 +13,7 @@ namespace SmartHomeApplicationAPI.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
-                name: "device",
+                name: "devices",
                 columns: table => new
                 {
                     id = table.Column<int>(type: "integer", nullable: false)
