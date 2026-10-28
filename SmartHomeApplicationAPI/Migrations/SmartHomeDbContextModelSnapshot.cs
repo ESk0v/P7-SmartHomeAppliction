@@ -276,6 +276,11 @@ namespace SmartHomeApplicationAPI.Migrations
                         .HasColumnType("money")
                         .HasColumnName("estimated_price_in_kroner");
 
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("name");
                     b.Property<decimal>("EstimatedUnscheduledPrice")
                         .HasColumnType("money")
                         .HasColumnName("estimated_unscheduled_price_in_kroner");

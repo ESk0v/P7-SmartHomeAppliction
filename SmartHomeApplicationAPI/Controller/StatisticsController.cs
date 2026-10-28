@@ -52,4 +52,44 @@ public class StatisticsController : ControllerBase
             Description = "Moved to offpeak"
         };
     }
+
+    [HttpGet("estimated-cost")]
+    public async Task<StatisticsDto> GetEstimatedCost()
+    {
+        return new StatisticsDto
+        {
+            Value = "6.15 kr",
+            Description = "↓ 25% cheaper vs. starting now"
+        };
+    }
+
+    [HttpGet("money-saved")]
+    public async Task<StatisticsDto> GetMoneySaved()
+    {
+        return new StatisticsDto
+        {
+            Value = "4.25 kr",
+            Description = "vs. unscheduled"
+        };
+    }
+
+    [HttpGet("load-duration")]
+    public async Task<StatisticsDto> GetLoadDuration()
+    {
+        return new StatisticsDto
+        {
+            Value = "3h 15m",
+            Description = "starting at 22:00"
+        };
+    }
+
+    [HttpGet("load-finish")]
+    public async Task<StatisticsDto> GetLoadFinish()
+    {
+        return new StatisticsDto
+        {
+            Value = "01:15",
+            Description = "4h 45m before deadline"
+        };
+    }
 }
