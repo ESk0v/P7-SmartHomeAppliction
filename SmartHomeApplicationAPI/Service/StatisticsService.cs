@@ -100,7 +100,7 @@ public class StatisticsService : IStatisticsService
         string arrow = savedPrice > 0 ? "\u2193" : "";
         
         return new StatisticsDto{
-            Value = "" + savedPrice + " Kr.",
+            Value = "" + savedPrice + " Kr",
             Description = "" + arrow + " " + savedPricePercent + " % cheaper"
         };
     }
@@ -121,22 +121,22 @@ public class StatisticsService : IStatisticsService
             };
         }
 
-        decimal totalPrice = 0;
-        decimal totalUnscheduledPrice = 0;
+        decimal totalCo2 = 0;
+        decimal totalUnscheduledCo2 = 0;
 
         foreach (Plan plan in plans)
         {
-            totalPrice += plan.EstimatedPrice;
-            totalUnscheduledPrice += plan.EstimatedUnscheduledPrice;
+            totalCo2 += plan.EstimatedCo2Emissions;
+            totalUnscheduledCo2 += plan.EstimatedUnscheduledCo2Emissions;
         }
 
-        decimal savedPrice = totalUnscheduledPrice - totalPrice;
-        decimal savedPricePercent = (totalUnscheduledPrice - totalPrice) / totalUnscheduledPrice * 100;
-        string arrow = savedPrice > 0 ? "\u2193" : "";
+        decimal savedCo2 = totalUnscheduledCo2 - totalCo2;
+        decimal savedCo2Percent = (totalUnscheduledCo2 - totalCo2) / totalUnscheduledCo2 * 100;
+        string arrow = savedCo2 > 0 ? "\u2193" : "";
         
         return new StatisticsDto{
-            Value = "" + savedPrice + " Kr.",
-            Description = "" + arrow + " " + savedPricePercent + " % cheaper"
+            Value = "" + savedCo2 + " g",
+            Description = "" + arrow + " " + savedCo2Percent + " % cheaper"
         };
     }
 }
