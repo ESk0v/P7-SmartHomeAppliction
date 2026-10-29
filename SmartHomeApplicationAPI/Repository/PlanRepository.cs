@@ -30,6 +30,7 @@ public class PlanRepository : IPlanRepository
                 endTime: p.PlanEndTime,
                 estimatedCost: p.EstimatedPrice,
                 estimatedCo2Emissions: p.EstimatedCo2Emissions
+                
             ))
             .ToListAsync();
     }
