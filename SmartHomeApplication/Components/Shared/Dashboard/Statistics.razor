@@ -31,6 +31,10 @@
         StatisticsType.ScheduleSavingsCost => "Saved cost vs unscheduled",          //Dashboard
         StatisticsType.PlannedCo2 => "Planned Co2 today",                           //Dashboard
         StatisticsType.ScheduleSavingsCo2 => "Saved co2 vs unscheduled",            //Dashboard
+        StatisticsType.EstimatedCost => "Estimated cost",                           //Optimized
+        StatisticsType.MoneySaved => "You save",                                    //Optimized
+        StatisticsType.LoadDuration => "Load Duration",                             //Optimized
+        StatisticsType.LoadFinish => "Load finished",                               //Optimized
         _ => "Statistics"
     };
 
@@ -42,6 +46,10 @@
             StatisticsType.ScheduleSavingsCost => await GetStatistic("schedule-savings-cost"),      //Dashboard
             StatisticsType.PlannedCo2 => await GetStatistic("planned-co2"),                         //Dashboard
             StatisticsType.ScheduleSavingsCo2 => await GetStatistic("schedule-savings-c02"),        //Dashboard
+            StatisticsType.EstimatedCost => await GetStatistic("estimated-cost"),                   //Optimized  
+            StatisticsType.MoneySaved => await GetStatistic("money-saved"),                         //Optimized
+            StatisticsType.LoadDuration => await GetStatistic("load-duration"),                     //Optimized
+            StatisticsType.LoadFinish => await GetStatistic("load-finish")                          //Optimized
         };
     }
 
