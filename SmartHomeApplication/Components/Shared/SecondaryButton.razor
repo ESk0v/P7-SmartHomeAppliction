@@ -1,7 +1,7 @@
 <button type="button" class="header-button header-button-secondary">
-    @if (Icon is not null)
+    @if (IconClass is not null)
     {
-        <span class="header-button-icon" aria-hidden="true">@Icon</span>
+        <span class="header-button-icon" aria-hidden="true"><i class="bi @IconClass"></i></span>
     }
 
     @ChildContent
@@ -9,7 +9,7 @@
 
 @code {
     [Parameter]
-    public RenderFragment? Icon { get; set; }
+    public string? IconClass { get; set; }
 
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
@@ -47,17 +47,14 @@
     }
 
     .header-button-icon {
+        align-items: center;
         display: inline-flex;
         flex-shrink: 0;
+        font-size: 1rem;
         height: 1rem;
+        justify-content: center;
         margin-right: 0.375rem;
         width: 1rem;
-    }
-
-    .header-button-icon svg {
-        display: block;
-        height: 100%;
-        width: 100%;
     }
 
     @@media (max-width: 640.98px) {
