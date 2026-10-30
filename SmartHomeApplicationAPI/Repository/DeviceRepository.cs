@@ -44,7 +44,22 @@ public class DeviceRepository : IDeviceRepository
             .Select(device => new CatalogueDeviceDto
             {
                 Model = device.Model,
-                Category = device.Category
+                Category = device.Category,
+                Preset = _db.Preset
+                    .Where(preset => preset.DeviceId == device.Id)
+                    .OrderBy(preset => preset.Id)
+                    .Select(preset => preset.PresetName)
+                    .FirstOrDefault() ?? "standard",
+                ConsumptionInKwh = _db.Preset
+                    .Where(preset => preset.DeviceId == device.Id)
+                    .OrderBy(preset => preset.Id)
+                    .Select(preset => (decimal?)preset.ConsumptionInKwh)
+                    .FirstOrDefault(),
+                DurationInMinutes = _db.Preset
+                    .Where(preset => preset.DeviceId == device.Id)
+                    .OrderBy(preset => preset.Id)
+                    .Select(preset => (int?)preset.DurationInMinutes)
+                    .FirstOrDefault()
             })
             .ToListAsync();
     }

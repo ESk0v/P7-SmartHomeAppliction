@@ -87,8 +87,8 @@
                     </div>
                         <div class="mb-3">  
                         <label class="form-label">Color</label>
-                        <InputText type="color" class="form-control form-control-color" @bind-Value="editDevice.Color" />
-                    </div>  
+                            <InputText type="color" class="form-control form-control-color" @bind-Value="editDevice.Color" />
+                        </div>
                     <div class="mb-3">
                         <label class="form-label">Favorite</label>
                         <input class="form-check-input" type="checkbox" @bind="editDevice.IsFavorite" />
@@ -132,7 +132,9 @@
     {
         userdevices = (await DeviceService.GetUserDevicesAsync()).ToList();
         amount = userdevices.Count;
-        Select(userdevices.FirstOrDefault());
+        if (userdevices.Count > 0) {
+            Select(userdevices.First());
+        }       
     }
 
     private void Select(UserDeviceDto device)

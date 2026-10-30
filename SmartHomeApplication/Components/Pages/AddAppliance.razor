@@ -77,10 +77,18 @@
     <div class="col-12 col-lg-6">
         <div class="card shadow-sm border-0 rounded-4 p-4 bg-white h-100 catalogue-card">
              <h2 class="h5">Device catalogue</h2>
-                <section class="border rounded p-3 catalogue-scroll" aria-label="Device catalogue">
+                <section class="border rounded catalogue-scroll" aria-label="Device catalogue">
                     <QuickGrid Class="table table-striped" Items="FilteredDevices">
-                        <PropertyColumn Property="@(d => d.Model)" Title="Model" Sortable="true" />
-                        <PropertyColumn Property="@(d => d.Category)" Title="Category" Sortable="true" />
+                        <TemplateColumn Title="Model" Context="device" SortBy="@(GridSort<CatalogueDeviceDto>.ByAscending(d => d.Model))">
+                            <button type="button" class="btn btn-link p-0 text-start" @onclick="() => SelectDevice(device)">
+                                @device.Model
+                            </button>
+                        </TemplateColumn>
+                        <TemplateColumn Title="Category" Context="device" SortBy="@(GridSort<CatalogueDeviceDto>.ByAscending(d => d.Category))">
+                            <button type="button" class="btn btn-link p-0 text-start" @onclick="() => SelectDevice(device)">
+                                @device.Category
+                            </button>
+                        </TemplateColumn>
                     </QuickGrid>
                 </section>
         </div>
@@ -114,7 +122,6 @@
         }
         catch (Exception ex)
         {
-            // Handle the exception (e.g., log it, show an error message, etc.)
             Console.WriteLine($"Error creating device: {ex.Message}");
         }
     }
@@ -131,6 +138,14 @@
         amount = (await DeviceService.GetUserDevicesAsync()).Count();
     }
     
+    private void SelectDevice(CatalogueDeviceDto device)
+    {
+        CreateDeviceDto.Model = device.Model;
+        CreateDeviceDto.Category = device.Category;
+        CreateDeviceDto.Preset = device.Preset;
+        CreateDeviceDto.ConsumptionInKwh = device.ConsumptionInKwh;
+        CreateDeviceDto.DurationInMinutes = device.DurationInMinutes;
+    }
 }
 
 <style>
@@ -213,6 +228,21 @@
     .catalogue-scroll thead th {
     position: sticky;
     top: 0;
+    background: #fff;
+}
+
+.catalogue-scroll td,
+.catalogue-scroll td * {
+    color: inherit;
+    text-decoration: none;
+}
+
+.catalogue-scroll { padding: 0; }
+
+.catalogue-scroll thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
     background: #fff;
 }
     
