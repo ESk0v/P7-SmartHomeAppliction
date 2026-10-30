@@ -11,4 +11,5 @@ public record PlanDto(
     DateTime endTime,
     decimal estimatedCost,
     decimal estimatedCo2Emissions
+    //PlanDto? nextPlan = null
 );
