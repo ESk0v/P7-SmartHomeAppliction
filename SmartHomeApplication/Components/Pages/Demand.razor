@@ -31,7 +31,7 @@
 </SectionContent>
 
 <div class="row">
-    <div class="col-sm-7 boxes">
+    <div class="col-sm-7">
         <EditForm Method="post" Model="ScheduleForm" OnValidSubmit="GenerateScheduling" FormName="AddSchedulingForm">
             <div class="mb-4 boxes">
                 
@@ -78,72 +78,74 @@
                     </div>  
                 }
             </div>
-            <div class="mb-4 boxes">
+            <div class="row boxes">
+                <div class="mb-4 col-sm-6 inboxes">
 
-                <div class="inboxes">
-                    <p>ALLOWED WINDOW</p>
-                    <div>
-                        <label class="form-label">START</label>
-                        <div class="d-flex gap-2 align-items-center">
-                            <ButtonSelect Options="HourOptions" @bind-Value="StartHourText" 
-                                CssClass="time-picker" Placeholder="" />
-                            <span>:</span>
+                    <div class="">
+                        <p class="empty-message">Scheduling window</p>
+                        <div>
+                            <label class="form-label">START</label>
+                            <div class="d-flex gap-2 align-items-center">
+                                <ButtonSelect Options="HourOptions" @bind-Value="StartHourText" 
+                                    CssClass="time-picker" Placeholder="" />
+                                <span>:</span>
 
-                            <ButtonSelect Options="MinuteOptions" @bind-Value="StartMinuteText"
-                                CssClass="time-picker" Placeholder="" />
+                                <ButtonSelect Options="MinuteOptions" @bind-Value="StartMinuteText"
+                                    CssClass="time-picker" Placeholder="" />
+                            </div>
+                            <ValidationMessage For="() => ScheduleForm.StartHour" class="text-danger" />
+                            <ValidationMessage For="() => ScheduleForm.StartMinute" class="text-danger" />
                         </div>
-                        <ValidationMessage For="() => ScheduleForm.StartHour" class="text-danger" />
-                        <ValidationMessage For="() => ScheduleForm.StartMinute" class="text-danger" />
+
+                        <div>
+                            <label class="form-label">END</label>
+                            <div class="d-flex gap-2 align-items-center">
+                                <ButtonSelect Options="HourOptions" @bind-Value="EndHourText" 
+                                    CssClass="time-picker" Placeholder="" />
+                                <span>:</span>
+
+                                <ButtonSelect Options="MinuteOptions" @bind-Value="EndMinuteText"
+                                    CssClass="time-picker" Placeholder="" />
+                            </div>
+                        </div>
+                        <ValidationMessage For="() => ScheduleForm.EndHour" class="text-danger" />
+                        <ValidationMessage For="() => ScheduleForm.EndMinute" class="text-danger" />
+                        @if (!string.IsNullOrEmpty(schedulingError))
+                        {
+                            <div class="alert alert-danger mt-5" roles="alert">
+                                @schedulingError
+                            </div>
+                        }
+                    </div>
+                </div> 
+                <div class="mt-4 col-sm-6 inboxes">
+                    <p class="empty-message">Priority</p>
+                    <div class="priority-toggle @(ScheduleForm.Priority == "Greenest" ? "is-right" : "is-left")"
+                        role="radiogroup" aria-labelledby="priority-label">
+                        <span class="priority-thumb" aria-hidden="true"></span>
+
+                        <button type="button" role="radio"
+                                class="priority-option @(ScheduleForm.Priority == "Cheapest" ? "active" : "")"
+                                aria-checked="@(ScheduleForm.Priority == "Cheapest")"
+                                @onclick='() => SetPriority("Cheapest")'>
+                            Cheapest
+                        </button>
+
+                        <button type="button" role="radio"
+                                class="priority-option @(ScheduleForm.Priority == "Greenest" ? "active" : "")"
+                                aria-checked="@(ScheduleForm.Priority == "Greenest")"
+                                @onclick='() => SetPriority("Greenest")'>
+                            Greenest
+                        </button>
                     </div>
 
-                    <div>
-                        <label class="form-label">END</label>
-                        <div class="d-flex gap-2 align-items-center">
-                            <ButtonSelect Options="HourOptions" @bind-Value="EndHourText" 
-                                CssClass="time-picker" Placeholder="" />
-                            <span>:</span>
-
-                            <ButtonSelect Options="MinuteOptions" @bind-Value="EndMinuteText"
-                                CssClass="time-picker" Placeholder="" />
-                        </div>
-                    </div>
-                    <ValidationMessage For="() => ScheduleForm.EndHour" class="text-danger" />
-                    <ValidationMessage For="() => ScheduleForm.EndMinute" class="text-danger" />
-                    @if (!string.IsNullOrEmpty(schedulingError))
-                    {
-                        <div class="alert alert-danger mt-5" roles="alert">
-                            @schedulingError
-                        </div>
-                    }
+                    <ValidationMessage For="() => ScheduleForm.Priority" class="text-danger" />
                 </div>
-            </div> 
-            <div class="mb-4 inboxes">
-
-                <div class="priority-toggle @(ScheduleForm.Priority == "Greenest" ? "is-right" : "is-left")"
-                    role="radiogroup" aria-labelledby="priority-label">
-                    <span class="priority-thumb" aria-hidden="true"></span>
-
-                    <button type="button" role="radio"
-                            class="priority-option @(ScheduleForm.Priority == "Cheapest" ? "active" : "")"
-                            aria-checked="@(ScheduleForm.Priority == "Cheapest")"
-                            @onclick='() => SetPriority("Cheapest")'>
-                        Cheapest
-                    </button>
-
-                    <button type="button" role="radio"
-                            class="priority-option @(ScheduleForm.Priority == "Greenest" ? "active" : "")"
-                            aria-checked="@(ScheduleForm.Priority == "Greenest")"
-                            @onclick='() => SetPriority("Greenest")'>
-                        Greenest
-                    </button>
+                <div class="mb-3">
+                    <button type="submit" class="btn btn-primary">Generate Plan</button>
                 </div>
-
-                <ValidationMessage For="() => ScheduleForm.Priority" class="text-danger" />
             </div>
-
-            <div class="mb-3">
-                <button type="submit" class="btn btn-primary">Generate Plan</button>
-            </div>
+            
         </EditForm>
     </div>
     <div class="col-sm-5">
@@ -456,7 +458,6 @@
         font-family: Arial, sans-serif;
     }
 
-    /* Card heading */
     .boxes h2 {
         font-size: 26px;
         font-weight: 600;
@@ -464,7 +465,6 @@
         margin: 16px 0 24px;
     }
 
-    /* Information rows */
     .boxes p {
         display: flex;
         justify-content: space-between;
@@ -475,19 +475,16 @@
         margin-bottom: 20px;
     }
 
-    /* Labels */
     .boxes p span:first-child {
         color: #9e9895;
     }
 
-    /* Values */
     .boxes p span:last-child {
         color: #222222;
         font-weight: 300;
         text-align: right;
     }
 
-    /* Save Plan button */
     .boxes .btn-primary {
         background: #7569e8;
         border: 1px solid #7569e8;
@@ -532,6 +529,8 @@
 
     .boxes .empty-message {
         color: #9e9895;
+        font-size: 16px;
+        font-weight: 100;
     }
 
 
