@@ -13,18 +13,18 @@ public class DeviceService : IDeviceService
         _repository = repository;
     }
 
-    public async Task<bool> UpdateUserDeviceAsync(UpdateUserDeviceDto device)
+    public Task<bool> UpdateUserDeviceAsync(UpdateUserDeviceDto device)
     {
-        var userDevice = await _repository.FindUserDeviceByIdAsync(device.Id);
-        if (userDevice == null) return false;
+        var userDevice = new UserDevice
+        {
+            Id = device.Id,
+            Nickname = device.Nickname,
+            Icon = device.Icon,
+            Color = device.Color,
+            IsFavorite = device.IsFavorite
+        };
 
-        userDevice.Nickname = device.Nickname;
-        userDevice.Icon = device.Icon;
-        userDevice.Color = device.Color;
-        userDevice.IsFavorite = device.IsFavorite;
-
-        await _repository.SaveChangesAsync();
-        return true;
+        return _repository.UpdateUserDeviceAsync(userDevice);
     }
 
     public Task<List<UserDeviceDto>> GetUserDevicesAsync(string userId)

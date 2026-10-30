@@ -14,11 +14,6 @@ public class DeviceRepository : IDeviceRepository
         _db = db;
     }
 
-    public async Task<UserDevice?> FindUserDeviceByIdAsync(int deviceId)
-    {
-        return await _db.UserDevice.FindAsync(deviceId);
-    }
-
     public async Task<List<UserDeviceDto>> GetUserDevicesAsync(string userId)
     {
         return await _db.UserDevice
@@ -72,8 +67,24 @@ public class DeviceRepository : IDeviceRepository
         await _db.SaveChangesAsync();
     }
 
-    public async Task SaveChangesAsync()
+    public async Task<bool> UpdateUserDeviceAsync(UserDevice userDevice)
     {
-        await _db.SaveChangesAsync();
+        _db.UserDevice.Attach(userDevice);
+
+        var entry = _db.Entry(userDevice);
+        entry.Property(ud => ud.Nickname).IsModified = true;
+        entry.Property(ud => ud.Icon).IsModified = true;
+        entry.Property(ud => ud.Color).IsModified = true;
+        entry.Property(ud => ud.IsFavorite).IsModified = true;
+
+        try
+        {
+            await _db.SaveChangesAsync();
+            return true;
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return false;
+        }
     }
 }

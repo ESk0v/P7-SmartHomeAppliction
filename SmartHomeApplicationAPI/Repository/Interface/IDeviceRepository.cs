@@ -5,9 +5,8 @@ namespace SmartHomeApplicationAPI.Repository;
 
 public interface IDeviceRepository
 {
-    Task<UserDevice?> FindUserDeviceByIdAsync(int deviceId);
     Task<List<UserDeviceDto>> GetUserDevicesAsync(string userId);
     Task<List<CatalogueDeviceDto>> GetAllDevicesAsync();
     Task AddDeviceAsync(Device device, DevicePreset preset, UserDevice userDevice);
-    Task SaveChangesAsync();
+    Task<bool> UpdateUserDeviceAsync(UserDevice userDevice);
 }
