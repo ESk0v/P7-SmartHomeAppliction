@@ -1,0 +1,17 @@
+{
+  "SmartHomeApplicationAPI.dll": {
+    "C:\\Users\\lasse\\source\\repos\\P7-SmartHomeAppliction\\SmartHomeApplicationAPI\\Service\\PlanService.cs": {
+      "SmartHomeApplicationAPI.Service.PlanService": {
+        "System.Void SmartHomeApplicationAPI.Service.PlanService::.ctor(SmartHomeApplicationAPI.Repository.IPlanRepository)": {
+          "Lines": {
+            "10": 1,
+            "11": 1,
+            "12": 1,
+            "13": 1
+          },
+          "Branches": []
+        }
+      }
+    }
+  }
+}
