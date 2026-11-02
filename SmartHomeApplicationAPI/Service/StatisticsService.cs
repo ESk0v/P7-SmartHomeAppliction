@@ -132,8 +132,8 @@ public class StatisticsService : IStatisticsService
         }
 
         decimal savedCo2 = totalUnscheduledCo2 - totalCo2;
-        decimal savedCo2Percent = (totalUnscheduledCo2 - totalCo2) / totalUnscheduledCo2 * 100;
-        string arrow = savedCo2 > 0 ? "\u2193" : "";
+        decimal savedCo2Percent = totalUnscheduledCo2 == 0 
+        ? 0 : (totalUnscheduledCo2 - totalCo2) / totalUnscheduledCo2 * 100;        string arrow = savedCo2 > 0 ? "\u2193" : "";
         
         return new StatisticsDto{
             Value = "" + savedCo2 + " g",

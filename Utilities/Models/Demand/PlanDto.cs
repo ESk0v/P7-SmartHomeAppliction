@@ -4,7 +4,7 @@ namespace Utilities.Models
 {
 	public class PlanDTO	
 	{
-        public int UserDeviceId { get; set; }
+        public int? UserDeviceId { get; set; }
 
         public DateTime StartTime { get; set; }
 

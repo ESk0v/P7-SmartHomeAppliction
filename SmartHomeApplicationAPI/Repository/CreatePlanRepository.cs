@@ -40,6 +40,8 @@ public class CreatePlanRepository : ICreatePlanRepository
                     ud.Id,
                     ud.DeviceId,
                     ud.Nickname,
+                    ud.Icon,
+                    ud.Color,
                     d.Category,
                     d.Model
                 ))
