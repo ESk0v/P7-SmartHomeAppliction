@@ -40,6 +40,8 @@ public class CreatePlanRepository : ICreatePlanRepository
                     ud.Id,
                     ud.DeviceId,
                     ud.Nickname,
+                    ud.Icon,
+                    ud.Color,
                     d.Category,
                     d.Model
                 ))
@@ -48,24 +50,20 @@ public class CreatePlanRepository : ICreatePlanRepository
 
     public async Task<PlanDTO> PostPlanAsync(PlanDTO planDTO)
     {
-        if (planDTO.NextPlan != null)
-        {
-            
-        }
 
         var plan = new Plan
         {
-            Name = planDTO.Name,
-            UserDeviceId = planDTO.UserDeviceId,
-            PlanStartTime = planDTO.StartTime,
-            PlanEndTime = planDTO.EndTime,
-            WindowStartTime = planDTO.StartTime,
-            WindowEndTime = planDTO.EndTime,
-            OptimizationObjective = "Cheapest",
-            EstimatedPrice = planDTO.EstimatedPrice,
-            EstimatedCo2Emissions = planDTO.EstimatedCo2Emission,
-            EstimatedUnscheduledPrice = planDTO.EstimatedUnscheduledPrice,
-            EstimatedUnscheduledCo2Emissions = planDTO.EstimatedUnscheduledCo2Emission
+            Name = planDTO.planName,
+            UserDeviceId = planDTO.userDeviceId,
+            PlanStartTime = planDTO.startTime,
+            PlanEndTime = planDTO.endTime,
+            WindowStartTime = planDTO.startTime,
+            WindowEndTime = planDTO.endTime,
+            OptimizationObjective = planDTO.optimizationObjective!,
+            EstimatedPrice = planDTO.estimatedCost,
+            EstimatedCo2Emissions = planDTO.estimatedCo2Emissions,
+            EstimatedUnscheduledPrice = (decimal)planDTO.estimatedUnscheduledCost!,
+            EstimatedUnscheduledCo2Emissions = (decimal)planDTO.estimatedUnscheduledCo2Emissions!
             
         };
 
@@ -75,17 +73,19 @@ public class CreatePlanRepository : ICreatePlanRepository
 
         return new PlanDTO
         {
-            UserDeviceId = plan.UserDeviceId,
-            StartTime = plan.PlanStartTime,
-            EndTime = plan.PlanEndTime,
-            EstimatedPrice = plan.EstimatedPrice,
-            EstimatedCo2Emission = plan.EstimatedCo2Emissions,
-            EstimatedUnscheduledPrice = plan.EstimatedUnscheduledPrice,
-            EstimatedUnscheduledCo2Emission = plan.EstimatedUnscheduledCo2Emissions
-
-        
+            planId = plan.Id,
+            planName = plan.Name,
+            startTime = plan.PlanStartTime,
+            endTime = plan.PlanEndTime,
+            estimatedCost = plan.EstimatedPrice,
+            estimatedCo2Emissions = plan.EstimatedCo2Emissions,
+            estimatedUnscheduledCost = plan.EstimatedUnscheduledPrice,
+            estimatedUnscheduledCo2Emissions = plan.EstimatedUnscheduledCo2Emissions,
+            userDeviceId = plan.UserDeviceId,
+            optimizationObjective = plan.OptimizationObjective 
         };
-        
+          
+    
     }
 
 }

@@ -23,7 +23,7 @@
                     <button type="button"
                         class="plan-picker-trigger"
                         @onclick="TogglePlanPicker">
-                    <span class="plan-picker-icon">@selectedPlan.Icon</span>
+                    <span class="plan-picker-icon"><i class="bi @selectedPlan.IconClass"></i></span>
                     <span>@selectedPlan.Name</span>
                     <span class="plan-picker-chevron @(isPlanPickerOpen ? "plan-picker-chevron-open" : "")"></span>
                     </button>
@@ -37,7 +37,7 @@
                             <button type="button"
                                     class="plan-picker-option @(plan.Id == selectedPlanId ? "plan-picker-option-selected" : "")"
                                     @onclick="() => SelectPlan(plan.Id)">
-                                <span class="plan-picker-icon">@plan.Icon</span>
+                                <span class="plan-picker-icon"><i class="bi @plan.IconClass"></i></span>
                                 <span>@plan.Name</span>
                                 @if (plan.Id == selectedPlanId)
                                 {
@@ -105,7 +105,7 @@
                         @foreach (PlanDto block in selectedSchedules)
                         {
                             <div class="schedule-block">
-                                <span class="schedule-block-icon">@Icons.Plus</span>
+                                <span class="schedule-block-icon"><i class="bi bi-plus"></i></span>
                                 <div class="schedule-block-details">
                                     <strong>@block.startTime.ToString("HH:mm")–@block.endTime.ToString("HH:mm")</strong>
                                     <span>@block.deviceName · @FormatDuration(block.endTime - block.startTime)</span>
@@ -359,8 +359,8 @@
 
     private static Plan CreatePlan(PlanDto root, Dictionary<int, PlanDto> plansById)
     {
-        List<PlanDto> schedules = new();
-        HashSet<int> visited = new();
+        List<PlanDto> schedules = new List<PlanDto>();
+        HashSet<int> visited = new HashSet<int>();
         PlanDto? current = root;
 
         while (current is not null && visited.Add(current.planId))
@@ -381,26 +381,7 @@
             root.deviceName,
             $"{start:HH:mm}–{end:HH:mm}",
             schedules,
-            IconFor(root.icon, root.deviceName));
-    }
-
-    private static RenderFragment IconFor(string icon, string deviceName)
-    {
-        if (icon.Contains("car", StringComparison.OrdinalIgnoreCase)
-            || icon.Contains("ev", StringComparison.OrdinalIgnoreCase)
-            || deviceName.Contains("car", StringComparison.OrdinalIgnoreCase)
-            || deviceName.Contains("ev", StringComparison.OrdinalIgnoreCase))
-        {
-            return Icons.Car;
-        }
-
-        if (icon.Contains("wash", StringComparison.OrdinalIgnoreCase)
-            || deviceName.Contains("wash", StringComparison.OrdinalIgnoreCase))
-        {
-            return Icons.WashingMachine;
-        }
-
-        return Icons.Cpu;
+            ScheduleIcons.Get(root.icon));
     }
 
     private sealed record Plan(
@@ -409,7 +390,7 @@
         string Device,
         string Window,
         List<PlanDto> Schedules,
-        RenderFragment Icon);
+        string IconClass);
 
     private static readonly Plan EmptyPlan = new Plan(
         string.Empty,
@@ -417,7 +398,7 @@
         "No device",
         "--",
         new List<PlanDto>(),
-        Icons.Cpu);
+        ScheduleIcons.Get(null));
 }
 
 
@@ -542,11 +523,6 @@
         height: 2rem;
         justify-content: center;
         width: 2rem;
-    }
-
-    .schedule-block-icon svg {
-        height: 1rem;
-        width: 1rem;
     }
 
     .schedule-block-details,
@@ -782,16 +758,14 @@
     }
 
     .plan-picker-icon {
+        align-items: center;
         color: #7569e8;
         display: inline-flex;
         flex-shrink: 0;
+        font-size: 1.25rem;
         height: 1.4rem;
+        justify-content: center;
         width: 1.4rem;
-    }
-
-    .plan-picker-icon svg {
-        height: 100%;
-        width: 100%;
     }
 
     .plan-picker-chevron {
