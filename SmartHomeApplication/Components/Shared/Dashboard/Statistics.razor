@@ -4,6 +4,7 @@
 @attribute [Authorize]
 
 @using System.Security.Claims
+@using System.Globalization
 
 @namespace Shared.Dashboard
 
@@ -19,11 +20,14 @@
 
 @code {
 
-    [Parameter]
-    public StatisticsType Type { get; set; }
-    [Parameter]
-    public string DescriptionClass { get; set; } = string.Empty;
+    [Parameter] public DateTime? From { get; set; }
+    [Parameter] public DateTime? To { get; set; }
+    [Parameter] public StatisticsType Type { get; set; }
+    [Parameter] public string DescriptionClass { get; set; } = string.Empty;
     public StatisticsDto? Data { get; set;}
+
+    private DateTime? loadedFrom, loadedTo;
+    private bool loaded;
 
     private string Title => Type switch
     {
@@ -38,19 +42,53 @@
         _ => "Statistics"
     };
 
+    private bool IsPeriodType => Type is 
+           StatisticsType.PlannedCost
+        or StatisticsType.ScheduleSavingsCost
+        or StatisticsType.PlannedCo2
+        or StatisticsType.ScheduleSavingsCo2;
+
     protected override async Task OnInitializedAsync()
     {
+        if (IsPeriodType) return;
+
         Data = Type switch
         {
-            StatisticsType.PlannedCost => await GetStatistic("planned-cost"),                       //Dashboard
-            StatisticsType.ScheduleSavingsCost => await GetStatistic("schedule-savings-cost"),      //Dashboard
-            StatisticsType.PlannedCo2 => await GetStatistic("planned-co2"),                         //Dashboard
-            StatisticsType.ScheduleSavingsCo2 => await GetStatistic("schedule-savings-c02"),        //Dashboard
-            StatisticsType.EstimatedCost => await GetStatistic("estimated-cost"),                   //Optimized  
-            StatisticsType.MoneySaved => await GetStatistic("money-saved"),                         //Optimized
-            StatisticsType.LoadDuration => await GetStatistic("load-duration"),                     //Optimized
-            StatisticsType.LoadFinish => await GetStatistic("load-finish")                          //Optimized
+            StatisticsType.EstimatedCost => await GetStatistic("estimated-cost"),
+            StatisticsType.MoneySaved => await GetStatistic("money-saved"),
+            StatisticsType.LoadDuration => await GetStatistic("load-duration"),
+            StatisticsType.LoadFinish => await GetStatistic("load-finish"),
+            _ => null
         };
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!IsPeriodType) return;
+        if (loadedFrom == From && loadedTo == To) return;   // period unchanged
+
+        loadedFrom = From;
+        loadedTo = To;
+
+        Data = Type switch
+        {
+            StatisticsType.PlannedCost => await GetPeriodStatistic("planned-cost"),
+            StatisticsType.ScheduleSavingsCost => await GetPeriodStatistic("schedule-savings-cost"),
+            StatisticsType.PlannedCo2 => await GetPeriodStatistic("planned-co2"),
+            StatisticsType.ScheduleSavingsCo2 => await GetPeriodStatistic("schedule-savings-c02"),
+            _ => null
+        };
+    }
+
+    private Task<StatisticsDto> GetPeriodStatistic(string uri)
+    {
+        if (From is null || To is null)
+            throw new InvalidOperationException($"{Type} requires From and To.");
+
+        var query = string.Create(CultureInfo.InvariantCulture,
+            $"?from={From.Value:yyyy-MM-dd}&to={To.Value:yyyy-MM-dd}");
+
+        return GetStatistic(uri + query);
     }
 
     private async Task<StatisticsDto> GetStatistic(string uri)

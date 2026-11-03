@@ -18,12 +18,14 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IStatisticsService, StatisticsService>();
         services.AddScoped<ICreatePlanService, CreatePlanService>();
         services.AddScoped<IOptimizationService, OptimizationService>();
+        services.AddScoped<IHistoryService, HistoryService>();
 
         //REPOSITORIES
         services.AddScoped<IElectricityPriceRepository, ElectricityPriceRepository>();
         services.AddScoped<IPlanRepository, PlanRepository>();
         services.AddScoped<IStatisticsRepository, StatisticsRepository>();
         services.AddScoped<ICreatePlanRepository, CreatePlanRepository>();
+        services.AddScoped<IHistoryRepository, HistoryRepository>();
 
 
         //HANGFIRE
