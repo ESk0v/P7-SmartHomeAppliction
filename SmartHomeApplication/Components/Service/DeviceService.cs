@@ -107,7 +107,55 @@ namespace SmartHomeApplication.Service
                     null,
                     response.StatusCode);
             }
+        }
 
+        public async Task UpdatePresetAsync(int userDeviceId, PresetDeviceDto preset, CancellationToken cancellationToken = default)
+        {
+            using var response = await httpClient.PutAsJsonAsync(
+                $"api/device-controller/{userDeviceId}/preset",
+                preset,
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                throw new HttpRequestException(
+                    $"Error updating preset: {response.StatusCode}, {errorContent}",
+                    null,
+                    response.StatusCode);
+            }
+        }
+
+        public async Task CreatePresetAsync(int userDeviceId, PresetDeviceDto preset, CancellationToken cancellationToken = default)
+        {
+            using var response = await httpClient.PostAsJsonAsync(
+                $"api/device-controller/{userDeviceId}/preset",
+                preset,
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                throw new HttpRequestException(
+                    $"Error creating preset: {response.StatusCode}, {errorContent}",
+                    null,
+                    response.StatusCode);
+            }
+        }
+
+        public async Task DeleteUserDeviceAsync(int userDeviceId, CancellationToken cancellationToken = default)
+        {
+            using var response = await httpClient.DeleteAsync(
+                $"api/device-controller/{userDeviceId}/delete",
+                cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+                throw new HttpRequestException(
+                    $"Error deleting user device: {response.StatusCode}, {errorContent}",
+                    null,
+                    response.StatusCode);
+            }
         }
     }
 }

@@ -8,5 +8,8 @@ namespace SmartHomeApplicationAPI.Service
         Task<List<UserDeviceDto>> GetUserDevicesAsync(string userId);
         Task<List<CatalogueDeviceDto>> GetAllDevicesAsync();
         Task<int> CreateDeviceAsync(CreateDeviceDto device);
+        Task<bool> UpdatePresetAsync(int userDeviceId, PresetDeviceDto preset);
+        Task<bool> CreatePresetAsync(int userDeviceId, PresetDeviceDto preset);
+        Task<bool> DeleteUserDeviceAsync(int userDeviceId);
     }
 }

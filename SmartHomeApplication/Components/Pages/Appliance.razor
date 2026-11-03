@@ -1,6 +1,7 @@
 ﻿@page "/appliance"
 @attribute [Authorize]
 @inject SmartHomeApplication.Service.IDeviceService DeviceService
+@inject INotificationService NotificationService
 @using Utilities.Models
 @using global::Shared.Dashboard
 
@@ -24,14 +25,6 @@
 
 </SectionContent>
 
-@if (message is not null)
-{
-    <div class="alert @(isError ? "alert-danger" : "alert-success") alert-dismissible" role="alert">
-        @message
-        <button type="button" class="btn-close" @onclick="() => message = null"></button>
-    </div>
-}
-
 <div class="appliance-layout">
 
     <div class="device-list">
@@ -40,32 +33,90 @@
             <p class="p-3 text-muted">No devices yet.</p>
         }
         @foreach (var device in userdevices)
-        {
-           <button type="button"
-            class="device-item @(selected?.Id == device.Id ? "active" : "")"
-            @onclick="() => Select(device)">
-            <div class="device-icon" style="color: @device.Color;">
-                <i class="bi @ScheduleIcons.Get(device.Icon)"></i>
-            </div>
-            <div>
+{
+    var isExpanded = expandedIds.Contains(device.Id);
+
+    <div class="device-group">
+        <div class="device-item @(selected?.Id == device.Id ? "active" : "")">
+            <button type="button" class="device-main" @onclick="() => Select(device)">
+                <div class="device-icon" style="color: @device.Color;">
+                    <i class="bi @ScheduleIcons.Get(device.Icon)"></i>
+                </div>
                 <div class="device-name">@device.Nickname</div>
+            </button>
+
+            <button type="button" class="device-expand" title="Presets"
+                    @onclick="() => ToggleExpand(device.Id)">
+                <span class="preset-count">@device.Presets.Count</span>
+                <i class="bi @(isExpanded ? "bi-chevron-up" : "bi-chevron-down")"></i>
+            </button>
+        </div>
+
+        @if (isExpanded)
+        {
+            <div class="preset-list">
+                @foreach (var preset in device.Presets)
+                {
+                    <button type="button"
+                            class="preset-item @(selected?.Id == device.Id && editPreset?.Id == preset.Id && !isAddingPreset ? "active" : "")"
+                            @onclick="() => OpenPreset(device, preset)">
+                        <span>@preset.PresetName</span>
+                    </button>
+                }
+                <button type="button" class="preset-add" @onclick="() => OpenAddPreset(device)">
+                    <i class="bi bi-plus"></i> Add preset
+                </button>
             </div>
-        </button>
         }
+    </div>
+}
     </div>
 
     <div class="device-detail">
-        @if (editDevice is null)
+        @if (selected is null || editDevice is null)
         {
             <p class="text-muted">Select a device to see its details.</p>
+        }
+        else if (editPreset is not null)
+        {
+            <h2 class="h5 mb-4">@(isAddingPreset ? "Add preset" : $"Edit {editPreset.PresetName} preset for {editDevice.Nickname}")</h2>
+            <EditForm Model="editPreset" OnValidSubmit="SavePreset">
+                <AntiforgeryToken />
+                <DataAnnotationsValidator />
+
+                @if (isAddingPreset)
+                {
+                    <div class="mb-3">
+                        <label class="form-label" for="presetName">Preset name</label>
+                        <InputText id="presetName" class="form-control" @bind-Value="editPreset.PresetName" />
+                        <ValidationMessage For="() => editPreset.PresetName" class="text-danger" />
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted">Preset: @editPreset.PresetName</p>
+                }
+                <div class="mb-3">
+                    <label class="form-label" for="presetConsumption">Consumption (kWh)</label>
+                    <InputNumber id="presetConsumption" class="form-control" @bind-Value="editPreset.ConsumptionInKwh" />
+                    <ValidationMessage For="() => editPreset.ConsumptionInKwh" class="text-danger" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="presetDuration">Duration (minutes)</label>
+                    <InputNumber id="presetDuration" class="form-control" @bind-Value="editPreset.DurationInMinutes" />
+                    <ValidationMessage For="() => editPreset.DurationInMinutes" class="text-danger" />
+                </div>
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary">@(isAddingPreset ? "Add preset" : "Save preset")</button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="CancelPreset">Cancel</button>
+                </div>
+            </EditForm>
         }
         else
         {
             <EditForm Model="editDevice" OnValidSubmit="SaveChanges">
                 <AntiforgeryToken />
                 <DataAnnotationsValidator />
-
-                <div class="row g-2 mb-3">
                     <div class="mb-3">
                         <label class="form-label" for="name">Nickname</label>
                         <InputText id="name" class="form-control" @bind-Value="editDevice.Nickname" />
@@ -85,14 +136,15 @@
                             }
                         </div>
                     </div>
-                        <div class="mb-3">  
-                        <label class="form-label">Color</label>
-                            <InputText type="color" class="form-control form-control-color" @bind-Value="editDevice.Color" />
+                    <div class="row g-5 mb-3">
+                        <div class="col-auto">
+                            <label class="form-label d-block" for="deviceColor">Color</label>
+                            <InputText id="deviceColor" type="color" class="form-control form-control-color" @bind-Value="editDevice.Color" />
                         </div>
-                    <div class="mb-3">
-                        <label class="form-label">Favorite</label>
-                        <input class="form-check-input" type="checkbox" @bind="editDevice.IsFavorite" />
-                        <ValidationMessage For="() => editDevice.IsFavorite" class="text-danger" />
+                        <div class="col-auto">
+                            <label class="form-label d-block" for="deviceFavorite">Favorite</label>
+                            <input id="deviceFavorite" class="form-check-input" type="checkbox" @bind="editDevice.IsFavorite" />
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Model</label>
@@ -102,10 +154,10 @@
                         <label class="form-label">Category</label>
                         <input class="form-control" value="@selected!.Category" disabled />
                     </div>
-                </div>
-                <div class="mt-4">
+                <div class="mt-4 d-flex align-items-center">
                     <button type="submit" class="btn btn-primary">Save</button>
-                    <button type="button" class="btn btn-outline-secondary" @onclick="Cancel">Cancel</button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="Cancel">Cancel</button> 
+                    <button type="button" class="btn btn-outline-danger ms-auto" @onclick="() => DeleteUserDevice(selected.Id)">Delete</button>
                 </div>
             </EditForm>
         }
@@ -118,28 +170,47 @@
                 .Where(n => n != nameof(DeviceIcon.default_icon))
                 .ToArray();
 
-
-    private int amount = 0;
-
-    private string? message;
-    private bool isError = false;
+    private int amount => userdevices.Count;
 
     private List<UserDeviceDto> userdevices = new();
     private UserDeviceDto? selected;
     private UpdateUserDeviceDto? editDevice;
+    private PresetDeviceDto? editPreset;
+    private bool isAddingPreset;
 
     protected override async Task OnInitializedAsync()
     {
         userdevices = (await DeviceService.GetUserDevicesAsync()).ToList();
-        amount = userdevices.Count;
         if (userdevices.Count > 0) {
             Select(userdevices.First());
         }       
     }
 
+    private HashSet<int> expandedIds = new();
+
+    private void ToggleExpand(int deviceId)
+    {
+        if (!expandedIds.Remove(deviceId))
+            expandedIds.Add(deviceId);
+    }
+
+    private void OpenPreset(UserDeviceDto device, PresetDeviceDto preset)
+    {
+        Select(device);         
+        EditPreset(preset);     
+    }
+
+    private void OpenAddPreset(UserDeviceDto device)
+    {
+        Select(device);
+        BeginAddPreset();
+    }
+
     private void Select(UserDeviceDto device)
     {
         selected = device;
+        editPreset = null;
+        isAddingPreset = false;
         editDevice = new UpdateUserDeviceDto
         {   Id = device.Id,
             Nickname = device.Nickname,
@@ -147,6 +218,30 @@
             IsFavorite = device.IsFavorite,
             Color = device.Color,
         };  
+    }
+
+    private void EditPreset(PresetDeviceDto preset)
+    {
+        editPreset = new PresetDeviceDto
+        {
+            Id = preset.Id,
+            PresetName = preset.PresetName,
+            ConsumptionInKwh = preset.ConsumptionInKwh,
+            DurationInMinutes = preset.DurationInMinutes
+        };
+        isAddingPreset = false;
+    }
+
+    private void BeginAddPreset()
+    {
+        editPreset = new PresetDeviceDto();
+        isAddingPreset = true;
+    }
+
+    private void CancelPreset()
+    {
+        editPreset = null;
+        isAddingPreset = false;
     }
 
   private async Task SaveChanges()
@@ -163,15 +258,67 @@
         selected.Color = editDevice.Color;
         selected.IsFavorite = editDevice.IsFavorite;
 
-        isError = false;
-        message = "Device updated successfully!";
+        NotificationService.SuccessNotification($"Device: \"{selected.Nickname}\" updated successfully.");
     }
     catch (Exception ex)
     {
-        isError = true;
-        message = $"Error updating device: {ex.Message}";
+        NotificationService.ErrorNotification($"Error updating device: {ex.Message}");
     }
 }
+
+    private async Task SavePreset()
+    {
+        if (selected is null || editPreset is null) return;
+
+        try
+        {
+            if (isAddingPreset)
+            {
+                var selectedDeviceId = selected.Id;
+                await DeviceService.CreatePresetAsync(selectedDeviceId, editPreset);
+                userdevices = (await DeviceService.GetUserDevicesAsync()).ToList();
+                selected = userdevices.FirstOrDefault(device => device.Id == selectedDeviceId);
+                NotificationService.SuccessNotification($"Preset: \"{editPreset.PresetName}\" added successfully to device: \"{selected?.Nickname}\".");
+            }
+            else
+            {
+                await DeviceService.UpdatePresetAsync(selected.Id, editPreset);
+                var existingPreset = selected.Presets.First(preset => preset.Id == editPreset.Id);
+                existingPreset.ConsumptionInKwh = editPreset.ConsumptionInKwh;
+                existingPreset.DurationInMinutes = editPreset.DurationInMinutes;
+                NotificationService.SuccessNotification($"Preset: \"{editPreset.PresetName}\" updated successfully for device: \"{selected.Nickname}\".");
+            }
+
+            editPreset = null;
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ErrorNotification($"Error saving preset: {ex.Message}");
+        }
+    }
+
+    private async Task DeleteUserDevice(int userDeviceId)
+    {
+        try
+        {
+            await DeviceService.DeleteUserDeviceAsync(userDeviceId);
+            userdevices = (await DeviceService.GetUserDevicesAsync()).ToList();
+            selected = userdevices.FirstOrDefault();
+            editDevice = selected is not null ? new UpdateUserDeviceDto
+            {
+                Id = selected.Id,
+                Nickname = selected.Nickname,
+                Icon = selected.Icon,
+                IsFavorite = selected.IsFavorite,
+                Color = selected.Color,
+            } : null;
+            NotificationService.SuccessNotification($"Device: \"{selected?.Nickname}\" deleted successfully.");   
+        }
+        catch (Exception ex)
+        {
+            NotificationService.ErrorNotification($"Error deleting device: {ex.Message}");
+        }
+    }
 
     private void Cancel()
     {
@@ -246,18 +393,6 @@
         overflow: hidden;
     }
 
-    .device-item {
-        display: flex;
-        gap: 1rem;
-        align-items: center;
-        width: 100%;
-        padding: 1rem;
-        background: none;
-        border: 0;
-        border-bottom: 1px solid #eee;
-        text-align: left;
-    }
-
     .device-item:hover { background: #f7f7fb; }
 
     .device-item.active {
@@ -273,7 +408,6 @@
     }
 
     .device-name { font-weight: 600; }
-    .device-sub  { font-size: .85rem; color: #888; }
 
     .device-detail {    
         background: #fff;
@@ -305,4 +439,55 @@
         .appliance-layout { grid-template-columns: 1fr; }
     }
     
+.device-item {
+    display: flex;
+    align-items: stretch;
+    border-bottom: 1px solid #eee;
+}
+
+.device-main {
+    flex: 1;
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    padding: 1rem;
+    background: none;
+    border: 0;
+    text-align: left;
+}
+
+.device-expand {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    padding: 0 1rem;
+    background: none;
+    border: 0;
+    color: #888;
+}
+.device-expand:hover { color: #7b6ee6; }
+
+.preset-count {
+    font-size: .75rem;
+    background: #ececf2;
+    border-radius: 999px;
+    padding: .1rem .5rem;
+}
+
+.preset-list { background: #fafafd; border-bottom: 1px solid #eee; }
+
+.preset-item, .preset-add {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: .55rem 1rem .55rem 4.25rem;
+    background: none;
+    border: 0;
+    text-align: left;
+    font-size: .9rem;
+}
+.preset-item:hover, .preset-add:hover { background: #f1f0fb; }
+.preset-item.active { background: #e9e8fb; }
+.preset-add { color: #7b6ee6; justify-content: flex-start; gap: .25rem; }
 </style>

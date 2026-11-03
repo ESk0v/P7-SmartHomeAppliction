@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @inject NavigationManager NavigationManager
 @inject SmartHomeApplication.Service.IDeviceService DeviceService
+@inject INotificationService NotificationService
 @using Utilities.Models
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.AspNetCore.Components.QuickGrid
@@ -119,10 +120,11 @@
         {
             await DeviceService.CreateDeviceAsync(CreateDeviceDto);
             GoToAppliance();
+            NotificationService.SuccessNotification($"Device: \"{CreateDeviceDto.Model}\" successfully added to your devices.");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error creating device: {ex.Message}");
+            NotificationService.ErrorNotification($"Error creating device: {ex.Message}");    
         }
     }
     

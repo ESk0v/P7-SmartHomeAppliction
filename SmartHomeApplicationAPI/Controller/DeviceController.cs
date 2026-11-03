@@ -62,4 +62,47 @@ public class DeviceController : ControllerBase
         var deviceId = await _service.CreateDeviceAsync(dto);
         return Ok(new { message = "Device created successfully", id = deviceId });
     }
+
+    [HttpPut("{userDeviceId:int}/preset")]
+    public async Task<IActionResult> UpdatePreset(int userDeviceId, [FromBody] PresetDeviceDto dto)
+    {
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        if (!await _service.UpdatePresetAsync(userDeviceId, dto))
+        {
+            return NotFound();
+        }
+
+        return Ok();
+    }
+
+    [HttpPost("{userDeviceId:int}/preset")]
+    public async Task<IActionResult> CreatePreset(int userDeviceId, [FromBody] PresetDeviceDto dto)
+    {
+        if (!ModelState.IsValid)
+        {
+            return ValidationProblem(ModelState);
+        }
+
+        if (!await _service.CreatePresetAsync(userDeviceId, dto))
+        {
+            return NotFound();
+        }
+
+        return Ok(dto);
+    }
+
+    [HttpDelete("{userDeviceId:int}/delete")]
+    public async Task<IActionResult> DeleteUserDevice(int userDeviceId)
+    {
+        if (!await _service.DeleteUserDeviceAsync(userDeviceId))
+        {
+            return NotFound();
+        }
+
+        return NoContent();
+    }
 }

@@ -37,13 +37,51 @@ public class DeviceService : IDeviceService
         return _repository.GetAllDevicesAsync();
     }
 
-    public async Task<int> CreateDeviceAsync(CreateDeviceDto dto)
+    public async Task<bool> UpdatePresetAsync(int userDeviceId, PresetDeviceDto preset)
     {
-        var device = new Device
+        var userDevice = await _repository.FindUserDeviceByIdAsync(userDeviceId);
+        var existingPreset = await _repository.FindPresetByIdAsync(preset.Id);
+        if (userDevice is null || existingPreset is null || existingPreset.DeviceId != userDevice.DeviceId)
         {
-            Model = dto.Model,
-            Category = dto.Category
-        };
+            return false;
+        }
+
+        existingPreset.ConsumptionInKwh = preset.ConsumptionInKwh;
+        existingPreset.DurationInMinutes = preset.DurationInMinutes;
+        await _repository.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> CreatePresetAsync(int userDeviceId, PresetDeviceDto preset)
+    {
+        var userDevice = await _repository.FindUserDeviceByIdAsync(userDeviceId);
+        if (userDevice is null)
+        {
+            return false;
+        }
+
+        await _repository.AddPresetAsync(new DevicePreset
+        {
+            DeviceId = userDevice.DeviceId,
+            PresetName = preset.PresetName,
+            ConsumptionInKwh = preset.ConsumptionInKwh,
+            DurationInMinutes = preset.DurationInMinutes
+        });
+        return true;
+    }
+
+    public async Task<int> CreateDeviceAsync(CreateDeviceDto dto)
+    {   
+      
+        var device = await _repository.FindDeviceByModelAndCategoryAsync(dto.Model, dto.Category);
+        if (device == null)
+        {
+            device = new Device
+            {
+                Model = dto.Model,
+                Category = dto.Category
+            };
+        } 
 
         var preset = new DevicePreset
         {
@@ -65,5 +103,13 @@ public class DeviceService : IDeviceService
 
         await _repository.AddDeviceAsync(device, preset, userDevice);
         return device.Id;
+    }
+
+    public async Task<bool> DeleteUserDeviceAsync(int userDeviceId)
+    {
+        var userDevice = await _repository.FindUserDeviceByIdAsync(userDeviceId);
+        if (userDevice == null) return false;
+        await _repository.DeleteUserDevice(userDevice);
+        return true;
     }
 }

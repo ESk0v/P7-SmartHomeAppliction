@@ -19,6 +19,16 @@ public class DeviceRepository : IDeviceRepository
         return await _db.UserDevice.FindAsync(deviceId);
     }
 
+    public async Task<DevicePreset?> FindPresetByIdAsync(int presetId)
+    {
+        return await _db.Preset.FindAsync(presetId);
+    }
+
+    public async Task<Device?> FindDeviceByModelAndCategoryAsync(string model, string category)
+    {
+        return await _db.Device.FirstOrDefaultAsync(d => d.Model == model && d.Category == category);
+    }
+
     public async Task<List<UserDeviceDto>> GetUserDevicesAsync(string userId)
     {
         return await _db.UserDevice
@@ -32,7 +42,18 @@ public class DeviceRepository : IDeviceRepository
                 Nickname = ud.Nickname,
                 Icon = ud.Icon,
                 Color = ud.Color,
-                IsFavorite = ud.IsFavorite
+                IsFavorite = ud.IsFavorite,
+                Presets = _db.Preset
+                    .Where(preset => preset.DeviceId == ud.DeviceId)
+                    .OrderBy(preset => preset.Id)
+                    .Select(preset => new PresetDeviceDto
+                    {
+                        Id = preset.Id,
+                        PresetName = preset.PresetName,
+                        ConsumptionInKwh = preset.ConsumptionInKwh,
+                        DurationInMinutes = preset.DurationInMinutes
+                    })
+                    .ToList()
             })
             .ToListAsync();
     }
@@ -72,8 +93,20 @@ public class DeviceRepository : IDeviceRepository
         await _db.SaveChangesAsync();
     }
 
+    public async Task AddPresetAsync(DevicePreset preset)
+    {
+        _db.Preset.Add(preset);
+        await _db.SaveChangesAsync();
+    }
+
     public async Task SaveChangesAsync()
     {
+        await _db.SaveChangesAsync();
+    }
+
+    public async Task DeleteUserDevice(UserDevice userDevice)
+    {
+        _db.UserDevice.Remove(userDevice);
         await _db.SaveChangesAsync();
     }
 }

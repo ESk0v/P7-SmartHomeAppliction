@@ -46,6 +46,7 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 builder.Services.AddAuthorizationCore();
 builder.Services.AddCascadingAuthenticationState();
 
+builder.Services.AddSingleton<INotificationService, NotificationService>();
 
 var app = builder.Build();
 
