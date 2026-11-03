@@ -12,7 +12,7 @@ namespace Utilities.Models
         [Range(0, 100)]
 		public int? ChargeStopPercentage { get; set; }
 
-        public PresetDto Preset { get; set; } = new();
+        public PresetDto? Preset { get; set; } = new();
 
         [Required(ErrorMessage = "Please select a time.")]
         [Range(0, 23)]

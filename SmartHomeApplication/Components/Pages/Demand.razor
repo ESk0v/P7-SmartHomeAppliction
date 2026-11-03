@@ -41,28 +41,19 @@
                     <ButtonSelectDevice Options="@(userDevices.Select(d => (d.id.ToString(), d.deviceNickname, d.icon, d.color)))"
                         @bind-Value="selectedDeviceId" @bind-Value:after="OnDeviceSelected" Placeholder="Select device" />
                     <ValidationMessage For="() => ScheduleForm.DeviceName" class="text-danger" />
-            
                 </div>   
                 
                 @if (isEVSelected)
                 {
                     <div class="charge-settings mt-4 mb-4">
-
                         <div class="charge-slider">
                             <div class="charge-slider-header">
                                 <label for="chargeStop">Charge to</label>
                                 <span>@ScheduleForm.ChargeStopPercentage%</span>
                             </div>
-
-                            <InputNumber id="chargeStop"
-                                        class="charge-range"
-                                        @bind-Value="ScheduleForm.ChargeStopPercentage"
-                                        min="5"
-                                        max="100"
-                                        step="5"
-                                        type="range" />
+                            <InputNumber id="chargeStop" class="charge-range" @bind-Value="ScheduleForm.ChargeStopPercentage"
+                                        min="5" max="100" step="5" type="range" />
                         </div>
-
                     </div>
                 }
 
@@ -85,11 +76,10 @@
             <div class="boxes">
                 <div class ="row">
                     <div class="mb-4 col-sm-6 inboxes">
-                        <div class="">
+                        <div>
                             <div class="choices mb-4">
                                 <span>Scheduling window</span>
                             </div>
-                            
                             <div>
                                 <label class="form-label1">Start  <i class="bi bi-clock"/></label>
                                 <div class="d-flex gap-2 align-items-center">
@@ -155,9 +145,7 @@
                         <button type="submit" class="btn btn-primary">Generate Plan</button>
                     </div>
                 </div>
-                
             </div>
-            
         </EditForm>
     </div>
     <div class="col-sm-5">
@@ -205,7 +193,6 @@
                         <div>
                             <span>No plan generated yet.</span>
                         </div>
-                        
                     </div>
                 }
                 <div class="mb-3 d-flex justify-content-end save-plan-button">
@@ -213,15 +200,12 @@
                 </div>
                 
             </section>
-        </div>
-       
-              
+        </div>   
     </div>
 </div>
 
-
-
 @code {
+
     private List<PlanDto>? activeSchedules;
     private string area = "DK1";
     private ScheduleForm ScheduleForm = new();
@@ -435,15 +419,16 @@
 
         var planToSave = new PlanDTO
         {
-            UserDeviceId = selectedDevice.id,
-            StartTime = response.StartTime.ToUniversalTime(),
-            EndTime = response.EndTime.ToUniversalTime(),
-            NextPlan = null,
-            EstimatedPrice = response.EstimatedPrice,
-            EstimatedCo2Emission = response.EstimatedCo2Emissions,
-            EstimatedUnscheduledPrice = response.EstimatedPrice + 1,
-            EstimatedUnscheduledCo2Emission = response.EstimatedCo2Emissions + 1,
-            Name = (ScheduleForm.PlanName == string.Empty) ? ScheduleForm.DeviceName : ScheduleForm.PlanName
+            userDeviceId = selectedDevice.id,
+            startTime = response.StartTime.ToUniversalTime(),
+            endTime = response.EndTime.ToUniversalTime(),
+            nextPlanId = null,
+            estimatedCost = response.EstimatedPrice,
+            estimatedCo2Emissions = response.EstimatedCo2Emissions,
+            estimatedUnscheduledCost = response.EstimatedPrice + 1,
+            estimatedUnscheduledCo2Emissions = response.EstimatedCo2Emissions + 1,
+            planName = (ScheduleForm.PlanName == string.Empty) ? ScheduleForm.DeviceName : ScheduleForm.PlanName,
+            optimizationObjective = ScheduleForm.Priority
         };
 
         try
@@ -580,24 +565,6 @@
         padding-right: 20px;
     }
 
-
-    /* Responsive layout */
-    @@media (max-width: 576px) {
-        .boxes {
-            padding: 20px 24px;
-            border-radius: 18px;
-        }
-
-        .boxes h2 {
-            font-size: 20px;
-        }
-
-        .boxes p {
-            font-size: 14px;
-            gap: 12px;
-        }
-    }
-
     .inboxes {
         padding: 15px;
     }
@@ -710,7 +677,6 @@
         min-width: 0;
     }
     
-
     .charge-settings {
         padding: 20px;
         background: #fff;
@@ -815,6 +781,7 @@
         font-size: 0.78rem;
         margin: 0.35rem 0 0;
     }
+
     .summary-row {
         align-items: center;
         border-top: 1px solid #eeeae5;
