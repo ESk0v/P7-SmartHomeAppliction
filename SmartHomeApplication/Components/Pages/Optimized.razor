@@ -189,13 +189,13 @@
     private Dictionary<int, PlanDto> plansById = new Dictionary<int, PlanDto>();
     private List<PlanDto> selectedSchedules = new List<PlanDto>();
 
-    private string selectedPlanId
+    private int selectedPlanId
     {
         get => PlanState.SelectedPlanId;
         set => PlanState.SelectedPlanId = value;
     }
 
-    private int? selectedPlanID => int.TryParse(selectedPlanId, out int id) ? id : null;
+    private int? selectedPlanID => int.TryParse(selectedPlanId.ToString(), out int id) ? id : null;
 
     private PlanDto? selectedPlan => plans.FirstOrDefault(plan => plan.planId == selectedPlanID);
 
@@ -221,7 +221,7 @@
 
     private void SelectPlan(int planId)
     {
-        selectedPlanId = planId.ToString(CultureInfo.InvariantCulture);
+        selectedPlanId = planId;
         BuildSelectedSchedules();
         isPlanPickerOpen = false;
     }
@@ -287,7 +287,7 @@
 
         if (plans.Count > 0 && !plans.Any(plan => plan.planId == selectedPlanID))
         {
-            selectedPlanId = plans[0].planId.ToString(CultureInfo.InvariantCulture);
+            selectedPlanId = plans[0].planId;
         }
 
         BuildSelectedSchedules();
