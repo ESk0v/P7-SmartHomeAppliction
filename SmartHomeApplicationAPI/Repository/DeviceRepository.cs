@@ -99,7 +99,7 @@ public class DeviceRepository : IDeviceRepository
         await _db.SaveChangesAsync();
     }
 
-    public async Task SaveChangesAsync()
+    public async Task CommitChangesAsync()
     {
         await _db.SaveChangesAsync();
     }

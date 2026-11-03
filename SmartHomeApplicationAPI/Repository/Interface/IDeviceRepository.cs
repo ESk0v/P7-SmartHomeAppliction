@@ -12,6 +12,6 @@ public interface IDeviceRepository
     Task<List<CatalogueDeviceDto>> GetAllDevicesAsync();
     Task AddDeviceAsync(Device device, DevicePreset preset, UserDevice userDevice);
     Task AddPresetAsync(DevicePreset preset);
-    Task SaveChangesAsync();
+    Task CommitChangesAsync();
     Task DeleteUserDevice(UserDevice userDevice);   
 }

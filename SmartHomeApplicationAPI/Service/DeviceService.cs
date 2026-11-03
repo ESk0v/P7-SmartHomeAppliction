@@ -23,7 +23,7 @@ public class DeviceService : IDeviceService
         userDevice.Color = device.Color;
         userDevice.IsFavorite = device.IsFavorite;
 
-        await _repository.SaveChangesAsync();
+        await _repository.CommitChangesAsync();
         return true;
     }
 
@@ -48,7 +48,7 @@ public class DeviceService : IDeviceService
 
         existingPreset.ConsumptionInKwh = preset.ConsumptionInKwh;
         existingPreset.DurationInMinutes = preset.DurationInMinutes;
-        await _repository.SaveChangesAsync();
+        await _repository.CommitChangesAsync();
         return true;
     }
 
