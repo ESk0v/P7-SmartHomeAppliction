@@ -1,4 +1,4 @@
-<button type="button" class="header-button header-button-secondary">
+<button type="button" class="header-button header-button-secondary" @onclick="OnClick">
     @if (IconClass is not null)
     {
         <span class="header-button-icon" aria-hidden="true"><i class="bi @IconClass"></i></span>
@@ -10,6 +10,9 @@
 @code {
     [Parameter]
     public string? IconClass { get; set; }
+
+    [Parameter]
+    public EventCallback OnClick { get; set; }
 
     [Parameter]
     public RenderFragment? ChildContent { get; set; }
