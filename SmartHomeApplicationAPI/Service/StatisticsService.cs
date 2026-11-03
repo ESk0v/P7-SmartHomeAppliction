@@ -1,11 +1,13 @@
 using Utilities.Models;
 using SmartHomeApplicationAPI.Repository;
 using SmartHomeApplicationAPI.Infrastructure.Models;
+using System.Globalization;
 
 namespace SmartHomeApplicationAPI.Service;
 
 public class StatisticsService : IStatisticsService
 {
+    private static readonly CultureInfo DanishCulture = CultureInfo.GetCultureInfo("da-DK");
     private readonly IStatisticsRepository _repository;
 
     public StatisticsService(IStatisticsRepository repository)
@@ -140,6 +142,126 @@ public class StatisticsService : IStatisticsService
             Description = "" + arrow + " " + savedCo2Percent + " % cheaper"
         };
     }
-    #endregion
+
+    public async Task<StatisticsDto> GetEstimatedCostAsync(string userID, int planId)
+    {
+        var blocks = await RetrievePlanBlocksAsync(userID, planId);
+        if (blocks.Count == 0)
+            return NoPlanData();
+
+        decimal cost = blocks.Sum(block => block.EstimatedPrice);
+        decimal unscheduledCost = blocks.Sum(block => block.EstimatedUnscheduledPrice);
+        string description;
+
+        if (unscheduledCost <= 0)
+        {
+            description = "No unscheduled estimate available";
+        }
+        else
+        {
+            decimal differencePercent = (unscheduledCost - cost) / unscheduledCost * 100;
+            string percent = Math.Abs(differencePercent).ToString("0.#", DanishCulture);
+            description = differencePercent switch
+            {
+                > 0 => $"↓ {percent}% cheaper vs. unscheduled",
+                < 0 => $"{percent}% more than unscheduled",
+                _ => "Same as unscheduled"
+            };
+        }
+
+        return new StatisticsDto
+        {
+            Value = FormatKroner(cost),
+            Description = description
+        };
+    }
+
+    public async Task<StatisticsDto> GetMoneySavedAsync(string userID, int planId)
+    {
+        var blocks = await RetrievePlanBlocksAsync(userID, planId);
+        if (blocks.Count == 0)
+            return NoPlanData();
+
+        decimal cost = blocks.Sum(block => block.EstimatedPrice);
+        decimal unscheduledCost = blocks.Sum(block => block.EstimatedUnscheduledPrice);
+
+        return new StatisticsDto
+        {
+            Value = FormatKroner(unscheduledCost - cost),
+            Description = unscheduledCost <= 0
+                ? "No unscheduled estimate available"
+                : "vs. unscheduled"
+        };
+    }
+
+    public async Task<StatisticsDto> GetLoadDurationAsync(string userID, int planId)
+    {
+        var blocks = await RetrievePlanBlocksAsync(userID, planId);
+        if (blocks.Count == 0)
+            return NoPlanData();
+
+        TimeSpan duration = blocks.Aggregate(TimeSpan.Zero,
+            (total, block) => total + (block.PlanEndTime - block.PlanStartTime));
+        DateTime start = blocks.Min(block => block.PlanStartTime);
+
+        return new StatisticsDto
+        {
+            Value = FormatDuration(duration),
+            Description = $"Starts at {start.ToString("HH:mm", CultureInfo.InvariantCulture)}"
+        };
+    }
+
+    public async Task<StatisticsDto> GetLoadFinishAsync(string userID, int planId)
+    {
+        var blocks = await RetrievePlanBlocksAsync(userID, planId);
+        if (blocks.Count == 0)
+            return NoPlanData();
+
+        DateTime finish = blocks.Max(block => block.PlanEndTime);
+        TimeSpan timeBeforeDeadline = blocks[0].WindowEndTime - finish;
+        string description = timeBeforeDeadline > TimeSpan.Zero
+            ? $"{FormatDuration(timeBeforeDeadline)} before deadline"
+            : "Finishes right on deadline";
+
+        return new StatisticsDto
+        {
+            Value = finish.ToString("HH:mm", CultureInfo.InvariantCulture),
+            Description = description
+        };
+    }
+
+    private async Task<List<Plan>> RetrievePlanBlocksAsync(string userID, int planId)
+    {
+        var blocks = new List<Plan>();
+        var visited = new HashSet<int>();
+        int? currentId = planId;
+
+        while (currentId is int id && visited.Add(id))
+        {
+            Plan? block = await _repository.RetrievePlanByIdAsync(userID, id);
+            if (block is null)
+                break;
+
+            blocks.Add(block);
+            currentId = block.NextPlanId;
+        }
+
+        return blocks;
+    }
+
+    private static StatisticsDto NoPlanData() => new()
+    {
+        Value = "--",
+        Description = "No plan data available"
+    };
+
+    private static string FormatKroner(decimal amount) =>
+        $"{amount.ToString("0.00", DanishCulture)} kr";
+
+    private static string FormatDuration(TimeSpan duration) =>
+        duration.TotalHours >= 1
+            ? $"{(int)duration.TotalHours}h {duration.Minutes}m"
+            : $"{duration.Minutes}m";
+  #endregion
 
 }

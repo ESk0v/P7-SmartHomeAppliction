@@ -23,8 +23,8 @@
                     <button type="button"
                         class="plan-picker-trigger"
                         @onclick="TogglePlanPicker">
-                    <span class="plan-picker-icon"><i class="bi @selectedPlan.IconClass"></i></span>
-                    <span>@selectedPlan.Name</span>
+                    <span class="plan-picker-icon"><i class="bi @ScheduleIcons.Get(selectedPlan?.icon)"></i></span>
+                    <span>@(selectedPlan?.planName ?? "No plan")</span>
                     <span class="plan-picker-chevron @(isPlanPickerOpen ? "plan-picker-chevron-open" : "")"></span>
                     </button>
 
@@ -32,14 +32,14 @@
                     {
                     <div class="plan-picker-menu">
                         @if (plans.Count == 0) { <p class="optimized-empty">No optimized plans were found.</p> }
-                        @foreach (Plan plan in plans)
+                        @foreach (PlanDto plan in plans)
                         {
                             <button type="button"
-                                    class="plan-picker-option @(plan.Id == selectedPlanId ? "plan-picker-option-selected" : "")"
-                                    @onclick="() => SelectPlan(plan.Id)">
-                                <span class="plan-picker-icon"><i class="bi @plan.IconClass"></i></span>
-                                <span>@plan.Name</span>
-                                @if (plan.Id == selectedPlanId)
+                                    class="plan-picker-option @(plan.planId == selectedPlanID ? "plan-picker-option-selected" : "")"
+                                    @onclick="() => SelectPlan(plan.planId)">
+                                <span class="plan-picker-icon"><i class="bi @ScheduleIcons.Get(plan.icon)"></i></span>
+                                <span>@plan.planName</span>
+                                @if (plan.planId == selectedPlanID)
                                 {
                                     <span class="plan-picker-check">✓</span>
                                 }
@@ -49,7 +49,7 @@
                     }
                 </div>
             </div>
-            <p style="padding: 0 0.85rem">@(plans.Count == 0 ? string.Empty : $"{selectedPlan.Device} • Window: {selectedPlan.Window}")</p>
+            <p style="padding: 0 0.85rem">@(selectedPlan is null ? string.Empty : $"{selectedPlan.deviceName} • Window: {FormatTime(selectedPlan.windowStartTime)}–{FormatTime(selectedPlan.windowEndTime)}")</p>
         </div>
 
         <div class="header-actions">
@@ -66,10 +66,10 @@
 
 <div class="body">
     <div class="statistics">
-        <Statistics Type="StatisticsType.EstimatedCost"/>
-        <Statistics Type="StatisticsType.MoneySaved"/>
-        <Statistics Type="StatisticsType.LoadDuration"/>
-        <Statistics Type="StatisticsType.LoadFinish"/>
+        <Statistics Type="StatisticsType.EstimatedCost" PlanID="selectedPlanID"/>
+        <Statistics Type="StatisticsType.MoneySaved" PlanID="selectedPlanID"/>
+        <Statistics Type="StatisticsType.LoadDuration" PlanID="selectedPlanID"/>
+        <Statistics Type="StatisticsType.LoadFinish" PlanID="selectedPlanID"/>
     </div>
 
     @if (isLoading)
@@ -82,7 +82,7 @@
     }
     else if (selectedSchedules.Count == 0)
     {
-        <p class="optimized-empty">No optimized loads were found for @selectedPlan.Device.</p>
+        <p class="optimized-empty">No optimized loads were found for @(selectedPlan?.deviceName ?? "this plan").</p>
     }
     else
     {
@@ -180,12 +180,14 @@
     </div>
 
 @code {
-    private List<Plan> plans = new List<Plan>();
+    private List<PlanDto> plans = new List<PlanDto>();
 
     private bool isPlanPickerOpen;
     private bool isLoading = true;
     private string? loadError;
     private List<PlanDto> allSchedules = new List<PlanDto>();
+    private Dictionary<int, PlanDto> plansById = new Dictionary<int, PlanDto>();
+    private List<PlanDto> selectedSchedules = new List<PlanDto>();
 
     private string selectedPlanId
     {
@@ -193,94 +195,23 @@
         set => PlanState.SelectedPlanId = value;
     }
 
-    private Plan selectedPlan => plans.FirstOrDefault(plan => plan.Id == selectedPlanId) ?? EmptyPlan;
-    private List<PlanDto> selectedSchedules => selectedPlan.Schedules;
+    private int? selectedPlanID => int.TryParse(selectedPlanId, out int id) ? id : null;
 
-    private StatisticsDto EstimatedCost => new StatisticsDto()
-    {
-        Value = selectedSchedules.Count == 0
-            ? "--"
-            : selectedSchedules.Sum(schedule => schedule.estimatedCost).ToString("C", CultureInfo.CurrentCulture),
-        Description = selectedSchedules.Count == 0
-            ? "No data available"
-            : BaselineDifferencePercent == 0
-                ? "0% vs. unscheduled"
-                : $"↓ {BaselineDifferencePercent:0}% vs. unscheduled"
-    };
-
-    private StatisticsDto MoneySaved
-    {
-        get
-        {
-            decimal estimatedCost = selectedSchedules.Sum(schedule => schedule.estimatedCost);
-            decimal baselineCost = estimatedCost * 1.15m;   // Temporary baseline
-
-            return new StatisticsDto()
-            {
-                Value = selectedSchedules.Count == 0
-                    ? "--"
-                    : (baselineCost - estimatedCost).ToString("C", CultureInfo.CurrentCulture),
-                Description = selectedSchedules.Count == 0
-                    ? "No data available"
-                    : "vs. unscheduled"
-            };
-        }
-    }
-
-    private StatisticsDto LoadDuration => new StatisticsDto()
-    {
-        Value = selectedSchedules.Count == 0
-            ? "--"
-            : FormatDuration(selectedSchedules
-                .Select(schedule => schedule.endTime - schedule.startTime)
-                .Aggregate(TimeSpan.Zero, (total, duration) => total + duration)),
-        Description = selectedSchedules.Count == 0
-            ? "No data available"
-            : $"Starts at {selectedSchedules.Min(schedule => schedule.startTime):HH:mm}"
-    };
-
-    private StatisticsDto LoadFinish => new StatisticsDto()
-    {
-        Value = selectedSchedules.Count == 0
-            ? "--"
-            : selectedSchedules.Max(schedule => schedule.endTime).ToString("HH:mm", CultureInfo.InvariantCulture),
-        Description = selectedSchedules.Count == 0
-            ? "No data available"
-            : FormatDeadlineDescription()
-    };
+    private PlanDto? selectedPlan => plans.FirstOrDefault(plan => plan.planId == selectedPlanID);
 
     private string FinishDescription =>
         selectedSchedules.Count == 0
             ? "No schedule data"
             : FormatDeadlineDescription();
 
-    private decimal BaselineDifferencePercent
-    {
-        get
-        {
-            decimal estimatedCost = selectedSchedules.Sum(schedule => schedule.estimatedCost);
-            decimal baselineCost = estimatedCost * 1.15m;   // Temporary baseline
-
-            return baselineCost == 0
-                ? 0
-                : (baselineCost - estimatedCost) / baselineCost * 100;
-        }
-    }
-
     private string FormatDeadlineDescription()
     {
         DateTime finish = selectedSchedules.Max(schedule => schedule.endTime);
-        DateTime deadline = finish;
-        TimeSpan remaining = deadline - finish;
+        TimeSpan remaining = selectedPlan!.windowEndTime - finish;
 
-        if (remaining <= TimeSpan.Zero)
-        {
-            return remaining == TimeSpan.Zero
-                ? "Finishes right on deadline"
-                : "Finishes after deadline";    // Probably won't happen, but just in case
-        }
-
-        return $"Finishes {FormatDuration(remaining)} before deadline";
+        return remaining > TimeSpan.Zero
+            ? $"Finishes {FormatDuration(remaining)} before deadline"
+            : "Finishes right on deadline";
     }
 
     private void TogglePlanPicker()
@@ -288,9 +219,10 @@
         isPlanPickerOpen = !isPlanPickerOpen;
     }
 
-    private void SelectPlan(string planId)
+    private void SelectPlan(int planId)
     {
-        selectedPlanId = planId;
+        selectedPlanId = planId.ToString(CultureInfo.InvariantCulture);
+        BuildSelectedSchedules();
         isPlanPickerOpen = false;
     }
 
@@ -333,6 +265,9 @@
             : $"{duration.Minutes}m";
     }
 
+    private static string FormatTime(DateTime time) =>
+        time.ToString("HH:mm", CultureInfo.InvariantCulture);
+
     private void BuildPlansFromSchedules()
     {
         if (allSchedules.Count == 0)
@@ -340,7 +275,7 @@
             return;
         }
 
-        Dictionary<int, PlanDto> plansById = allSchedules.ToDictionary(schedule => schedule.planId);
+        plansById = allSchedules.ToDictionary(schedule => schedule.planId);
         HashSet<int> continuationIds = allSchedules
             .Where(schedule => schedule.nextPlanId.HasValue)
             .Select(schedule => schedule.nextPlanId!.Value)
@@ -348,57 +283,31 @@
 
         plans = allSchedules
             .Where(schedule => !continuationIds.Contains(schedule.planId))
-            .Select(root => CreatePlan(root, plansById))
             .ToList();
 
-        if (plans.Count > 0 && !plans.Any(plan => plan.Id == selectedPlanId))
+        if (plans.Count > 0 && !plans.Any(plan => plan.planId == selectedPlanID))
         {
-            selectedPlanId = plans[0].Id;
+            selectedPlanId = plans[0].planId.ToString(CultureInfo.InvariantCulture);
         }
+
+        BuildSelectedSchedules();
     }
 
-    private static Plan CreatePlan(PlanDto root, Dictionary<int, PlanDto> plansById)
+    private void BuildSelectedSchedules()
     {
-        List<PlanDto> schedules = new List<PlanDto>();
+        selectedSchedules = new List<PlanDto>();
         HashSet<int> visited = new HashSet<int>();
-        PlanDto? current = root;
+        PlanDto? current = selectedPlan;
 
         while (current is not null && visited.Add(current.planId))
         {
-            schedules.Add(current);
+            selectedSchedules.Add(current);
             current = current.nextPlanId is { } nextId
                 && plansById.TryGetValue(nextId, out PlanDto? next)
                     ? next
                     : null;
         }
-
-        DateTime start = schedules.Min(schedule => schedule.startTime);
-        DateTime end = schedules.Max(schedule => schedule.endTime);
-
-        return new Plan(
-            root.planId.ToString(CultureInfo.InvariantCulture),
-            root.planName,
-            root.deviceName,
-            $"{start:HH:mm}–{end:HH:mm}",
-            schedules,
-            ScheduleIcons.Get(root.icon));
     }
-
-    private sealed record Plan(
-        string Id,
-        string Name,
-        string Device,
-        string Window,
-        List<PlanDto> Schedules,
-        string IconClass);
-
-    private static readonly Plan EmptyPlan = new Plan(
-        string.Empty,
-        "No plan",
-        "No device",
-        "--",
-        new List<PlanDto>(),
-        ScheduleIcons.Get(null));
 }
 
 

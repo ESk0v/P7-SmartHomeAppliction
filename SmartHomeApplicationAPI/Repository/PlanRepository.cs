@@ -28,6 +28,8 @@ public class PlanRepository : IPlanRepository
                 deviceName: p.UserDevice.Nickname,
                 startTime: p.PlanStartTime,
                 endTime: p.PlanEndTime,
+                windowStartTime: p.WindowStartTime,
+                windowEndTime: p.WindowEndTime,
                 estimatedCost: p.EstimatedPrice,
                 estimatedCo2Emissions: p.EstimatedCo2Emissions
                 

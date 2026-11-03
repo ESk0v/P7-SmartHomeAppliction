@@ -22,8 +22,11 @@
     [Parameter]
     public StatisticsType Type { get; set; }
     [Parameter]
-    public string DescriptionClass { get; set; } = string.Empty;
+    public int? PlanID { get; set; }
     public StatisticsDto? Data { get; set;}
+    private bool hasLoaded;
+    private StatisticsType loadedType;
+    private int? loadedPlanId;
 
     private string Title => Type switch
     {
@@ -38,30 +41,70 @@
         _ => "Statistics"
     };
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnParametersSetAsync()
     {
-        Data = Type switch
+        if (hasLoaded && loadedType == Type && loadedPlanId == PlanID)
+            return;
+
+        hasLoaded = true;
+        loadedType = Type;
+        loadedPlanId = PlanID;
+
+        StatisticsType type = Type;
+        int? planId = PlanID;
+        bool isOptimizedStatistic = type is StatisticsType.EstimatedCost
+            or StatisticsType.MoneySaved
+            or StatisticsType.LoadDuration
+            or StatisticsType.LoadFinish;
+
+        if (isOptimizedStatistic && planId is null)
         {
-            StatisticsType.PlannedCost => await GetStatistic("planned-cost"),                       //Dashboard
-            StatisticsType.ScheduleSavingsCost => await GetStatistic("schedule-savings-cost"),      //Dashboard
-            StatisticsType.PlannedCo2 => await GetStatistic("planned-co2"),                         //Dashboard
-            StatisticsType.ScheduleSavingsCo2 => await GetStatistic("schedule-savings-c02"),        //Dashboard
-            StatisticsType.EstimatedCost => await GetStatistic("estimated-cost"),                   //Optimized  
-            StatisticsType.MoneySaved => await GetStatistic("money-saved"),                         //Optimized
-            StatisticsType.LoadDuration => await GetStatistic("load-duration"),                     //Optimized
-            StatisticsType.LoadFinish => await GetStatistic("load-finish")                          //Optimized
-        };
+            Data = new StatisticsDto { Value = "--", Description = "No plan selected" };
+            return;
+        }
+
+        Data = null;
+        try
+        {
+            StatisticsDto data = type switch
+            {
+                StatisticsType.PlannedCost => await GetStatistic("planned-cost", planId),
+                StatisticsType.ScheduleSavingsCost => await GetStatistic("schedule-savings-cost", planId),
+                StatisticsType.PlannedCo2 => await GetStatistic("planned-co2", planId),
+                StatisticsType.ScheduleSavingsCo2 => await GetStatistic("schedule-savings-c02", planId),
+                StatisticsType.EstimatedCost => await GetStatistic("estimated-cost", planId),
+                StatisticsType.MoneySaved => await GetStatistic("money-saved", planId),
+                StatisticsType.LoadDuration => await GetStatistic("load-duration", planId),
+                StatisticsType.LoadFinish => await GetStatistic("load-finish", planId),
+                _ => new StatisticsDto { Value = "--" }
+            };
+
+            if (loadedType == type && loadedPlanId == planId)
+                Data = data;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Failed to load statistic {Type} for plan {PlanId}", type, planId);
+            if (loadedType == type && loadedPlanId == planId)
+                Data = new StatisticsDto { Value = "--", Description = "Statistic unavailable" };
+        }
     }
 
-    private async Task<StatisticsDto> GetStatistic(string uri)
+    private async Task<StatisticsDto> GetStatistic(string uri, int? planId)
     {
         AuthenticationState? state = await AuthProvider.GetAuthenticationStateAsync();
         string? userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId))
+            throw new InvalidOperationException("The current user could not be identified.");
 
-        HttpRequestMessage? request = new HttpRequestMessage(HttpMethod.Get, "api/statistics-controller/" + uri);
+        using HttpRequestMessage request = new(HttpMethod.Get, "api/statistics-controller/" + uri);
         request.Headers.Add("UserId", userId);
+        if (planId.HasValue)
+        {
+            request.Headers.Add("PlanId", planId.Value.ToString());
+        }
 
-        HttpResponseMessage? response = await Http.SendAsync(request);
+        using HttpResponseMessage response = await Http.SendAsync(request);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<StatisticsDto>() ?? new StatisticsDto();
     }

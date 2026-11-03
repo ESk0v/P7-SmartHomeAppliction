@@ -203,6 +203,8 @@
     private Dictionary<int, List<PresetDto>> presetsByDevice = new();
     private string? selectedDeviceId;
     private OptimizationResultDTO? response;
+    private DateTime? requestedWindowStart;
+    private DateTime? requestedWindowEnd;
     private List<int> Hours { get; set; } = new();
     private int [] Minutes = {00, 15, 30, 45};
     private IEnumerable<(string Value, string Text)> HourOptions =>
@@ -294,6 +296,8 @@
         filteredPresets = new List<PresetDto>();
         selectedDeviceId = string.Empty;
         response = null;
+        requestedWindowStart = null;
+        requestedWindowEnd = null;
         displayPlan = false;
         isEVSelected = false;
     }
@@ -343,6 +347,10 @@
     private async Task GenerateScheduling()
     {   
         schedulingError = null;
+        response = null;
+        displayPlan = false;
+        requestedWindowStart = null;
+        requestedWindowEnd = null;
         var startTime = GetScheduledDateTime(ScheduleForm.StartHour!.Value, ScheduleForm.StartMinute!.Value);
         var endTime = GetScheduledDateTime(ScheduleForm.EndHour!.Value, ScheduleForm.EndMinute!.Value);
 
@@ -361,6 +369,9 @@
             ClearSchedule();
             return;
         }
+
+        requestedWindowStart = startTime;
+        requestedWindowEnd = endTime;
 
 
         var optimizationRequest = new OptimizationRequestDTO
@@ -412,9 +423,9 @@
             return;
         }
 
-        if (response is null)
+        if (response is null || requestedWindowStart is null || requestedWindowEnd is null)
         {
-            Console.WriteLine("OptimizationResult is null");
+            Console.WriteLine("Optimization result or requested window is missing");
             return;
         }
 
@@ -424,6 +435,8 @@
             UserDeviceId = selectedDevice.id,
             StartTime = response.StartTime.ToUniversalTime(),
             EndTime = response.EndTime.ToUniversalTime(),
+            WindowStartTime = requestedWindowStart.Value.ToUniversalTime(),
+            WindowEndTime = requestedWindowEnd.Value.ToUniversalTime(),
             NextPlan = null,
             EstimatedPrice = response.EstimatedPrice,
             EstimatedCo2Emission = response.EstimatedCo2Emissions,

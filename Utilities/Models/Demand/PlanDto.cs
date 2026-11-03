@@ -10,6 +10,10 @@ namespace Utilities.Models
 
     	public DateTime EndTime { get; set; }
 
+        public DateTime? WindowStartTime { get; set; }
+
+        public DateTime? WindowEndTime { get; set; }
+
         public int? NextPlan { get; set; }
 
         public decimal EstimatedPrice { get; set; }
