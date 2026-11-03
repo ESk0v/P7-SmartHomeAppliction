@@ -23,7 +23,7 @@
                     <button type="button"
                         class="plan-picker-trigger"
                         @onclick="TogglePlanPicker">
-                    <span class="plan-picker-icon"><i class="bi @ScheduleIcons.Get(selectedPlan?.icon)"></i></span>
+                    <span class="plan-picker-icon" style="color: @(selectedPlan?.colorCode ?? "#7569e8")"><i class="bi @ScheduleIcons.Get(selectedPlan?.icon)"></i></span>
                     <span>@(selectedPlan?.planName ?? "No plan")</span>
                     <span class="plan-picker-chevron @(isPlanPickerOpen ? "plan-picker-chevron-open" : "")"></span>
                     </button>
@@ -37,7 +37,7 @@
                             <button type="button"
                                     class="plan-picker-option @(plan.planId == selectedPlanID ? "plan-picker-option-selected" : "")"
                                     @onclick="() => SelectPlan(plan.planId)">
-                                <span class="plan-picker-icon"><i class="bi @ScheduleIcons.Get(plan.icon)"></i></span>
+                                <span class="plan-picker-icon" style="color: @plan.colorCode"><i class="bi @ScheduleIcons.Get(plan.icon)"></i></span>
                                 <span>@plan.planName</span>
                                 @if (plan.planId == selectedPlanID)
                                 {
