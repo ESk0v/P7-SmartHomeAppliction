@@ -28,5 +28,13 @@ Forecasting/__pycache__
 *.log
 
 # C# test coverage filer
-SmartHomeApplicationAPI.Tests/coverage.json
-
+# C# test coverage filer
+coverage.json
+**/coverage.json
+**/coverage.cobertura.xml
+TestResults/
+**/TestResults/
+CoverageReport/
+**/CoverageReport/
+lcov.info
+**/lcov.info
