@@ -9,6 +9,7 @@
 @using Utilities.Models
 
 @inject HttpClient Http
+@inject NavigationManager NavigationManager
 @inject AuthenticationStateProvider AuthProvider
 @inject ILogger<Optimized> Logger
 
@@ -53,7 +54,7 @@
         </div>
 
         <div class="header-actions">
-            <button type="button" class="optimized-action optimized-action-secondary">
+            <button type="button" class="optimized-action optimized-action-secondary" @onclick="EditPlan" disabled="@(selectedPlan is null)">
                 Adjust
             </button>
             <button type="button" class="optimized-action optimized-action-primary">
@@ -226,6 +227,17 @@
         isPlanPickerOpen = false;
     }
 
+    private void EditPlan()
+    {
+        if (selectedPlan is null)
+        {
+            Logger.LogWarning("Attempted to edit a plan when no plan was selected.");
+            return;
+        }
+
+        NavigationManager.NavigateTo("/plans/edit");
+    }
+
     protected override async Task OnInitializedAsync()
     {
         try
@@ -272,6 +284,8 @@
     {
         if (allSchedules.Count == 0)
         {
+            selectedPlanId = 0;
+            selectedSchedules.Clear();
             return;
         }
 
@@ -285,10 +299,7 @@
             .Where(schedule => !continuationIds.Contains(schedule.planId))
             .ToList();
 
-        if (plans.Count > 0 && !plans.Any(plan => plan.planId == selectedPlanID))
-        {
-            selectedPlanId = plans[0].planId;
-        }
+        selectedPlanId = plans.Count > 0 ? plans[0].planId : 0;
 
         BuildSelectedSchedules();
     }

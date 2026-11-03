@@ -55,11 +55,13 @@ public class CreatePlanRepository : ICreatePlanRepository
         {
             Name = planDTO.planName,
             UserDeviceId = planDTO.userDeviceId,
-            PlanStartTime = planDTO.startTime,
-            PlanEndTime = planDTO.endTime,
-            WindowStartTime = planDTO.windowStartTime ?? planDTO.startTime,
-            WindowEndTime = planDTO.windowEndTime ?? planDTO.endTime,
+            PlanStartTime = DateTime.SpecifyKind(planDTO.startTime, DateTimeKind.Unspecified),
+            PlanEndTime = DateTime.SpecifyKind(planDTO.endTime, DateTimeKind.Unspecified),
+            WindowStartTime = DateTime.SpecifyKind(planDTO.windowStartTime ?? planDTO.startTime, DateTimeKind.Unspecified),
+            WindowEndTime = DateTime.SpecifyKind(planDTO.windowEndTime ?? planDTO.endTime, DateTimeKind.Unspecified),
             OptimizationObjective = planDTO.optimizationObjective!,
+            DevicePresetId = planDTO.presetId,
+            ChargeStopPercentage = planDTO.chargeStopPercentage,
             EstimatedPrice = planDTO.estimatedCost,
             EstimatedCo2Emissions = planDTO.estimatedCo2Emissions,
             EstimatedUnscheduledPrice = (decimal)planDTO.estimatedUnscheduledCost!,
@@ -84,7 +86,9 @@ public class CreatePlanRepository : ICreatePlanRepository
             estimatedUnscheduledCost = plan.EstimatedUnscheduledPrice,
             estimatedUnscheduledCo2Emissions = plan.EstimatedUnscheduledCo2Emissions,
             userDeviceId = plan.UserDeviceId,
-            optimizationObjective = plan.OptimizationObjective 
+            optimizationObjective = plan.OptimizationObjective,
+            presetId = plan.DevicePresetId,
+            chargeStopPercentage = plan.ChargeStopPercentage
         };
           
     
