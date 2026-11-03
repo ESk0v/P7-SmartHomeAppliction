@@ -352,15 +352,12 @@
         }
 
         var timeWindow = (int)(endTime - startTime).TotalMinutes;
-        Console.WriteLine($"duration{timeWindow}");
-        Console.WriteLine(ScheduleForm.Preset.duration);
 
-        if (ScheduleForm.Preset.duration > timeWindow)
+        if (ScheduleForm.Preset != null && ScheduleForm.Preset.duration > timeWindow)
         {
             schedulingError = $"The selected program requires {ScheduleForm.Preset.duration} minutes.";
             return;
         }
-
 
         var optimizationRequest = new OptimizationRequestDTO
         {
