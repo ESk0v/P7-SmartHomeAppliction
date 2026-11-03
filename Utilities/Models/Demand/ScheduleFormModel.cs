@@ -10,9 +10,6 @@ namespace Utilities.Models
 		public string DeviceName { get; set; } = string.Empty;
 
         [Range(0, 100)]
-		public int? ChargeStartPercentage { get; set; }
-
-        [Range(0, 100)]
 		public int? ChargeStopPercentage { get; set; }
 
         public PresetDto? Preset { get; set; } = new();
@@ -35,6 +32,10 @@ namespace Utilities.Models
 
 		[Required(ErrorMessage = "Please select a priority.")]
 		public string Priority { get; set; } = "Cheapest";
+
+    	[StringLength(100)]
+        public string PlanName { get; set; } = string.Empty;
+
 
 	}
 }

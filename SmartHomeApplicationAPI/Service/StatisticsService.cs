@@ -88,12 +88,13 @@ public class StatisticsService : IStatisticsService
             };
         }
 
-        decimal percent = Math.Round(Math.Abs(diff) / unscheduled * 100, 1);
-
-        return new StatisticsDto
-        {
-            Value = value,
-            Description = $"{arrow} {percent:0.#} % {text}"
+        decimal savedCo2 = totalUnscheduledCo2 - totalCo2;
+        decimal savedCo2Percent = (totalUnscheduledCo2 - totalCo2) / totalUnscheduledCo2 * 100;       
+        string arrow = savedCo2 > 0 ? "\u2193" : "";
+        
+        return new StatisticsDto{
+            Value = "" + savedCo2 + " g",
+            Description = "" + arrow + " " + savedCo2Percent + " % cheaper"
         };
     }
     
