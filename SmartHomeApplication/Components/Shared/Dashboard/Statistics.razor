@@ -23,11 +23,9 @@
     [Parameter] public DateTime? From { get; set; }
     [Parameter] public DateTime? To { get; set; }
     [Parameter] public StatisticsType Type { get; set; }
-    [Parameter] public string DescriptionClass { get; set; } = string.Empty;
     public StatisticsDto? Data { get; set;}
 
     private DateTime? loadedFrom, loadedTo;
-    private bool loaded;
 
     private string Title => Type switch
     {

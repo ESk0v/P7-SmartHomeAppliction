@@ -61,16 +61,17 @@ public class StatisticsService : IStatisticsService
     }
 
     #region Helpers
-    private static StatisticsDto BuildSavingDto( decimal planned, decimal unscheduled, string unit, string betterText, string worseText)
+    private static StatisticsDto BuildSavingDto(
+        decimal planned, decimal unscheduled, string unit, string betterText, string worseText)
     {
-        decimal diff = unscheduled - planned;
+        decimal diff = unscheduled - planned;   // > 0 = better than unscheduled
 
         if (diff == 0)
         {
             return new StatisticsDto
             {
                 Value = $"0 {unit}",
-                Description = "0 % saved"
+                Description = "Same as unscheduled"
             };
         }
 
@@ -79,12 +80,13 @@ public class StatisticsService : IStatisticsService
         string text = better ? betterText : worseText;
         string value = $"{diff:0.##} {unit}";
 
+        // Baseline is 0 (and plan is worse): percent is undefined, show absolute only
         if (unscheduled == 0)
         {
             return new StatisticsDto
             {
                 Value = value,
-                Description = $"{arrow} {text} than unscheduled"
+                Description = $"{arrow} {text}"
             };
         }
 
@@ -95,7 +97,6 @@ public class StatisticsService : IStatisticsService
             Value = value,
             Description = $"{arrow} {percent:0.#} % {text}"
         };
-
     }
     
     private static readonly TimeZoneInfo CopenhagenTz =
