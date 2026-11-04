@@ -4,23 +4,33 @@ namespace Utilities.Models
 {
 	public class PlanDTO	
 	{
-        public int UserDeviceId { get; set; }
+        public int userDeviceId { get; set; }
 
-        public DateTime StartTime { get; set; }
+        public DateTime startTime { get; set; }
 
-    	public DateTime EndTime { get; set; }
+    	public DateTime endTime { get; set; }
 
-        public int? NextPlan { get; set; }
+        public int? nextPlanId { get; set; }
 
-        public decimal EstimatedPrice { get; set; }
+        public decimal estimatedCost { get; set; }
 
-        public decimal EstimatedCo2Emission { get; set; }
+        public decimal estimatedCo2Emissions { get; set; }
 
-        public decimal EstimatedUnscheduledPrice { get; set; }
+        public decimal? estimatedUnscheduledCost { get; set; }
 
-        public decimal EstimatedUnscheduledCo2Emission { get; set; }
+        public decimal? estimatedUnscheduledCo2Emissions { get; set; }
 
-        public string Name { get; set; } = "Optimized Plan";
+        public string planName { get; set; } = "Optimized Plan";
+
+        public int? planId { get; set; }
+
+        public string? icon { get; set; }
+
+        public string? colorCode { get; set; }
+
+        public string? deviceName { get; set; }
+
+        public string? optimizationObjective { get; set; }
 	
 	}
 }

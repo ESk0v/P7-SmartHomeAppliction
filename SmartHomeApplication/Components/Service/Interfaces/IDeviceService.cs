@@ -17,4 +17,19 @@ public interface IDeviceService
     Task UpdateUserDeviceAsync(
         UpdateUserDeviceDto UpdateUserDeviceDto,
         CancellationToken cancellationToken = default);
+
+    Task UpdatePresetAsync(
+        int userDeviceId,
+        PresetDeviceDto preset,
+        CancellationToken cancellationToken = default);
+
+    Task CreatePresetAsync(
+        int userDeviceId,
+        PresetDeviceDto preset,
+        CancellationToken cancellationToken = default);
+
+    Task DeleteUserDeviceAsync(
+        int userDeviceId,
+        CancellationToken cancellationToken = default);
+
 }

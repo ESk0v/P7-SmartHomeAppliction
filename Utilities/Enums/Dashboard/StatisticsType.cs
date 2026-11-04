@@ -4,8 +4,8 @@ public enum StatisticsType
     ScheduleSavingsCost,        //Dashboard
     PlannedCo2,                 //Dashboard
     ScheduleSavingsCo2,         //Dashboard
-    EstimatedCost,
-    MoneySaved,
-    LoadDuration,
-    LoadFinish
+    EstimatedCost,              //Optimized
+    MoneySaved,                 //Optimized
+    LoadDuration,               //Optimized
+    LoadFinish                  //Optimized
 }
