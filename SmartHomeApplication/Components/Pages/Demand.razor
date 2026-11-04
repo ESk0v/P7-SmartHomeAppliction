@@ -165,7 +165,7 @@
                     <div class="summary-row">
                         <div>
                             <span>Start time</span>
-                            <small>@((ScheduleForm.PlanName == string.Empty) ? ScheduleForm.DeviceName : ScheduleForm.PlanName) runs for @ScheduleForm.Preset.duration minutes</small>
+                            <small>@((ScheduleForm.PlanName == string.Empty) ? ScheduleForm.DeviceName : ScheduleForm.PlanName) runs for @((ScheduleForm.Preset != null) ? ScheduleForm.Preset.duration : "?") minutes</small>
                         </div>
                         <strong>@response.StartTime.ToString("HH:mm")</strong>
                     </div>
@@ -206,15 +206,27 @@
 
 @code {
 
+    // activeSchedules is used to show the price chart with the active plans
     private List<PlanDto>? activeSchedules;
     private string area = "DK1";
+
+    // ScheduleForm is used to collect the data for the optimization request
     private ScheduleForm ScheduleForm = new();
+
+    // filteredPresets is updated when a device is selected, and is used to show the presets for the selected device
     private List<PresetDto> filteredPresets = new();
     private string? selectedPresetId;
+
+    //userDevices is collected from the API and is used to show the devices that the user has registered
     private List<PlanUserDeviceDto> userDevices = new();
+    
+    //A dictionary that maps device IDs to their corresponding presets. (is used to filter the presets into 'filteredPresets' when a device is selected)
     private Dictionary<int, List<PresetDto>> presetsByDevice = new();
     private string? selectedDeviceId;
+
+    // response is used to store the result of the optimization request, and is used to show the plan overview
     private OptimizationResultDTO? response;
+
     private List<int> Hours { get; set; } = new();
     private int [] Minutes = {00, 15, 30, 45};
     private IEnumerable<(string Value, string Text)> HourOptions =>
@@ -223,6 +235,7 @@
     Minutes.Select(m => (m.ToString(), m.ToString("D2")));
     private string? schedulingError;
 
+    // Methods to convert the start and end hour and minute values to and from strings.
     private string? StartHourText
     {
         get => ScheduleForm.StartHour?.ToString();
@@ -254,6 +267,7 @@
     private bool displayPlan = false;
 
 
+    //On initialization, user is found and fetches active schedules, user devices and their presets from the API.
     protected override async Task OnInitializedAsync()
     {
         var state = await AuthProvider.GetAuthenticationStateAsync();
@@ -298,9 +312,11 @@
         isApplianceSelected = false;
     }
 
+    // This method is called when a device is selected from the dropdown. 
+    // It updates the ScheduleForm with the selected device's name, filters the presets for the selected device, 
+    // and checks if the selected device is an EV charger or an appliance.
     private void OnDeviceSelected()
     {
-        // filter i all presets og vælg ud fra device id -> devicePreset
 
         var selectedDevice = userDevices
             .FirstOrDefault(x => x.id.ToString() == selectedDeviceId);
@@ -311,13 +327,14 @@
         ? presets : new List<PresetDto>();
 
         isEVSelected = selectedDevice?.category == "ev_charger";
-
         isApplianceSelected = selectedDevice?.category != "ev_charger";
         
         selectedPresetId = null;
         ScheduleForm.Preset = new PresetDto();
     }
 
+    // This method is called when a preset is selected from the dropdown.
+    // It updates the ScheduleForm with the selected preset.
     private void UpdateSelectedPreset()
     {
         var selectedPreset = filteredPresets.FirstOrDefault(p => p.id.ToString() == selectedPresetId);
@@ -328,7 +345,8 @@
         }
         schedulingError = null;
     }
-
+    
+    // This method calculates the scheduled DateTime based on the provided hour and minute and the current time
     private DateTime GetScheduledDateTime(int hour, int minute)
     {
         var now = DateTime.Now;
@@ -340,6 +358,9 @@
         }
         return scheduledTime;
     }
+
+    //This method is called when the 'generate plan' button is clicked.
+    // it calls the optimization API with the data from the ScheduleForm and updates the response (used to display the plan) with the result.
     private async Task GenerateScheduling()
     {   
         schedulingError = null;
@@ -396,6 +417,8 @@
         return ;
     }
 
+    // This method is called when the 'save plan' button is clicked.
+    // It creates a PlanDTO object with the data from the ScheduleForm and the response from the optimization and sends it to API to be saved in DB
     private async Task addPlan()
     {
         var selectedDevice = userDevices
