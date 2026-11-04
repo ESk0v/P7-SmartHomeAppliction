@@ -23,9 +23,14 @@
     [Parameter] public DateTime? From { get; set; }
     [Parameter] public DateTime? To { get; set; }
     [Parameter] public StatisticsType Type { get; set; }
+    [Parameter] public int? PlanID { get; set; }
     public StatisticsDto? Data { get; set;}
 
     private DateTime? loadedFrom, loadedTo;
+    private bool hasLoaded;
+    private StatisticsType loadedType;
+    private int? loadedPlanId;
+    private int loadVersion;
 
     private string Title => Type switch
     {
@@ -40,64 +45,90 @@
         _ => "Statistics"
     };
 
-    private bool IsPeriodType => Type is 
+    private bool IsPeriodType => Type is
            StatisticsType.PlannedCost
         or StatisticsType.ScheduleSavingsCost
         or StatisticsType.PlannedCo2
         or StatisticsType.ScheduleSavingsCo2;
 
-    protected override async Task OnInitializedAsync()
-    {
-        if (IsPeriodType) return;
-
-        Data = Type switch
-        {
-            StatisticsType.EstimatedCost => await GetStatistic("estimated-cost"),
-            StatisticsType.MoneySaved => await GetStatistic("money-saved"),
-            StatisticsType.LoadDuration => await GetStatistic("load-duration"),
-            StatisticsType.LoadFinish => await GetStatistic("load-finish"),
-            _ => null
-        };
-    }
-
     protected override async Task OnParametersSetAsync()
     {
-        if (!IsPeriodType) return;
-        if (loadedFrom == From && loadedTo == To) return;   // period unchanged
+        bool isPeriodType = IsPeriodType;
+        if (hasLoaded && loadedType == Type &&
+            (isPeriodType ? loadedFrom == From && loadedTo == To : loadedPlanId == PlanID))
+            return;
 
+        hasLoaded = true;
+        loadedType = Type;
+        loadedPlanId = PlanID;
         loadedFrom = From;
         loadedTo = To;
+        int version = ++loadVersion;
 
-        Data = Type switch
+        StatisticsType type = Type;
+        int? planId = PlanID;
+        DateTime? from = From;
+        DateTime? to = To;
+
+        if (!isPeriodType && planId is null)
         {
-            StatisticsType.PlannedCost => await GetPeriodStatistic("planned-cost"),
-            StatisticsType.ScheduleSavingsCost => await GetPeriodStatistic("schedule-savings-cost"),
-            StatisticsType.PlannedCo2 => await GetPeriodStatistic("planned-co2"),
-            StatisticsType.ScheduleSavingsCo2 => await GetPeriodStatistic("schedule-savings-c02"),
-            _ => null
-        };
+            Data = new StatisticsDto { Value = "--", Description = "No plan selected" };
+            return;
+        }
+
+        Data = null;
+        try
+        {
+            StatisticsDto data = type switch
+            {
+                StatisticsType.PlannedCost => await GetPeriodStatistic("planned-cost", from, to),
+                StatisticsType.ScheduleSavingsCost => await GetPeriodStatistic("schedule-savings-cost", from, to),
+                StatisticsType.PlannedCo2 => await GetPeriodStatistic("planned-co2", from, to),
+                StatisticsType.ScheduleSavingsCo2 => await GetPeriodStatistic("schedule-savings-c02", from, to),
+                StatisticsType.EstimatedCost => await GetStatistic("estimated-cost", planId),
+                StatisticsType.MoneySaved => await GetStatistic("money-saved", planId),
+                StatisticsType.LoadDuration => await GetStatistic("load-duration", planId),
+                StatisticsType.LoadFinish => await GetStatistic("load-finish", planId),
+                _ => new StatisticsDto { Value = "--" }
+            };
+
+            if (version == loadVersion)
+                Data = data;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Failed to load statistic {Type} for plan {PlanId}", type, planId);
+            if (version == loadVersion)
+                Data = new StatisticsDto { Value = "--", Description = "Statistic unavailable" };
+        }
     }
 
-    private Task<StatisticsDto> GetPeriodStatistic(string uri)
+    private Task<StatisticsDto> GetPeriodStatistic(string uri, DateTime? from, DateTime? to)
     {
-        if (From is null || To is null)
+        if (from is null || to is null)
             throw new InvalidOperationException($"{Type} requires From and To.");
 
         var query = string.Create(CultureInfo.InvariantCulture,
-            $"?from={From.Value:yyyy-MM-dd}&to={To.Value:yyyy-MM-dd}");
+            $"?from={from.Value:yyyy-MM-dd}&to={to.Value:yyyy-MM-dd}");
 
-        return GetStatistic(uri + query);
+        return GetStatistic(uri + query, null);
     }
 
-    private async Task<StatisticsDto> GetStatistic(string uri)
+    private async Task<StatisticsDto> GetStatistic(string uri, int? planId)
     {
         AuthenticationState? state = await AuthProvider.GetAuthenticationStateAsync();
         string? userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId))
+            throw new InvalidOperationException("The current user could not be identified.");
 
-        HttpRequestMessage? request = new HttpRequestMessage(HttpMethod.Get, "api/statistics-controller/" + uri);
+        using HttpRequestMessage request = new(HttpMethod.Get, "api/statistics-controller/" + uri);
         request.Headers.Add("UserId", userId);
+        if (planId.HasValue)
+        {
+            request.Headers.Add("PlanId", planId.Value.ToString());
+        }
 
-        HttpResponseMessage? response = await Http.SendAsync(request);
+        using HttpResponseMessage response = await Http.SendAsync(request);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<StatisticsDto>() ?? new StatisticsDto();
     }

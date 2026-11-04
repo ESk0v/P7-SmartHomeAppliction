@@ -9,6 +9,8 @@ public record PlanDto(
     string deviceName, 
     DateTime startTime,
     DateTime endTime,
+    DateTime windowStartTime,
+    DateTime windowEndTime,
     decimal estimatedCost,
     decimal estimatedCo2Emissions
 );
