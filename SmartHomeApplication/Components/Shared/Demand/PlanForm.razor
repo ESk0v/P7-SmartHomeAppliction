@@ -211,18 +211,24 @@ else if (isLoading)
     private string? userId;
     private PlanDTO? existingPlan;
     private static readonly TimeZoneInfo CopenhagenTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen");
-    private int DisplayedDuration => IsEditMode && existingPlan is not null
-        ? (int)(existingPlan.endTime - existingPlan.startTime).TotalMinutes
-        : ScheduleForm.Preset?.duration ?? 0;
+    private string DisplayedDuration => IsEditMode && existingPlan is not null
+        ? ((int)(existingPlan.endTime - existingPlan.startTime).TotalMinutes).ToString(CultureInfo.InvariantCulture)
+        : ScheduleForm.Preset?.duration.ToString(CultureInfo.InvariantCulture) ?? "?";
 
+    // Active schedules populate the price chart beside the form.
     private List<PlanDto>? activeSchedules;
     private string area = "DK1";
+    // Collects the values sent to the optimization API.
     private ScheduleForm ScheduleForm = new ScheduleForm();
+    // Presets available for the selected device.
     private List<PresetDto> filteredPresets = new List<PresetDto>();
     private string? selectedPresetId;
+    // Devices registered by the current user.
     private List<PlanUserDeviceDto> userDevices = new List<PlanUserDeviceDto>();
+    // Presets indexed by device so the picker can filter them.
     private Dictionary<int, List<PresetDto>> presetsByDevice = new Dictionary<int, List<PresetDto>>();
     private string? selectedDeviceId;
+    // Optimization result displayed in the plan overview.
     private OptimizationResultDTO? response;
     private DateTime? requestedWindowStart;
     private DateTime? requestedWindowEnd;
@@ -234,6 +240,7 @@ else if (isLoading)
     Minutes.Select(m => (m.ToString(), m.ToString("D2")));
     private string? schedulingError;
 
+    // Convert the hour and minute picker values to and from strings.
     private string? StartHourText
     {
         get => ScheduleForm.StartHour?.ToString();
@@ -265,6 +272,7 @@ else if (isLoading)
     private bool displayPlan = false;
 
 
+    // Load the current user's schedules, devices, and presets before showing the form.
     protected override async Task OnInitializedAsync()
     {
         try
@@ -413,10 +421,9 @@ else if (isLoading)
         isApplianceSelected = false;
     }
 
+    // Update the selected device name, available presets, and device category.
     private void OnDeviceSelected()
     {
-        // filter i all presets og vælg ud fra device id -> devicePreset
-
         PlanUserDeviceDto? selectedDevice = userDevices
             .FirstOrDefault(x => x.id.ToString() == selectedDeviceId);
 
@@ -434,6 +441,7 @@ else if (isLoading)
         ScheduleForm.ChargeStopPercentage = null;
     }
 
+    // Store the preset selected from the filtered list.
     private void UpdateSelectedPreset()
     {
         PresetDto? selectedPreset = filteredPresets.FirstOrDefault(p => p.id.ToString() == selectedPresetId);
@@ -445,6 +453,7 @@ else if (isLoading)
         schedulingError = null;
     }
 
+    // Resolve a selected clock time to today or tomorrow in Copenhagen.
     private DateTime GetScheduledDateTime(int hour, int minute)
     {
         DateTime now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, CopenhagenTimeZone);
@@ -456,6 +465,7 @@ else if (isLoading)
         }
         return scheduledTime;
     }
+    // Request an optimized plan and show its result in the overview.
     private async Task GenerateScheduling()
     {
         if (IsEditMode)
@@ -543,6 +553,7 @@ else if (isLoading)
         return ;
     }
 
+    // Save the generated plan and its form values through the API.
     private async Task addPlan()
     {
         PlanUserDeviceDto? selectedDevice = userDevices
