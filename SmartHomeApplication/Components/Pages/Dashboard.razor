@@ -33,10 +33,10 @@
 
 <div class="dashboard">
     <div class="statistics">
-        <Statistics Type="StatisticsType.PlannedCost"/>
-        <Statistics Type="StatisticsType.ScheduleSavings"/>
-        <Statistics Type="StatisticsType.PeakShift"/>
-        <Statistics Type="StatisticsType.CheapestPeriod"/>
+        <Statistics Type="StatisticsType.PlannedCost" From="DateTime.Today" To="DateTime.Today.AddDays(1)" />
+        <Statistics Type="StatisticsType.ScheduleSavingsCost" From="DateTime.Today" To="DateTime.Today.AddDays(1)" />
+        <Statistics Type="StatisticsType.PlannedCo2" From="DateTime.Today" To="DateTime.Today.AddDays(1)" />
+        <Statistics Type="StatisticsType.ScheduleSavingsCo2" From="DateTime.Today" To="DateTime.Today.AddDays(1)" />
     </div>
 
     <div class="priceoverview">

@@ -10,11 +10,11 @@
         <div class="chart-header">
             <span class="chart-title">Price forecast and schedule</span>
             <div class="legend">
-                @foreach (var activeSchedule in activeSchedules)
+                @foreach (var row in rows)
                 {
                     <span class="schedulename-overview">
-                        <span class="legend-dot" style="background-color:@activeSchedule.colorCode"></span>
-                        @activeSchedule.deviceName
+                        <span class="legend-dot" style="background-color:@row.Head.colorCode"></span>
+                        @row.Head.deviceName
                     </span>
                 }
             </div>
@@ -36,14 +36,19 @@
         <div class="chart-card-divider"></div>
 
         <div class="chart-lowersection">
-            @foreach (var activeSchedule in activeSchedules)
+            @foreach (var row in rows)
             {
                 <div class="plan-row">
-                    <span class="plan-name">@activeSchedule.deviceName</span>
+                    <span class="plan-name">@row.Head.deviceName</span>
                     <div class="plan-track">
-                        <div class="plan-fill" style="@FillStyle(activeSchedule)"></div>
+                        @foreach (var seg in row.Segments)
+                        {
+                            <div class="plan-fill" style="@FillStyle(seg)"></div>
+                        }
                     </div>
-                    <span class="plan-time">@activeSchedule.startTime.ToString("HH:mm") - @activeSchedule.endTime.ToString("HH:mm")</span>
+                    <span class="plan-time">
+                        @row.Segments.Min(s => s.startTime).ToString("HH:mm") - @row.Segments.Max(s => s.endTime).ToString("HH:mm")
+                    </span>
                 </div>
             }
         </div>
@@ -57,6 +62,8 @@
     private decimal maxPrice;
     private string? error;
 
+    private record PlanRow(PlanDto Head, List<PlanDto> Segments);
+    private List<PlanRow> rows = new();
     protected override async Task OnInitializedAsync()
     {
         try
@@ -79,6 +86,33 @@
         }
     }
 
+protected override void OnParametersSet()
+{
+    var byId = activeSchedules.ToDictionary(p => p.planId);
+    var followers = activeSchedules
+        .Where(p => p.nextPlanId.HasValue)
+        .Select(p => p.nextPlanId!.Value)
+        .ToHashSet();
+
+    rows = activeSchedules
+        .Where(p => !followers.Contains(p.planId))
+        .Select(head =>
+        {
+            var segments = new List<PlanDto>();
+            var visited = new HashSet<int>();
+            PlanDto? current = head;
+
+            while (current != null && visited.Add(current.planId))
+            {
+                segments.Add(current);
+                current = current.nextPlanId is int id && byId.TryGetValue(id, out var next)
+                    ? next : null;
+            }
+
+            return new PlanRow(head, segments);
+        })
+        .ToList();
+}
     private string FillStyle(PlanDto schedule)
     {
         if (prices.Count == 0)
@@ -93,19 +127,15 @@
         var firstStart = first.Date.AddHours(first.Hour);
         var chartEnd = last.Date.AddHours(last.Hour).AddHours(1);
 
-        // Left edge = now (if we are inside or past the first bar's hour), otherwise the first bar's start
         var origin = now > firstStart ? now : firstStart;
 
-        // 100% = origin until the end of the last bar
         var totalHours = (chartEnd - origin).TotalHours;
 
-        // Plan finished, or nothing left of the chart
         if (schedule.endTime <= origin || totalHours <= 0)
         {
             return "display:none";
         }
 
-        // A running plan starts at 0%, a future plan at its real position
         var start = schedule.startTime > origin ? schedule.startTime : origin;
         var end = schedule.endTime < chartEnd ? schedule.endTime : chartEnd;
 

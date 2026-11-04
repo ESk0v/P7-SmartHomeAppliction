@@ -4,6 +4,7 @@
 @attribute [Authorize]
 
 @using System.Security.Claims
+@using System.Globalization
 
 @namespace Shared.Dashboard
 
@@ -19,105 +20,118 @@
 
 @code {
 
-    [Parameter]
-    public StatisticsType Type { get; set; }
-    [Parameter]
-    public string DescriptionClass { get; set; } = string.Empty;
+    [Parameter] public DateTime? From { get; set; }
+    [Parameter] public DateTime? To { get; set; }
+    [Parameter] public StatisticsType Type { get; set; }
+    [Parameter] public int? PlanID { get; set; }
     public StatisticsDto? Data { get; set;}
+
+    private DateTime? loadedFrom, loadedTo;
+    private bool hasLoaded;
+    private StatisticsType loadedType;
+    private int? loadedPlanId;
+    private int loadVersion;
 
     private string Title => Type switch
     {
-        StatisticsType.PlannedCost => "Planned cost today",
-        StatisticsType.CheapestPeriod => "Cheapest Window",
-        StatisticsType.ScheduleSavings => "Saved vs unscheduled",
-        StatisticsType.PeakShift => "Load moved off peak",
-        StatisticsType.EstimatedCost => "Estimated cost",
-        StatisticsType.MoneySaved => "You save",
-        StatisticsType.LoadDuration => "Load Duration",
-        StatisticsType.LoadFinish => "Load finished",
+        StatisticsType.PlannedCost => "Planned cost today",                         //Dashboard
+        StatisticsType.ScheduleSavingsCost => "Saved cost vs unscheduled",          //Dashboard
+        StatisticsType.PlannedCo2 => "Planned Co2 today",                           //Dashboard
+        StatisticsType.ScheduleSavingsCo2 => "Saved co2 vs unscheduled",            //Dashboard
+        StatisticsType.EstimatedCost => "Estimated cost",                           //Optimized
+        StatisticsType.MoneySaved => "You save",                                    //Optimized
+        StatisticsType.LoadDuration => "Load Duration",                             //Optimized
+        StatisticsType.LoadFinish => "Load finished",                               //Optimized
         _ => "Statistics"
     };
 
-    protected override async Task OnInitializedAsync()
+    private bool IsPeriodType => Type is
+           StatisticsType.PlannedCost
+        or StatisticsType.ScheduleSavingsCost
+        or StatisticsType.PlannedCo2
+        or StatisticsType.ScheduleSavingsCo2;
+
+    protected override async Task OnParametersSetAsync()
     {
-        Data = Type switch
+        bool isPeriodType = IsPeriodType;
+        if (hasLoaded && loadedType == Type &&
+            (isPeriodType ? loadedFrom == From && loadedTo == To : loadedPlanId == PlanID))
+            return;
+
+        hasLoaded = true;
+        loadedType = Type;
+        loadedPlanId = PlanID;
+        loadedFrom = From;
+        loadedTo = To;
+        int version = ++loadVersion;
+
+        StatisticsType type = Type;
+        int? planId = PlanID;
+        DateTime? from = From;
+        DateTime? to = To;
+
+        if (!isPeriodType && planId is null)
         {
-            StatisticsType.PlannedCost => await GetPlannedCost(),
-            StatisticsType.CheapestPeriod => await GetCheapestPeriod(),
-            StatisticsType.ScheduleSavings => await GetScheduleSavings(),
-            StatisticsType.PeakShift => await GetPeakShift(),
-            StatisticsType.EstimatedCost => await GetStatistic("estimated-cost"),
-            StatisticsType.MoneySaved => await GetStatistic("money-saved"),
-            StatisticsType.LoadDuration => await GetStatistic("load-duration"),
-            StatisticsType.LoadFinish => await GetStatistic("load-finish"),
-            _ => new StatisticsDto { Value = "Error: No known statistic type given" }
-        };
-    }
-
-    private async Task<StatisticsDto> GetPlannedCost()
-    {
-        AuthenticationState? state = await AuthProvider.GetAuthenticationStateAsync();
-        string? userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
-        
-        HttpRequestMessage? request = new HttpRequestMessage(HttpMethod.Get, "api/statistics-controller/planned-cost");
-        request.Headers.Add("UserId", userId);
-
-        HttpResponseMessage? response = await Http.SendAsync(request);
-        response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<StatisticsDto>() ?? new StatisticsDto();
-    }
-
-    private async Task<StatisticsDto> GetCheapestPeriod()
-    {
-        return await Http.GetFromJsonAsync<StatisticsDto>(
-            "api/statistics-controller/cheapest-period"
-        ) ?? new StatisticsDto();
-    }
-
-    private async Task<StatisticsDto> GetScheduleSavings()
-    {
-        AuthenticationState? state = await AuthProvider.GetAuthenticationStateAsync();
-        string? userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-        HttpRequestMessage? request = new HttpRequestMessage(HttpMethod.Get, "api/statistics-controller/schedule-savings");
-        request.Headers.Add("UserId", userId);
-
-        HttpResponseMessage? response = await Http.SendAsync(request);
-        response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<StatisticsDto>() ?? new StatisticsDto();
-    }
-
-    private async Task<StatisticsDto> GetPeakShift()
-    {
-        return await Http.GetFromJsonAsync<StatisticsDto>(
-            "api/statistics-controller/peak-shift"
-        ) ?? new StatisticsDto();
-    }
-
-    private async Task<StatisticsDto> GetStatistic(string uri)
-    {
-        return await Http.GetFromJsonAsync<StatisticsDto>("api/statistics-controller/" + uri) ?? new StatisticsDto();
-    }
-
-    private async Task<StatisticsDto> GetUserStatistic(string uri)
-    {
-        AuthenticationState? state = await AuthProvider.GetAuthenticationStateAsync();
-        string? userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-        if (string.IsNullOrWhiteSpace(userId))
-        {
-            Logger.LogWarning("Cannot load statistic '{Statistic}': authenticated user has no name identifier.", uri);
-            return new StatisticsDto();
+            Data = new StatisticsDto { Value = "--", Description = "No plan selected" };
+            return;
         }
 
-        using HttpRequestMessage? request = new HttpRequestMessage(HttpMethod.Get, "api/statistics-controller/" + uri);
-        request.Headers.Add("UserId", userId);
+        Data = null;
+        try
+        {
+            StatisticsDto data = type switch
+            {
+                StatisticsType.PlannedCost => await GetPeriodStatistic("planned-cost", from, to),
+                StatisticsType.ScheduleSavingsCost => await GetPeriodStatistic("schedule-savings-cost", from, to),
+                StatisticsType.PlannedCo2 => await GetPeriodStatistic("planned-co2", from, to),
+                StatisticsType.ScheduleSavingsCo2 => await GetPeriodStatistic("schedule-savings-c02", from, to),
+                StatisticsType.EstimatedCost => await GetStatistic("estimated-cost", planId),
+                StatisticsType.MoneySaved => await GetStatistic("money-saved", planId),
+                StatisticsType.LoadDuration => await GetStatistic("load-duration", planId),
+                StatisticsType.LoadFinish => await GetStatistic("load-finish", planId),
+                _ => new StatisticsDto { Value = "--" }
+            };
 
-        using HttpResponseMessage? response = await Http.SendAsync(request);
+            if (version == loadVersion)
+                Data = data;
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Failed to load statistic {Type} for plan {PlanId}", type, planId);
+            if (version == loadVersion)
+                Data = new StatisticsDto { Value = "--", Description = "Statistic unavailable" };
+        }
+    }
+
+    private Task<StatisticsDto> GetPeriodStatistic(string uri, DateTime? from, DateTime? to)
+    {
+        if (from is null || to is null)
+            throw new InvalidOperationException($"{Type} requires From and To.");
+
+        var query = string.Create(CultureInfo.InvariantCulture,
+            $"?from={from.Value:yyyy-MM-dd}&to={to.Value:yyyy-MM-dd}");
+
+        return GetStatistic(uri + query, null);
+    }
+
+    private async Task<StatisticsDto> GetStatistic(string uri, int? planId)
+    {
+        AuthenticationState? state = await AuthProvider.GetAuthenticationStateAsync();
+        string? userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId))
+            throw new InvalidOperationException("The current user could not be identified.");
+
+        using HttpRequestMessage request = new(HttpMethod.Get, "api/statistics-controller/" + uri);
+        request.Headers.Add("UserId", userId);
+        if (planId.HasValue)
+        {
+            request.Headers.Add("PlanId", planId.Value.ToString());
+        }
+
+        using HttpResponseMessage response = await Http.SendAsync(request);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<StatisticsDto>() ?? new StatisticsDto();
     }
-
 }
 
 <style>
@@ -157,7 +171,15 @@
         font-size: 0.8rem;
     }
 
-    .statistics-value,
+    .statistics-value {
+        margin: 0;
+        font-size: clamp(1.5rem, 2vw, 2rem);
+        font-weight: 700;
+        line-height: 1.2;
+        white-space: nowrap;
+        overflow: visible;
+    }
+    
     .statistics-description,
     .statistics-title {
         white-space: nowrap;

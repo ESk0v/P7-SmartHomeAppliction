@@ -5,6 +5,11 @@
 @using global::Shared.Dashboard
 @using System.Globalization
 
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthProvider
+@using System.Security.Claims
+@using Utilities.Models
+
 <PageTitle>History</PageTitle>
 
 <SectionContent SectionName="TopBarActions">
@@ -33,23 +38,45 @@
                     Year
                 </button>
             </div>
-
-            <SecondaryButton Icon="@Icons.Export">
-                Export CSV
-            </SecondaryButton>
         </div>
     </div>
 </SectionContent>
 
 <div>
     <div class="statistics">
-        <Statistics Type="StatisticsType.PlannedCost"/>
-        <Statistics Type="StatisticsType.ScheduleSavings"/>
-        <Statistics Type="StatisticsType.PeakShift"/>
-        <Statistics Type="StatisticsType.CheapestPeriod"/>
+        <Statistics Type="StatisticsType.PlannedCost" From="GetStartDate(selectedPeriod)" To="DateTime.Today" />
+        <Statistics Type="StatisticsType.ScheduleSavingsCost" From="GetStartDate(selectedPeriod)" To="DateTime.Today" />
+        <Statistics Type="StatisticsType.PlannedCo2" From="GetStartDate(selectedPeriod)" To="DateTime.Today" />
+        <Statistics Type="StatisticsType.ScheduleSavingsCo2" From="GetStartDate(selectedPeriod)" To="DateTime.Today" />
+    </div>
+
+    <div class="history-chart-card">
+        <div class="history-chart-header">
+            <span class="history-chart-title">@ChartTitle</span>
+            <div class="history-legend">
+                <span class="history-legend-item">
+                    <span class="history-legend-dot" style="background-color:#e0a526"></span>Cost (kr)
+                </span>
+                <span class="history-legend-item">
+                    <span class="history-legend-dot" style="background-color:#2f9e6e"></span>CO2 (g)
+                </span>
+            </div>
+        </div>
+
+        <div class="history-chart-bars @(chartPoints.Count <= 13 ? "history-chart-bars-few" : "")">
+            @foreach (var p in chartPoints)
+            {
+                <div class="history-chart-column" data-tooltip="@p.Tooltip">
+                    <div class="history-chart-bar-area">
+                        <div class="history-chart-bar history-bar-price" style="@BarHeight(p.Price, maxPrice)"></div>
+                        <div class="history-chart-bar history-bar-co2" style="@BarHeight(p.Co2, maxCo2)"></div>
+                    </div>
+                    <span class="history-chart-label">@p.Label</span>
+                </div>
+            }
+        </div>
     </div>
 </div>
-
 
 @code {
     private HistoryPeriod selectedPeriod = HistoryPeriod.ThirtyDays;
@@ -62,11 +89,117 @@
 
     private string dateRange => $"{fromDate} - {toDate}";
 
-    private void SelectPeriod(HistoryPeriod period)
+    // ---- chart ----
+    private record ChartPoint(string Label, string Tooltip, decimal Price, decimal Co2);
+
+    private List<ChartPoint> chartPoints = new();
+    private decimal maxPrice;
+    private decimal maxCo2;
+
+    private string ChartTitle => selectedPeriod == HistoryPeriod.Year
+        ? "Cost and CO2 per month"
+        : "Cost and CO2 per day";
+
+    private int loadVersion;
+
+    protected override async Task OnInitializedAsync() => await LoadChartAsync();
+
+    private async Task SelectPeriod(HistoryPeriod period)
     {
         selectedPeriod = period;
+        await LoadChartAsync();
     }
 
+    private async Task LoadChartAsync()
+    {
+        var version = ++loadVersion;
+        var from = GetStartDate(selectedPeriod);
+        var to = DateTime.Today;
+
+        List<ChartPoint> points;
+        try
+        {
+            var days = await GetHistoryAsync(from, to);
+
+            // a newer click finished first, so ignore this older response
+            if (version != loadVersion) return;
+
+            points = selectedPeriod == HistoryPeriod.Year
+                ? ToMonthPoints(days)
+                : ToDayPoints(days, from);
+        }
+        catch (Exception)
+        {
+            points = new List<ChartPoint>();
+        }
+
+        chartPoints = points;
+        maxPrice = points.Count > 0 ? points.Max(p => p.Price) : 0;
+        maxCo2 = points.Count > 0 ? points.Max(p => p.Co2) : 0;
+    }
+
+    private async Task<List<HistoryPointDto>> GetHistoryAsync(DateTime from, DateTime to)
+    {
+        var state = await AuthProvider.GetAuthenticationStateAsync();
+        string? userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        var query = string.Create(CultureInfo.InvariantCulture,
+            $"?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}");
+
+        var request = new HttpRequestMessage(HttpMethod.Get, "api/history-controller" + query);
+        request.Headers.Add("UserId", userId);
+
+        var response = await Http.SendAsync(request);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<List<HistoryPointDto>>() ?? new();
+    }
+
+    private List<ChartPoint> ToDayPoints(List<HistoryPointDto> days, DateTime start)
+    {
+        return days.Select(d =>
+        {
+            string label;
+            if (selectedPeriod == HistoryPeriod.SevenDays)
+            {
+                label = d.Date.ToString("ddd d", CultureInfo.InvariantCulture);
+            }
+            else
+            {
+                // 30d: month name on the first column and on the 1st of each month
+                bool isMonthStart = d.Date == start.Date || d.Date.Day == 1;
+                label = isMonthStart
+                    ? d.Date.ToString("MMM d", CultureInfo.InvariantCulture)
+                    : d.Date.Day.ToString();
+            }
+
+            var tooltip = $"{d.Date.ToString("d MMM", CultureInfo.InvariantCulture)}: {d.Cost:0.00} kr, {d.Co2:0} g";
+            return new ChartPoint(label, tooltip, d.Cost, d.Co2);
+        }).ToList();
+    }
+
+    private static List<ChartPoint> ToMonthPoints(List<HistoryPointDto> days)
+    {
+        return days
+            .GroupBy(d => new DateTime(d.Date.Year, d.Date.Month, 1))
+            .OrderBy(g => g.Key)
+            .Select(g =>
+            {
+                var cost = g.Sum(d => d.Cost);
+                var co2 = g.Sum(d => d.Co2);
+                var label = g.Key.ToString("MMM", CultureInfo.InvariantCulture);
+                var tooltip = $"{g.Key.ToString("MMMM yyyy", CultureInfo.InvariantCulture)}: {cost:0.00} kr, {co2:0} g";
+                return new ChartPoint(label, tooltip, cost, co2);
+            })
+            .ToList();
+    }
+
+    private static string BarHeight(decimal value, decimal max)
+    {
+        var height = max > 0 ? (double)(value / max * 100) : 0;
+        return string.Create(CultureInfo.InvariantCulture, $"height:{height:0.##}%");
+    }
+
+    // ---- period toggle ----
     private string GetPeriodButtonClass(HistoryPeriod period)
     {
         return selectedPeriod == period
@@ -232,5 +365,165 @@
         .period-option {
             flex: 1;
         }
+    }
+
+    .history-chart-card {
+        background-color: #fff;
+        border: 1px solid #e5e2dc;
+        border-radius: 12px;
+        padding: 16px 20px;
+        box-sizing: border-box;
+        width: 100%;
+        height: 240px;
+        margin-top: 2vw;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .history-chart-bars {
+        flex: 1 1 0;
+        min-height: 0;
+        width: 100%;
+        display: flex;
+        align-items: stretch;
+        justify-content: space-between;
+        gap: 6px;
+        border-bottom: 1px solid #e5e2dc;
+        /* faint guide lines at 25 / 50 / 75 / 100 % */
+        background-image: repeating-linear-gradient(
+            to top,
+            transparent 0,
+            transparent calc(25% - 1px),
+            #f0eeec calc(25% - 1px),
+            #f0eeec 25%);
+    }
+
+    .history-chart-bars-few {
+        gap: 14px;
+    }
+
+    .history-chart-bar-area {
+        flex: 1 1 0;
+        min-height: 0;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        gap: 3px;
+    }
+
+    .history-chart-bar {
+        flex: 1;
+        max-width: 10px;
+        min-height: 2px;
+        border-radius: 4px 4px 0 0;
+        transition: opacity 120ms ease;
+    }
+
+    .history-chart-bars-few .history-chart-bar {
+        max-width: 26px;
+    }
+
+    .history-bar-price { background-color: #e0a526; }
+    .history-bar-co2   { background-color: #2f9e6e; }
+
+    .history-chart-label {
+        flex: 0 0 auto;
+        text-align: center;
+        margin-top: 6px;
+        font-size: 11px;
+        color: #999;
+        white-space: nowrap;
+    }
+
+    .history-chart-header {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 12px;
+    }
+
+    .history-chart-title {
+        color: #999;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+
+    .history-legend {
+        display: flex;
+        align-items: center;
+        gap: 1.5vw;
+    }
+
+    .history-legend-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3vw;
+        font-size: 12px;
+        white-space: nowrap;
+    }
+
+    .history-legend-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .history-chart-column {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .history-chart-bar {
+    flex: 1;
+    max-width: 10px;
+    min-height: 2px;
+    border-radius: 4px 4px 0 0;
+    }
+
+    .history-chart-column {
+        position: relative;
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .history-chart-column::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        top: 4px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #3b322c;
+        color: #f5efe6;
+        font-size: 11px;
+        padding: 5px 8px;
+        border-radius: 6px;
+        white-space: nowrap;
+        pointer-events: none;
+        opacity: 0;
+        z-index: 10;
+    }
+
+    .history-chart-column:hover::after {
+        opacity: 1;
+    }
+
+    .history-chart-column:nth-child(-n+4)::after {
+        left: 0;
+        transform: none;
+    }
+
+    .history-chart-column:nth-last-child(-n+4)::after {
+        left: auto;
+        right: 0;
+        transform: none;
     }
 </style>

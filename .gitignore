@@ -26,3 +26,15 @@ Forecasting/__pycache__/
 Forecasting/__pycache__
 
 *.log
+
+# C# test coverage filer
+# C# test coverage filer
+coverage.json
+**/coverage.json
+**/coverage.cobertura.xml
+TestResults/
+**/TestResults/
+CoverageReport/
+**/CoverageReport/
+lcov.info
+**/lcov.info
