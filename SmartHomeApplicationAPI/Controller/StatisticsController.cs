@@ -79,43 +79,51 @@ public class StatisticsController : ControllerBase
     #region Optimized Statistics
 
     [HttpGet("estimated-cost")]
-    public async Task<StatisticsDto> GetEstimatedCost()
+    public async Task<ActionResult<StatisticsDto>> GetEstimatedCost([FromHeader(Name = "UserId")] string userId, [FromHeader(Name = "PlanId")] int planId)
     {
-        return new StatisticsDto
-        {
-            Value = "6.15 kr",
-            Description = "↓ 25% cheaper vs. starting now"
-        };
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized();
+
+        if (planId <= 0)
+            return BadRequest("PlanId header is required.");
+
+        return await _service.GetEstimatedCostAsync(userId, planId);
     }
 
     [HttpGet("money-saved")]
-    public async Task<StatisticsDto> GetMoneySaved()
+    public async Task<ActionResult<StatisticsDto>> GetMoneySaved([FromHeader(Name = "UserId")] string userId, [FromHeader(Name = "PlanId")] int planId)
     {
-        return new StatisticsDto
-        {
-            Value = "4.25 kr",
-            Description = "vs. unscheduled"
-        };
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized();
+
+        if (planId <= 0)
+            return BadRequest("PlanId header is required.");
+
+        return await _service.GetMoneySavedAsync(userId, planId);
     }
 
     [HttpGet("load-duration")]
-    public async Task<StatisticsDto> GetLoadDuration()
+    public async Task<ActionResult<StatisticsDto>> GetLoadDuration([FromHeader(Name = "UserId")] string userId, [FromHeader(Name = "PlanId")] int planId)
     {
-        return new StatisticsDto
-        {
-            Value = "3h 15m",
-            Description = "starting at 22:00"
-        };
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized();
+
+        if (planId <= 0)
+            return BadRequest("PlanId header is required.");
+
+        return await _service.GetLoadDurationAsync(userId, planId);
     }
 
     [HttpGet("load-finish")]
-    public async Task<StatisticsDto> GetLoadFinish()
+    public async Task<ActionResult<StatisticsDto>> GetLoadFinish([FromHeader(Name = "UserId")] string userId, [FromHeader(Name = "PlanId")] int planId)
     {
-        return new StatisticsDto
-        {
-            Value = "01:15",
-            Description = "4h 45m before deadline"
-        };
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized();
+
+        if (planId <= 0)
+            return BadRequest("PlanId header is required.");
+
+        return await _service.GetLoadFinishAsync(userId, planId);
     }
     
     #endregion

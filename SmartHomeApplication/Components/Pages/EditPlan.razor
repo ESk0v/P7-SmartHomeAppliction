@@ -1,0 +1,31 @@
+@page "/plans/edit"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using SmartHomeApplication.Components.Shared.Demand
+@inject NavigationManager NavigationManager
+
+<PageTitle>@(planName is null ? "Edit plan" : $"Edit: {planName}")</PageTitle>
+
+<SectionContent SectionName="TopBarActions">
+    <div class="header">
+        <div class="heading">
+            <h1>@(planName is null ? "Edit plan" : $"Edit: {planName}")</h1>
+            <p>Update the selected scheduling demand.</p>
+        </div>
+        <div class="header-actions">
+            <SecondaryButton IconClass="bi-arrow-left" OnClick="ReturnToOverview">
+                Return to overview
+            </SecondaryButton>
+        </div>
+    </div>
+</SectionContent>
+
+<PlanForm IsEditMode="true" OnPlanNameLoaded="SetPlanName" />
+
+@code {
+    private string? planName;
+
+    private void SetPlanName(string name) => planName = name;
+
+    private void ReturnToOverview() => NavigationManager.NavigateTo("/optimized");
+}

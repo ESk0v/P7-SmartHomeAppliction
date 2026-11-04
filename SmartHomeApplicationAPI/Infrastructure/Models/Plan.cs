@@ -23,6 +23,12 @@ namespace SmartHomeApplicationAPI.Infrastructure.Models
 		[Column("user_device_id")]
 		public int UserDeviceId { get; set; }
 
+    [Column("device_preset_id")]
+    public int? DevicePresetId { get; set; }
+
+    [Column("charge_stop_percentage")]
+    public int? ChargeStopPercentage { get; set; }
+
 		[ForeignKey(nameof(UserDeviceId))]
 		public UserDevice UserDevice { get; set; } = null!;
 

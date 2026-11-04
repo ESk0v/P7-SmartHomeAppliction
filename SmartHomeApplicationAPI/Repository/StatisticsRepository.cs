@@ -21,4 +21,12 @@ public class StatisticsRepository : IStatisticsRepository
             .AsNoTracking()
             .ToListAsync();   
     }
+
+    public async Task<Plan?> RetrievePlanByIdAsync(string userId, int planId)
+    {
+        return await _db.Plan
+            .Where(p => p.UserDevice.UserId == userId && p.Id == planId)
+            .AsNoTracking()
+            .FirstOrDefaultAsync();
+    }
 }
