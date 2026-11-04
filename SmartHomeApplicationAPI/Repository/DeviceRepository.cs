@@ -87,7 +87,10 @@ public class DeviceRepository : IDeviceRepository
 
     public async Task AddDeviceAsync(Device device, DevicePreset preset, UserDevice userDevice)
     {
-        _db.Device.Add(device);
+        if (device.Id == 0)
+        {
+            _db.Device.Add(device);
+        }
         _db.Preset.Add(preset);
         _db.UserDevice.Add(userDevice);
         await _db.SaveChangesAsync();

@@ -15,11 +15,11 @@ namespace Utilities.Models
 		public string Category { get; set; } = string.Empty;
 
 		[Required]
-		[StringLength(10)]
+		[StringLength(20)]
 		public string Preset { get; set; } = "standard";
 
 		[Required(ErrorMessage = "Consumption is required.")]
-		[Range(0.01, 2000.0)]
+		[Range(0.01, 500.0)]
 		public decimal? ConsumptionInKwh { get; set; }
 
 		[Required(ErrorMessage = "Duration is required.")]
