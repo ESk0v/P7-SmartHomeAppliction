@@ -61,53 +61,6 @@ public class StatisticsService : IStatisticsService
 
         return BuildSavingDto(planned, unscheduled, "g", "less CO2", "more CO2");
     }
-
-    #region Helpers
-    private static StatisticsDto BuildSavingDto(
-        decimal planned, decimal unscheduled, string unit, string betterText, string worseText)
-    {
-        decimal diff = unscheduled - planned;   // > 0 = better than unscheduled
-
-        if (diff == 0)
-        {
-            return new StatisticsDto
-            {
-                Value = $"0 {unit}",
-                Description = "Same as unscheduled"
-            };
-        }
-
-        bool better = diff > 0;
-        string arrow = better ? "\u2193" : "\u2191";
-        string text = better ? betterText : worseText;
-        string value = $"{diff:0.##} {unit}";
-
-        // Baseline is 0 (and plan is worse): percent is undefined, show absolute only
-        if (unscheduled == 0)
-        {
-            return new StatisticsDto
-            {
-                Value = value,
-                Description = $"{arrow} {text}"
-            };
-        }
-
-        decimal percent = Math.Round(Math.Abs(diff) / unscheduled * 100, 1);
-
-        return new StatisticsDto
-        {
-            Value = value,
-            Description = $"{arrow} {percent:0.#} % {text}"
-        };
-    }
-    
-    private static readonly TimeZoneInfo CopenhagenTz =
-        TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen");
-
-    private static DateTime ToUtc(DateTime localDate) =>
-        TimeZoneInfo.ConvertTimeToUtc(
-        DateTime.SpecifyKind(localDate.Date, DateTimeKind.Unspecified), CopenhagenTz);
-
     #endregion
 
     #region Optimization Plan Statistics
@@ -231,6 +184,53 @@ public class StatisticsService : IStatisticsService
         duration.TotalHours >= 1
             ? $"{(int)duration.TotalHours}h {duration.Minutes}m"
             : $"{duration.Minutes}m";
-  #endregion
+    #endregion
 
+    #region Helpers
+    private static StatisticsDto BuildSavingDto(
+        decimal planned, decimal unscheduled, string unit, string betterText, string worseText)
+    {
+        decimal diff = unscheduled - planned;   // > 0 = better than unscheduled
+
+        if (diff == 0)
+        {
+            return new StatisticsDto
+            {
+                Value = $"0 {unit}",
+                Description = "Same as unscheduled"
+            };
+        }
+
+        bool better = diff > 0;
+        string arrow = better ? "\u2193" : "\u2191";
+        string text = better ? betterText : worseText;
+        string value = $"{diff:0.##} {unit}";
+
+        // Baseline is 0 (and plan is worse): percent is undefined, show absolute only
+        if (unscheduled == 0)
+        {
+            return new StatisticsDto
+            {
+                Value = value,
+                Description = $"{arrow} {text}"
+            };
+        }
+
+        decimal percent = Math.Round(Math.Abs(diff) / unscheduled * 100, 1);
+
+        return new StatisticsDto
+        {
+            Value = value,
+            Description = $"{arrow} {percent:0.#} % {text}"
+        };
+    }
+    
+    private static readonly TimeZoneInfo CopenhagenTz =
+        TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen");
+
+    private static DateTime ToUtc(DateTime localDate) =>
+        TimeZoneInfo.ConvertTimeToUtc(
+        DateTime.SpecifyKind(localDate.Date, DateTimeKind.Unspecified), CopenhagenTz);
+
+    #endregion
 }
