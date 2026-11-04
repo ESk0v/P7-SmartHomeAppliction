@@ -19,6 +19,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICreatePlanService, CreatePlanService>();
         services.AddScoped<IOptimizationService, OptimizationService>();
         services.AddScoped<IDeviceService, DeviceService>();
+        services.AddScoped<IHistoryService, HistoryService>();
 
         //REPOSITORIES
         services.AddScoped<IElectricityPriceRepository, ElectricityPriceRepository>();
@@ -26,6 +27,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IStatisticsRepository, StatisticsRepository>();
         services.AddScoped<ICreatePlanRepository, CreatePlanRepository>();
         services.AddScoped<IDeviceRepository, DeviceRepository>();
+        services.AddScoped<IHistoryRepository, HistoryRepository>();
 
 
         //HANGFIRE
