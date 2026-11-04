@@ -282,6 +282,9 @@
 
     private void BuildPlansFromSchedules()
     {
+        int returnPlanId = PlanState.ReturnToSelectedPlan ? selectedPlanId : 0;
+        PlanState.ReturnToSelectedPlan = false;
+
         if (allSchedules.Count == 0)
         {
             selectedPlanId = 0;
@@ -299,7 +302,13 @@
             .Where(schedule => !continuationIds.Contains(schedule.planId))
             .ToList();
 
-        selectedPlanId = plans.Count > 0 ? plans[0].planId : 0;
+        selectedPlanId = plans.Any(plan => plan.planId == returnPlanId)
+            ? returnPlanId
+            : plans.FirstOrDefault()?.planId ?? 0;
+
+        Logger.LogInformation(
+            "Loaded optimized plans: requested return plan {ReturnPlanId}, selected plan {SelectedPlanId}, window {WindowStartTime}–{WindowEndTime}",
+            returnPlanId, selectedPlanId, selectedPlan?.windowStartTime, selectedPlan?.windowEndTime);
 
         BuildSelectedSchedules();
     }
