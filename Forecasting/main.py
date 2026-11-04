@@ -1,62 +1,197 @@
-"""
-For at lave venv
-    python 3 -m venv .venv
+import os
+import copy
+import joblib
+import numpy as np
+import pandas as pd
+from datetime import datetime
+from typing import List, Literal
+from contextlib import asynccontextmanager
 
-For at aktivere
-    source .venv/bin/activate
-
-For at installere requirements.txt libs
-    pip install -r requirements.txt
-
-For at deaktivere (gør kun når man er færdig med at arbejde i python terminalen)
-    deactivate
-
-Hvis den ikke kan genkende imports 
-    Vælg den rigtige intepreter nede i højre hjørne. Default er 3.15.1 men i virtual environment er den .venv (3.15.1)
-
-Kør FastAPI med command
-    uvicorn main:app --reload --port 6767
-        --reload gør at siden reloader på python file save og --port gør at man kan pin en port
-    http://localhost:6767/docs giver en komplet Swagger UI til at teste den API med (INSANE)
-"""
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from xgboost import XGBRegressor
+from sktime.forecasting.base import ForecastingHorizon
+from sktime.forecasting.compose import make_reduction
 
-app = FastAPI()
+FREQ = "15min"
+# 96 length, since it's 15 minutes intervals for 24 hours
+WINDOW_LENGTH = 96
+CSV_PATH = "Dataset/EnergyReport.csv"
+CSV_TIME_COL = "TimeUTC"
 
-class Item(BaseModel):
-    text: str
-    is_done: bool = False
+MODEL_PATHS = {
+    "DK1": "model_DK1.joblib",
+    "DK2": "model_DK2.joblib",
+}
 
-items = []
+models = {}
 
-@app.get("/")
-def read_root():
-    return {'message': 'Hello FastAPI'}
+# Helpers for Calender features
+def create_calender_features(index: pd.DatetimeIndex):
+    # gets time of day and day of week features
+    df_feat = pd.DataFrame(index=index)
+    df_feat["hour"] = index.hour
+    df_feat["minute"] = index.minute
+    df_feat["dayofweek"] = index.dayofweek
+    df_feat["is_weekend"] = (index.dayofweek >= 5).astype(int)
+    df_feat["month"] = index.month
 
-# med en post request kan dette endpoint rammes og create_item køres
-@app.post("/items")
-def create_item(item: Item):
-    items.append(item)
-    return items
+    seconds_in_day = 24*60*60
+    time_sec = index.hour * 3600 + index.minute * 60
+    df_feat["sin_time"] = np.sin(2 *np.pi * time_sec / seconds_in_day)
+    df_feat["cos_time"] = np.cos(2 * np.pi * time_sec / seconds_in_day)
+    return df_feat
+
+def enforce_15min_grid(df_time_price: pd.DataFrame):
+    # sorts, removes duplicates and uses 15-minute freq (needed by sktime)
+    df_clean = df_time_price.copy()
+    df_clean["time"] = pd.to_datetime(df_clean["time"]).dt.tz_localize(None)
+    df_clean = df_clean.sort_values("time").drop_duplicates(subset=["time"], keep="last")
+    df_clean = df_clean.set_index("time")
+
+    full_idx = pd.date_range(start=df_clean.index.min(), end=df_clean.index.max(), freq=FREQ)
+    series = df_clean["price_per_kwh"].reindex(full_idx).interpolate(method="time").bfill()
+    series.index = pd.DatetimeIndex(series.index, freq=FREQ)
+    return series
+
+def load_energy_report_csv(csv_path: str):
+    #loads the csv
+    with open(csv_path, "r", encoding="utf-8-sig") as file:
+        first_line = file.readline()
+
+    skip = 0 if CSV_TIME_COL in first_line else 1
+    df = pd.read_csv(csv_path, sep=None, engine="python", skiprows=skip, encoding="utf-8-sig")
+    df.columns = df.columns.str.strip()
+    return df
+
+def prepare_series_from_csv(df: pd.DataFrame, area: str):
+    # finds either DK1 or DK2 and gets mwh to kwh
+    col_name = f'{area}_DKK/MWh'
+    if col_name not in df.columns:
+        raise ValueError(f'Column "{col_name}" is not in the csv. Instead: {list(df.columns)}')
+    price_mwh = (df[col_name].astype(str)
+                 .str.replace(",", ".", regex=False)
+                 .str.strip().astype(float))
+    df_area = pd.DataFrame({
+        "time": df[CSV_TIME_COL], 
+        "price_per_kwh": price_mwh / 1000.0,
+    })
+    return enforce_15min_grid(df_area)
+
+def train_models_from_csv(csv_path: str):
+    # trains the sk_time XGBRressor model
+    if not os.path.exists(csv_path):
+        return FileNotFoundError(f'{csv_path} not found. Place in correct folder')
+
+    print('loading training data')
+    df = load_energy_report_csv(csv_path)
+
+    for area in ["DK1", "DK2"]:
+        print(f'training for area: {area}')
+        y_train = prepare_series_from_csv(df, area)
+        X_train = create_calender_features(pd.DatetimeIndex(y_train.index, freq=FREQ))
+
+        regressor = XGBRegressor(
+            n_estimators = 300,
+            learning_rate = 0.05,
+            max_depth = 6,
+            subsample = 0.8,
+            colsample_bytree = 0.8,
+            random_state = 42,
+            n_jobs = -1,
+        )
+
+        forecaster = make_reduction(regressor, window_length=WINDOW_LENGTH, strategy="recursive")
+
+        forecaster.fit(y_train, X=X_train)
+        joblib.dump(forecaster, MODEL_PATHS[area])
+        models[area] = forecaster
+        print(f'Finished model saved to: {MODEL_PATHS[area]}')
 
 
-@app.get("/items_true")
-def list_items_true(limit: int) -> list[Item]:
-    completed_items = [item for item in items if item.is_done]
-    return completed_items[0:limit]
+# FastAPI
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    for area, path in MODEL_PATHS.items():
+        if os.path.exists(path):
+            print(f"Loading pre-trained model for {area} from {path}")
+            models[area] = joblib.load(path)
+    if len(models) < 2:
+        train_models_from_csv(CSV_PATH)
+    yield
+
+app = FastAPI(lifespan=lifespan)
+
+# DTO's which match the PostgreSQL schema
+class HistoricalPricePoint(BaseModel):
+    time: datetime
+    price_per_kwh: float
+
+class ForecastingRequest(BaseModel):
+    price_area: Literal["DK1", "DK2"]
+    steps_ahead: int = Field(default=96)
+    recent_prices: List[HistoricalPricePoint] = Field(..., description="At least the last 24 hours from database")
+
+class PredictedPricePoint(BaseModel):
+    time: datetime
+    price_per_kwh: float
+    price_area: str
+    is_predicted: bool = True
+
+class ForecastResponse(BaseModel):
+    price_area: str
+    predictions: List[PredictedPricePoint]
 
 
-@app.get("/items_all")
-def list_items_all(limit: int):
-    return items[0:limit]
+# FastAPI endoints called by our C# backend
+@app.post("/forecast", response_model=ForecastResponse)
+def generate_forecast(req: ForecastingRequest):
+    area = req.price_area
+    if area not in models:
+        raise HTTPException(status_code=503, detail=f'Model for {area} not trained')
 
+    if len(req.recent_prices) < WINDOW_LENGTH:
+        raise HTTPException(status_code=400, detail=f'Need minimum {WINDOW_LENGTH} previous prices')
 
-@app.get("/items/{item_id}")
-def get_item(item_id: int) -> Item:
-    if item_id < len(items):
-        return items[item_id]
-    else:
-        raise HTTPException(status_code=404, detail="Item not found")
+    # Convert to 15 minute grid
+    df_recent = pd.DataFrame([p.model_dump() for p in req.recent_prices])
+    y_recent = enforce_15min_grid(df_recent)
 
+    forecaster = copy.deepcopy(models[area])
+    last_cutoff = forecaster.cutoff[0]
+
+    # Update sliding window
+    if y_recent.index[-1] > last_cutoff:
+        bridge_start = last_cutoff + pd.Timedelta(minutes=15)
+        bridge_idx = pd.date_range(start=bridge_start, end=y_recent.index[-1], freq=FREQ)
+        y_update = y_recent.reindex(bridge_idx).interpolate(method="time").bfill()
+        y_update.index = pd.DatetimeIndex(y_update.index, freq=FREQ)
+        X_update = create_calender_features(pd.DatetimeIndex(y_update.index, freq=FREQ))
+
+        forecaster.update(y_update, X=X_update, update_params=False)
+
+    # builds the 24 hours future and predicts
+    fh = ForecastingHorizon(np.arange(1, req.steps_ahead + 1), is_relative=True)
+    future_start = forecaster.cutoff[0] + pd.Timedelta(minutes=15)
+    future_idx = pd.date_range(start=future_start, periods=req.steps_ahead, freq=FREQ)
+    X_future = create_calender_features(future_idx)
+
+    y_pred = forecaster.predict(fh=fh, X=X_future)
+
+    predictions = [PredictedPricePoint(
+        time = pd.Timestamp(str(ts)).to_pydatetime(),
+        price_per_kwh=round(float(val), 5),
+        price_area=area,
+        is_predicted=True,
+        )
+    for ts, val in y_pred.items()
+    ]
+
+    return ForecastResponse(price_area=area, predictions=predictions)
+
+@app.post("/retrain")
+def retrain_models():
+    # Retrains the models for both areas
+    train_models_from_csv(CSV_PATH)
+    return "Models retrained successfully"
 
