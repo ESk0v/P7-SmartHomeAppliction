@@ -300,7 +300,7 @@ else if (isLoading)
                 presetsByDevice[userDevice.id] = presets;
             }
 
-            int currentHour = DateTime.Now.Hour + 1;
+            int currentHour = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, CopenhagenTimeZone).Hour + 1;
             Hours = Enumerable.Range(0, 24)
                 .Select(i => (currentHour + i) % 24)
                 .ToList();
@@ -387,15 +387,12 @@ else if (isLoading)
             return;
 
         response = new OptimizationResultDTO(
-            ToCopenhagenTime(existingPlan.startTime),
-            ToCopenhagenTime(existingPlan.endTime),
+            existingPlan.startTime,
+            existingPlan.endTime,
             existingPlan.estimatedCost,
             existingPlan.estimatedCo2Emissions);
         displayPlan = true;
     }
-
-    private static DateTime ToCopenhagenTime(DateTime utc) =>
-        TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), CopenhagenTimeZone);
 
     private void SetPriority(string value)
     {
@@ -450,7 +447,7 @@ else if (isLoading)
 
     private DateTime GetScheduledDateTime(int hour, int minute)
     {
-        DateTime now = DateTime.UtcNow;
+        DateTime now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, CopenhagenTimeZone);
         DateTime scheduledTime = now.Date.AddHours(hour).AddMinutes(minute);
 
         if (scheduledTime < now)
@@ -497,9 +494,16 @@ else if (isLoading)
             return;
         }
 
-        // Temporary solution to store the requested window for later use when saving the plan
-        requestedWindowStart = startTime;
-        requestedWindowEnd = endTime;
+        try
+        {
+            requestedWindowStart = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(startTime, DateTimeKind.Unspecified), CopenhagenTimeZone);
+            requestedWindowEnd = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(endTime, DateTimeKind.Unspecified), CopenhagenTimeZone);
+        }
+        catch (ArgumentException)
+        {
+            schedulingError = "The selected time does not exist on this date. Choose another time.";
+            return;
+        }
 
 
         OptimizationRequestDTO? optimizationRequest = new OptimizationRequestDTO
@@ -560,10 +564,10 @@ else if (isLoading)
         PlanDTO? planToSave = new PlanDTO
         {
             userDeviceId = selectedDevice.id,
-            startTime = response.StartTime.ToUniversalTime(),
-            endTime = response.EndTime.ToUniversalTime(),
-            windowStartTime = requestedWindowStart.Value.ToUniversalTime(),
-            windowEndTime = requestedWindowEnd.Value.ToUniversalTime(),
+            startTime = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(response.StartTime, DateTimeKind.Unspecified), CopenhagenTimeZone),
+            endTime = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(response.EndTime, DateTimeKind.Unspecified), CopenhagenTimeZone),
+            windowStartTime = requestedWindowStart.Value,
+            windowEndTime = requestedWindowEnd.Value,
             nextPlanId = null,
             estimatedCost = response.EstimatedPrice,
             estimatedCo2Emissions = response.EstimatedCo2Emissions,
@@ -639,7 +643,7 @@ else if (isLoading)
             return;
         }
 
-        DateTime localOriginalStart = ToCopenhagenTime(existingPlan.windowStartTime!.Value);
+        DateTime localOriginalStart = existingPlan.windowStartTime!.Value;
         DateTime localStart = DateTime.SpecifyKind(localOriginalStart.Date
             .AddHours(ScheduleForm.StartHour.Value)
             .AddMinutes(ScheduleForm.StartMinute.Value), DateTimeKind.Unspecified);
