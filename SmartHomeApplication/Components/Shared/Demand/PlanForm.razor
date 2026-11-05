@@ -529,7 +529,7 @@ else if (isLoading)
 
         try
         {
-            HttpResponseMessage? result = await Http.PostAsJsonAsync("api/optimization-controller/optimize", optimizationRequest);
+            HttpResponseMessage? result = await Http.PostAsJsonAsync("api/createPlan-controller/optimize", optimizationRequest);
 
             if (!result.IsSuccessStatusCode)
             {
