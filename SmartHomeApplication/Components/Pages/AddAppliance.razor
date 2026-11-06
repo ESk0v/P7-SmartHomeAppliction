@@ -44,7 +44,16 @@
                             <ValidationMessage For="() => CreateDeviceDto.Model" class="text-danger" />
                         </div> 
                         <div class="mb-3">
-                            <label for="deviceCategory" class="form-label">Device Category</label>
+                            <label for="deviceCategory" class="form-label">Device Category
+                                <div class="info-tooltip">
+                                    <span><i class="bi bi-info-circle-fill"/></span>
+                                    <span class="info-tooltiptext">
+                                        Interruptible devices can be paused. This is devices such as an EV-Charger or Robot vacuum.<br><br>
+                                        Non-Interruptible devices cannot be paused. This is devices such as a washing machine or a dryer.
+                                    </span>
+                                </div>
+                            </label>
+                            
                             <InputSelect id="deviceCategory" class="form-control" @bind-Value="CreateDeviceDto.Category" >
                             <option value="">-- Select a Category --</option>
                             @foreach (var category in categories)
@@ -247,5 +256,37 @@
     z-index: 2;
     background: #fff;
 }
+
+.info-tooltip {
+    position: relative;
+    display: inline-block;
+    text-align: center;
+}
+
+.info-tooltip .info-tooltiptext {
+    visibility: visible;
+    width: 450px;
+    background-color: #464646;
+    color: #fff;
+    text-align: center;
+    border-radius: 6px;
+    padding: 5px;
+    position: absolute;
+    z-index: 1;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.info-tooltip:hover a {
+    color: #fff;
+}
+
+.info-tooltip:hover .info-tooltiptext {
+    visibility: visible;
+    opacity: 1;
+}
     
-    </style>
+</style>
