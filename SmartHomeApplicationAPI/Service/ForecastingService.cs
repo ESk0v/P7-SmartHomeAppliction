@@ -13,6 +13,8 @@ public class ForecastingService : IForecastingService
     }
 
     // Method implemtentation here
-
-    // Method will be something calling _repository.<NameHere>
+    public async Task<ForecastingResponseDto> PostPrices(ForecastingResponseDto respDto)
+    {
+        return await _repository.PostPrices(respDto);
+    }
 }

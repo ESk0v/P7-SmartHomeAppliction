@@ -5,5 +5,5 @@ namespace SmartHomeApplicationAPI.Repository;
 public interface IForecastingRepository
 {
     // Method signature here
-    
+    Task<ForecastingResponseDto> PostPrices(ForecastingResponseDto forecastingRequestDto);
 }
