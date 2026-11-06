@@ -1,4 +1,4 @@
-﻿@page "/addAppliance"
+﻿@page "/add-device"
 @rendermode InteractiveServer
 @inject NavigationManager NavigationManager
 @inject SmartHomeApplication.Service.IDeviceService DeviceService
@@ -7,17 +7,17 @@
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.AspNetCore.Components.QuickGrid
 
-<PageTitle>Add Appliance</PageTitle>
+<PageTitle>Add Device</PageTitle>
 
 <SectionContent SectionName="TopBarActions">
     <div class="header">
         <div class="heading">
-            <h1>Appliance registry</h1>
+            <h1>Device registry</h1>
             <p>@amount devices</p>
         </div>
 
         <div class="header-actions">
-            <NavLink class="nav-link" href="Appliance" Match="NavLinkMatch.All">
+            <NavLink class="nav-link" href="device" Match="NavLinkMatch.All">
                 <PrimaryButton ShowPlusIcon="false">
                 Go back
                 </PrimaryButton>
@@ -44,7 +44,16 @@
                             <ValidationMessage For="() => CreateDeviceDto.Model" class="text-danger" />
                         </div> 
                         <div class="mb-3">
-                            <label for="deviceCategory" class="form-label">Device Category</label>
+                            <label for="deviceCategory" class="form-label">Device Category
+                                <div class="info-tooltip">
+                                    <span><i class="bi bi-info-circle-fill"/></span>
+                                    <span class="info-tooltiptext">
+                                        Interruptible devices can be paused. This is devices such as an EV-Charger or Robot vacuum.<br><br>
+                                        Non-Interruptible devices cannot be paused. This is devices such as a washing machine or a dryer.
+                                    </span>
+                                </div>
+                            </label>
+                            
                             <InputSelect id="deviceCategory" class="form-control" @bind-Value="CreateDeviceDto.Category" >
                             <option value="">-- Select a Category --</option>
                             @foreach (var category in categories)
@@ -144,7 +153,7 @@
 
     private void GoToAppliance()
     {
-        NavigationManager.NavigateTo("/appliance");
+        NavigationManager.NavigateTo("/device");
     }
 
     private List<string> categories = new()
@@ -339,6 +348,36 @@
     .catalogue-card {
         min-height: 0;
     }
+.info-tooltip {
+    position: relative;
+    display: inline-block;
+    text-align: center;
+}
+
+.info-tooltip .info-tooltiptext {
+    visibility: visible;
+    width: 450px;
+    background-color: #464646;
+    color: #fff;
+    text-align: center;
+    border-radius: 6px;
+    padding: 5px;
+    position: absolute;
+    z-index: 1;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.info-tooltip:hover a {
+    color: #fff;
+}
+
+.info-tooltip:hover .info-tooltiptext {
+    visibility: visible;
+    opacity: 1;
 }
     
-    </style>
+</style>
