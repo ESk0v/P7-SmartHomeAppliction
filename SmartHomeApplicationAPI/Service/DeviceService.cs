@@ -83,14 +83,17 @@ public class DeviceService : IDeviceService
             };
         } 
 
-        var preset = new DevicePreset
+        var preset = await _repository.FindPresetByDeviceIdAndPresetNameAsync(device.Id, dto.Preset);
+        if (preset == null)
         {
-            Device = device,
-            PresetName = dto.Preset,
-            ConsumptionInKwh = dto.ConsumptionInKwh ?? 0m,
-            DurationInMinutes = dto.DurationInMinutes ?? 0
-        };
-
+            preset = new DevicePreset
+            {
+                Device = device,
+                PresetName = dto.Preset,
+                ConsumptionInKwh = dto.ConsumptionInKwh ?? 0m,
+                DurationInMinutes = dto.DurationInMinutes ?? 0
+            };
+        }
         var userDevice = new UserDevice
         {
             Device = device,

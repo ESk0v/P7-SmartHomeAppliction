@@ -15,5 +15,7 @@ namespace Utilities.Models
 		public decimal? ConsumptionInKwh { get; set; }
 
         public int? DurationInMinutes { get; set; }
+
+		public ICollection<PresetDeviceDto> Presets { get; set; } = new List<PresetDeviceDto>();
     }
 }

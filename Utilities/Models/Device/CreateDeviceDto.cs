@@ -16,7 +16,7 @@ namespace Utilities.Models
 
 		[Required]
 		[StringLength(20)]
-		public string Preset { get; set; } = "standard";
+		public string Preset { get; set; } = "";
 
 		[Required(ErrorMessage = "Consumption is required.")]
 		[Range(0.01, 500.0)]
@@ -25,5 +25,7 @@ namespace Utilities.Models
 		[Required(ErrorMessage = "Duration is required.")]
 		[Range(1, 1440)]
 		public int? DurationInMinutes { get; set; }
-	}
+
+		public ICollection<PresetDeviceDto> Presets { get; set; } = new List<PresetDeviceDto>();
+    }
 }

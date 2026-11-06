@@ -29,6 +29,11 @@ public class DeviceRepository : IDeviceRepository
         return await _db.Device.FirstOrDefaultAsync(d => d.Model == model && d.Category == category);
     }
 
+    public async Task<DevicePreset?> FindPresetByDeviceIdAndPresetNameAsync(int deviceId, string presetName)
+    {
+        return await _db.Preset.FirstOrDefaultAsync(p => p.DeviceId == deviceId && p.PresetName == presetName);
+    }
+
     public async Task<List<UserDeviceDto>> GetUserDevicesAsync(string userId)
     {
         return await _db.UserDevice
@@ -66,21 +71,17 @@ public class DeviceRepository : IDeviceRepository
             {
                 Model = device.Model,
                 Category = device.Category,
-                Preset = _db.Preset
+                Presets = _db.Preset
                     .Where(preset => preset.DeviceId == device.Id)
                     .OrderBy(preset => preset.Id)
-                    .Select(preset => preset.PresetName)
-                    .FirstOrDefault() ?? "standard",
-                ConsumptionInKwh = _db.Preset
-                    .Where(preset => preset.DeviceId == device.Id)
-                    .OrderBy(preset => preset.Id)
-                    .Select(preset => (decimal?)preset.ConsumptionInKwh)
-                    .FirstOrDefault(),
-                DurationInMinutes = _db.Preset
-                    .Where(preset => preset.DeviceId == device.Id)
-                    .OrderBy(preset => preset.Id)
-                    .Select(preset => (int?)preset.DurationInMinutes)
-                    .FirstOrDefault()
+                    .Select(preset => new PresetDeviceDto
+                    {
+                        Id = preset.Id,
+                        PresetName = preset.PresetName,
+                        ConsumptionInKwh = preset.ConsumptionInKwh,
+                        DurationInMinutes = preset.DurationInMinutes
+                    })
+                    .ToList()
             })
             .ToListAsync();
     }
@@ -91,7 +92,11 @@ public class DeviceRepository : IDeviceRepository
         {
             _db.Device.Add(device);
         }
-        _db.Preset.Add(preset);
+        var existingPreset = _db.Preset.Where(p => p.DeviceId == device.Id && p.PresetName == preset.PresetName).FirstOrDefault();
+        if (existingPreset == null)
+        {
+            _db.Preset.Add(preset);
+        }
         _db.UserDevice.Add(userDevice);
         await _db.SaveChangesAsync();
     }

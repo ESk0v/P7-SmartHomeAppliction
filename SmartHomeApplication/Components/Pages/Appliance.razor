@@ -317,7 +317,7 @@
             NotificationService.SuccessNotification($"Device: \"{previouslySelectedDeviceName}\" deleted successfully.");   
         }
         catch (Exception ex)
-        {
+        {   
             NotificationService.ErrorNotification($"Error deleting device: {ex.Message}");
         }
     }
