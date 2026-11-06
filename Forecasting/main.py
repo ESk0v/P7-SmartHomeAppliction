@@ -29,15 +29,17 @@ models = {}
 # Helpers for Calender features
 def create_calender_features(index: pd.DatetimeIndex):
     # gets time of day and day of week features
+    dk_time = index.tz_localize("UTC").tz_convert("Europe/Copenhagen")
+
     df_feat = pd.DataFrame(index=index)
-    df_feat["hour"] = index.hour
-    df_feat["minute"] = index.minute
-    df_feat["dayofweek"] = index.dayofweek
-    df_feat["is_weekend"] = (index.dayofweek >= 5).astype(int)
-    df_feat["month"] = index.month
+    df_feat["hour"] = dk_time.hour
+    df_feat["minute"] = dk_time.minute
+    df_feat["dayofweek"] = dk_time.dayofweek
+    df_feat["is_weekend"] = (dk_time.dayofweek >= 5).astype(int)
+    df_feat["month"] = dk_time.month
 
     seconds_in_day = 24*60*60
-    time_sec = index.hour * 3600 + index.minute * 60
+    time_sec = dk_time.hour * 3600 + dk_time.minute * 60
     df_feat["sin_time"] = np.sin(2 *np.pi * time_sec / seconds_in_day)
     df_feat["cos_time"] = np.cos(2 * np.pi * time_sec / seconds_in_day)
     return df_feat
@@ -45,7 +47,7 @@ def create_calender_features(index: pd.DatetimeIndex):
 def enforce_15min_grid(df_time_price: pd.DataFrame):
     # sorts, removes duplicates and uses 15-minute freq (needed by sktime)
     df_clean = df_time_price.copy()
-    df_clean["time"] = pd.to_datetime(df_clean["time"]).dt.tz_localize(None)
+    df_clean["time"] = pd.to_datetime(df_clean["time"], utc=True).dt.tz_localize(None)
     df_clean = df_clean.sort_values("time").drop_duplicates(subset=["time"], keep="last")
     df_clean = df_clean.set_index("time")
 
@@ -81,7 +83,7 @@ def prepare_series_from_csv(df: pd.DataFrame, area: str):
 def train_models_from_csv(csv_path: str):
     # trains the sk_time XGBRressor model
     if not os.path.exists(csv_path):
-        return FileNotFoundError(f'{csv_path} not found. Place in correct folder')
+        raise FileNotFoundError(f'{csv_path} not found. Place in correct folder')
 
     print('loading training data')
     df = load_energy_report_csv(csv_path)
@@ -102,7 +104,6 @@ def train_models_from_csv(csv_path: str):
         )
 
         forecaster = make_reduction(regressor, window_length=WINDOW_LENGTH, strategy="recursive")
-
         forecaster.fit(y_train, X=X_train)
         joblib.dump(forecaster, MODEL_PATHS[area])
         models[area] = forecaster
@@ -129,7 +130,7 @@ class HistoricalPricePoint(BaseModel):
 
 class ForecastingRequest(BaseModel):
     price_area: Literal["DK1", "DK2"]
-    steps_ahead: int = Field(default=96)
+    steps_ahead: int = Field(default=96, ge=1, le=288)
     recent_prices: List[HistoricalPricePoint] = Field(..., description="At least the last 24 hours from database")
 
 class PredictedPricePoint(BaseModel):
@@ -150,48 +151,48 @@ def generate_forecast(req: ForecastingRequest):
     if area not in models:
         raise HTTPException(status_code=503, detail=f'Model for {area} not trained')
 
-    if len(req.recent_prices) < WINDOW_LENGTH:
-        raise HTTPException(status_code=400, detail=f'Need minimum {WINDOW_LENGTH} previous prices')
-
     # Convert to 15 minute grid
     df_recent = pd.DataFrame([p.model_dump() for p in req.recent_prices])
     y_recent = enforce_15min_grid(df_recent)
 
+    if len(y_recent) < WINDOW_LENGTH:
+        raise HTTPException(status_code=400, detail=f'Need minimum {WINDOW_LENGTH} previous prices')
+
+    y_window = y_recent.iloc[-WINDOW_LENGTH:]
+    X_window = create_calender_features(pd.DatetimeIndex(y_window.index, freq=FREQ))
+
     forecaster = copy.deepcopy(models[area])
-    last_cutoff = forecaster.cutoff[0]
 
-    # Update sliding window
-    if y_recent.index[-1] > last_cutoff:
-        bridge_start = last_cutoff + pd.Timedelta(minutes=15)
-        bridge_idx = pd.date_range(start=bridge_start, end=y_recent.index[-1], freq=FREQ)
-        y_update = y_recent.reindex(bridge_idx).interpolate(method="time").bfill()
-        y_update.index = pd.DatetimeIndex(y_update.index, freq=FREQ)
-        X_update = create_calender_features(pd.DatetimeIndex(y_update.index, freq=FREQ))
+    # Update the models state to reflect the new 24 hour window
+    forecaster._y = y_window
+    forecaster._X = X_window
+    forecaster._cutoff = y_window.index[-1:]
 
-        forecaster.update(y_update, X=X_update, update_params=False)
-
-    # builds the 24 hours future and predicts
+    # Get the future horizon from latest known price-timepoint
     fh = ForecastingHorizon(np.arange(1, req.steps_ahead + 1), is_relative=True)
     future_start = forecaster.cutoff[0] + pd.Timedelta(minutes=15)
     future_idx = pd.date_range(start=future_start, periods=req.steps_ahead, freq=FREQ)
     X_future = create_calender_features(future_idx)
 
+    # The prediction itself, getting y value, using fh as the forecasting horizon
+    # and using X_future as the X value
     y_pred = forecaster.predict(fh=fh, X=X_future)
 
     predictions = [PredictedPricePoint(
-        time = pd.Timestamp(str(ts)).to_pydatetime(),
-        price_per_kwh=round(float(val), 5),
-        price_area=area,
-        is_predicted=True,
-        )
-    for ts, val in y_pred.items()
+            time = pd.Timestamp(ts).tz_localize("UTC").to_pydatetime(),
+            price_per_kwh=round(float(val), 5),
+            price_area=area,
+            is_predicted=True,
+            )
+        for ts, val in y_pred.items()
     ]
 
     return ForecastResponse(price_area=area, predictions=predictions)
+
 
 @app.post("/retrain")
 def retrain_models():
     # Retrains the models for both areas
     train_models_from_csv(CSV_PATH)
-    return "Models retrained successfully"
+    return {"message": "Models retrained successfully"}
 
