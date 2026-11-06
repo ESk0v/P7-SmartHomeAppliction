@@ -20,12 +20,12 @@
             <p>@date <span aria-hidden="true">•</span> @area</p>
         </div>
 
-        <div class="header-actions">
+        <div class="header-actions dashboard-header-actions">
             <SecondaryButton>
                 Re-optimize
             </SecondaryButton>
             <PrimaryButton>
-                New demand
+                New plan
             </PrimaryButton>
         </div>
     </div>
@@ -164,6 +164,10 @@
         display: flex;
         flex-shrink: 0;
         gap: 0.9rem;
+    }
+
+    .dashboard-header-actions .header-button-primary {
+        min-width: 6rem;
     }
 
     @@media (max-width: 640.98px) {

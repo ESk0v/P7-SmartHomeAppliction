@@ -1,21 +1,21 @@
-﻿@page "/appliance"
+﻿@page "/device"
 @attribute [Authorize]
 @inject SmartHomeApplication.Service.IDeviceService DeviceService
 @inject INotificationService NotificationService
 @using Utilities.Models
 @using global::Shared.Dashboard
 
-<PageTitle>Appliances</PageTitle>
+<PageTitle>Devices</PageTitle>
 
 <SectionContent SectionName="TopBarActions">
     <div class="header">
         <div class="heading">
-            <h1>Appliance registry</h1>
+            <h1>Device registry</h1>
             <p>@amount devices</p>
         </div>
 
         <div class="header-actions">
-            <NavLink class="nav-link" href="addAppliance" Match="NavLinkMatch.All">
+            <NavLink class="nav-link" href="add-device" Match="NavLinkMatch.All">
                 <PrimaryButton>
                 New device
                 </PrimaryButton>
