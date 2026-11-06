@@ -32,9 +32,9 @@
         {
             <p class="p-3 text-muted">No devices yet.</p>
         }
-        @foreach (var device in userdevices)
+        @foreach (UserDeviceDto device in userdevices)
 {
-    var isExpanded = expandedIds.Contains(device.Id);
+    bool isExpanded = expandedIds.Contains(device.Id);
 
     <div class="device-group">
         <div class="device-item @(selected?.Id == device.Id ? "active" : "")">
@@ -55,7 +55,7 @@
         @if (isExpanded)
         {
             <div class="preset-list">
-                @foreach (var preset in device.Presets)
+                @foreach (PresetDeviceDto preset in device.Presets)
                 {
                     <button type="button"
                             class="preset-item @(selected?.Id == device.Id && editPreset?.Id == preset.Id && !isAddingPreset ? "active" : "")"

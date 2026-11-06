@@ -4,7 +4,7 @@ namespace Utilities.Models
 {
 	public class CreateDeviceDto
 	{
-		public String UserId { get; set; } = string.Empty;
+		public string UserId { get; set; } = string.Empty;
 
 		[Required(ErrorMessage = "Device model is required.")]
 		[StringLength(50)]
@@ -13,6 +13,9 @@ namespace Utilities.Models
 		[Required(ErrorMessage = "Please select a category.")]
 		[StringLength(20)]
 		public string Category { get; set; } = string.Empty;
+
+		[Range(0.01, 1000000.0)]
+		public decimal? MaxBatteryCapacityInKwh { get; set; }
 
 		[Required]
 		[StringLength(10)]
