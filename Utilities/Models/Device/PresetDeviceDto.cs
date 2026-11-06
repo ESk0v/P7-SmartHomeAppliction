@@ -14,6 +14,6 @@ namespace Utilities.Models
         public decimal ConsumptionInKwh { get; set; }
 
         [Range(1, 1440)]
-        public int DurationInMinutes { get; set; }
+        public int? DurationInMinutes { get; set; }
     }
 }
