@@ -54,30 +54,48 @@
                                 </div>
                             </label>
                             
-                            <InputSelect id="deviceCategory" class="form-control" @bind-Value="CreateDeviceDto.Category" >
+                            <InputSelect id="deviceCategory"
+                                         class="form-control"
+                                         Value="@CreateDeviceDto.Category"
+                                         ValueChanged="@((string? category) => CategoryChanged(category))"
+                                         ValueExpression="@(() => CreateDeviceDto.Category)">
                             <option value="">-- Select a Category --</option>
-                            @foreach (var category in categories)
+                            @foreach (string category in categories)
                             {
                                 <option value="@category">@category</option>
                             }
                             </InputSelect>
                             <ValidationMessage For="() => CreateDeviceDto.Category" class="text-danger" /> 
                         </div>
-                        <div class="mb-3">
+                        @if (IsInterruptible)
+                        {
+                            <div class="mb-3">
+                                <label for="deviceBatteryCapacity" class="form-label">Battery Capacity (kWh)</label>
+                                <InputNumber id="deviceBatteryCapacity" class="form-control" @bind-Value="CreateDeviceDto.BatteryCapacityInKwh" />
+                                <ValidationMessage For="() => CreateDeviceDto.BatteryCapacityInKwh" class="text-danger" />
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="mb-3">
                             <label for="devicePreset" class="form-label">Preset</label>
                             <InputText id="devicePreset" class="form-control" @bind-Value="CreateDeviceDto.Preset" />
                             <ValidationMessage For="() => CreateDeviceDto.Preset" class="text-danger" /> 
-                        </div>
+                            </div>
+                        }
                         <div class="mb-3">
                             <label for="deviceConsumption" class="form-label">Consumption (kWh)</label>
                             <InputNumber id="deviceConsumption" class="form-control" @bind-Value="CreateDeviceDto.ConsumptionInKwh" />
                             <ValidationMessage For="() => CreateDeviceDto.ConsumptionInKwh" class="text-danger" /> 
                         </div>
-                        <div class="mb-3">
-                            <label for="deviceDuration" class="form-label">Duration (minutes)</label>
-                            <InputNumber id="deviceDuration" class="form-control" @bind-Value="CreateDeviceDto.DurationInMinutes" />
-                            <ValidationMessage For="() => CreateDeviceDto.DurationInMinutes" class="text-danger" />
-                        </div>
+                        @if (!IsInterruptible)
+                        {
+                            <div class="mb-3">
+                                <label for="deviceDuration" class="form-label">Duration (minutes)</label>
+                                <InputNumber id="deviceDuration" class="form-control" @bind-Value="CreateDeviceDto.DurationInMinutes" />
+                                <ValidationMessage For="() => CreateDeviceDto.DurationInMinutes" class="text-danger" />
+                            </div>
+                        }
                         <div class="mb-3">
                             <button type="submit" class="btn btn-primary">Save Device</button>
                         </div>
@@ -115,7 +133,7 @@
         NavigationManager.NavigateTo("/device");
     }
 
-    private List<string> categories = new()
+    private List<string> categories = new List<string>()
     {
         "Interruptible",
         "Non-Interruptible"
@@ -123,10 +141,19 @@
 
     private CreateDeviceDto CreateDeviceDto { get; set; } = new CreateDeviceDto();
 
+    private bool IsInterruptible =>
+        string.Equals(CreateDeviceDto.Category, "Interruptible", StringComparison.OrdinalIgnoreCase);
+
     public async Task CreateDevice()
     {
         try 
         {
+            if (IsInterruptible)
+            {
+                CreateDeviceDto.Preset = "Info";
+                CreateDeviceDto.DurationInMinutes = null;
+            }
+
             await DeviceService.CreateDeviceAsync(CreateDeviceDto);
             GoToAppliance();
             NotificationService.SuccessNotification($"Device: \"{CreateDeviceDto.Model}\" successfully added to your devices.");
@@ -153,9 +180,27 @@
     {
         CreateDeviceDto.Model = device.Model;
         CreateDeviceDto.Category = device.Category;
-        CreateDeviceDto.Preset = device.Preset;
+        CreateDeviceDto.BatteryCapacityInKwh = device.BatteryCapacityInKwh;
+        CreateDeviceDto.Preset = IsInterruptible ? "Info" : device.Preset;
         CreateDeviceDto.ConsumptionInKwh = device.ConsumptionInKwh;
-        CreateDeviceDto.DurationInMinutes = device.DurationInMinutes;
+        CreateDeviceDto.DurationInMinutes = IsInterruptible ? null : device.DurationInMinutes;
+    }
+
+    private void CategoryChanged(string? category)
+    {
+        CreateDeviceDto.Category = category ?? string.Empty;
+        CreateDeviceDto.BatteryCapacityInKwh = null;
+
+        if (IsInterruptible)
+        {
+            CreateDeviceDto.Preset = "Info";
+            CreateDeviceDto.DurationInMinutes = null;
+        }
+        else
+        {
+            CreateDeviceDto.Preset = "standard";
+            CreateDeviceDto.DurationInMinutes = null;
+        }
     }
 }
 

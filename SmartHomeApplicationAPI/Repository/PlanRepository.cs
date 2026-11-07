@@ -32,8 +32,13 @@ public class PlanRepository : IPlanRepository
                 windowStartTime: p.WindowStartTime,
                 windowEndTime: p.WindowEndTime,
                 estimatedCost: p.EstimatedPrice,
-                estimatedCo2Emissions: p.EstimatedCo2Emissions
-                
+                estimatedCo2Emissions: p.EstimatedCo2Emissions,
+                batteryCapacityInKwh: _db.Preset
+                    .Where(preset => preset.DeviceId == p.UserDevice.DeviceId)
+                    .OrderByDescending(preset => preset.PresetName == "Info")
+                    .ThenBy(preset => preset.Id)
+                    .Select(preset => preset.BatteryCapacityInKwh)
+                    .FirstOrDefault()
             ))
             .ToListAsync();
     }
@@ -45,7 +50,7 @@ public class PlanRepository : IPlanRepository
             .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == planId && p.UserDevice.UserId == userId);
 
-        return plan is null ? null : ToPlanDto(plan);
+        return plan is null ? null : await ToPlanDtoAsync(plan);
     }
 
     public Task<PlanUserDeviceDto?> GetUserDeviceForUpdateAsync(string userId, int userDeviceId) =>
@@ -57,7 +62,13 @@ public class PlanRepository : IPlanRepository
                 device => device.Id,
                 (item, device) => new PlanUserDeviceDto(
                     item.Id, item.DeviceId, item.Nickname, item.Icon, item.Color,
-                    device.Category, device.Model))
+                    device.Category, device.Model,
+                    _db.Preset
+                        .Where(preset => preset.DeviceId == device.Id)
+                        .OrderByDescending(preset => preset.PresetName == "Info")
+                        .ThenBy(preset => preset.Id)
+                        .Select(preset => preset.BatteryCapacityInKwh)
+                        .FirstOrDefault()))
             .FirstOrDefaultAsync();
 
     public Task<bool> PresetBelongsToDeviceAsync(int presetId, int deviceId) =>
@@ -88,28 +99,39 @@ public class PlanRepository : IPlanRepository
         plan.ChargeStopPercentage = update.chargeStopPercentage;
 
         await _db.SaveChangesAsync();
-        return ToPlanDto(plan);
+        return await ToPlanDtoAsync(plan);
     }
 
-    private static PlanDTO ToPlanDto(Plan plan) => new()
+    private async Task<PlanDTO> ToPlanDtoAsync(Plan plan)
     {
-        planId = plan.Id,
-        userDeviceId = plan.UserDeviceId,
-        startTime = plan.PlanStartTime,
-        endTime = plan.PlanEndTime,
-        windowStartTime = plan.WindowStartTime,
-        windowEndTime = plan.WindowEndTime,
-        nextPlanId = plan.NextPlanId,
-        estimatedCost = plan.EstimatedPrice,
-        estimatedCo2Emissions = plan.EstimatedCo2Emissions,
-        estimatedUnscheduledCost = plan.EstimatedUnscheduledPrice,
-        estimatedUnscheduledCo2Emissions = plan.EstimatedUnscheduledCo2Emissions,
-        planName = plan.Name,
-        icon = plan.UserDevice.Icon,
-        colorCode = plan.UserDevice.Color,
-        deviceName = plan.UserDevice.Nickname,
-        optimizationObjective = plan.OptimizationObjective,
-        presetId = plan.DevicePresetId,
-        chargeStopPercentage = plan.ChargeStopPercentage
-    };
+        decimal? batteryCapacity = await _db.Preset
+            .Where(preset => preset.DeviceId == plan.UserDevice.DeviceId)
+            .OrderByDescending(preset => preset.PresetName == "Info")
+            .ThenBy(preset => preset.Id)
+            .Select(preset => preset.BatteryCapacityInKwh)
+            .FirstOrDefaultAsync();
+
+        return new PlanDTO
+        {
+            planId = plan.Id,
+            userDeviceId = plan.UserDeviceId,
+            startTime = plan.PlanStartTime,
+            endTime = plan.PlanEndTime,
+            windowStartTime = plan.WindowStartTime,
+            windowEndTime = plan.WindowEndTime,
+            nextPlanId = plan.NextPlanId,
+            estimatedCost = plan.EstimatedPrice,
+            estimatedCo2Emissions = plan.EstimatedCo2Emissions,
+            estimatedUnscheduledCost = plan.EstimatedUnscheduledPrice,
+            estimatedUnscheduledCo2Emissions = plan.EstimatedUnscheduledCo2Emissions,
+            planName = plan.Name,
+            icon = plan.UserDevice.Icon,
+            colorCode = plan.UserDevice.Color,
+            deviceName = plan.UserDevice.Nickname,
+            optimizationObjective = plan.OptimizationObjective,
+            presetId = plan.DevicePresetId,
+            chargeStopPercentage = plan.ChargeStopPercentage,
+            batteryCapacityInKwh = batteryCapacity
+        };
+    }
 }

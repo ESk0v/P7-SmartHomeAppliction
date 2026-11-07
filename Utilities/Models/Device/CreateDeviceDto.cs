@@ -2,9 +2,9 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Utilities.Models
 {
-	public class CreateDeviceDto
+	public class CreateDeviceDto : IValidatableObject
 	{
-		public String UserId { get; set; } = string.Empty;
+		public string UserId { get; set; } = string.Empty;
 
 		[Required(ErrorMessage = "Device model is required.")]
 		[StringLength(50)]
@@ -14,6 +14,9 @@ namespace Utilities.Models
 		[StringLength(20)]
 		public string Category { get; set; } = string.Empty;
 
+		[Range(0.01, 1000000.0)]
+		public decimal? BatteryCapacityInKwh { get; set; }
+
 		[Required]
 		[StringLength(10)]
 		public string Preset { get; set; } = "standard";
@@ -22,8 +25,22 @@ namespace Utilities.Models
 		[Range(0.01, 2000.0)]
 		public decimal? ConsumptionInKwh { get; set; }
 
-		[Required(ErrorMessage = "Duration is required.")]
 		[Range(1, 1440)]
 		public int? DurationInMinutes { get; set; }
+
+		public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+		{
+			if (!string.IsNullOrEmpty(Category) && Category is not ("Interruptible" or "Non-Interruptible"))
+			{
+				yield return new ValidationResult("Select a valid category.", [nameof(Category)]);
+				yield break;
+			}
+
+			if (Category == "Interruptible" && BatteryCapacityInKwh is null)
+				yield return new ValidationResult("Battery capacity is required for interruptible devices.", [nameof(BatteryCapacityInKwh)]);
+
+			if (Category == "Non-Interruptible" && DurationInMinutes is null)
+				yield return new ValidationResult("Duration is required.", [nameof(DurationInMinutes)]);
+		}
 	}
 }

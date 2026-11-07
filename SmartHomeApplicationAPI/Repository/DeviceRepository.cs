@@ -16,13 +16,21 @@ public class DeviceRepository : IDeviceRepository
 
     public async Task<UserDevice?> FindUserDeviceByIdAsync(int deviceId)
     {
-        return await _db.UserDevice.FindAsync(deviceId);
+        return await _db.UserDevice.Include(item => item.Device)
+            .FirstOrDefaultAsync(item => item.Id == deviceId);
     }
 
     public async Task<DevicePreset?> FindPresetByIdAsync(int presetId)
     {
         return await _db.Preset.FindAsync(presetId);
     }
+
+    public Task<DevicePreset?> FindPresetForDeviceAsync(int deviceId) =>
+        _db.Preset
+            .Where(preset => preset.DeviceId == deviceId)
+            .OrderByDescending(preset => preset.PresetName == "Info")
+            .ThenBy(preset => preset.Id)
+            .FirstOrDefaultAsync();
 
     public async Task<Device?> FindDeviceByModelAndCategoryAsync(string model, string category)
     {
@@ -43,6 +51,18 @@ public class DeviceRepository : IDeviceRepository
                 Icon = ud.Icon,
                 Color = ud.Color,
                 IsFavorite = ud.IsFavorite,
+                BatteryCapacityInKwh = _db.Preset
+                    .Where(preset => preset.DeviceId == ud.DeviceId)
+                    .OrderByDescending(preset => preset.PresetName == "Info")
+                    .ThenBy(preset => preset.Id)
+                    .Select(preset => preset.BatteryCapacityInKwh)
+                    .FirstOrDefault(),
+                ConsumptionInKwh = _db.Preset
+                    .Where(preset => preset.DeviceId == ud.DeviceId)
+                    .OrderByDescending(preset => preset.PresetName == "Info")
+                    .ThenBy(preset => preset.Id)
+                    .Select(preset => (decimal?)preset.ConsumptionInKwh)
+                    .FirstOrDefault(),
                 Presets = _db.Preset
                     .Where(preset => preset.DeviceId == ud.DeviceId)
                     .OrderBy(preset => preset.Id)
@@ -51,7 +71,8 @@ public class DeviceRepository : IDeviceRepository
                         Id = preset.Id,
                         PresetName = preset.PresetName,
                         ConsumptionInKwh = preset.ConsumptionInKwh,
-                        DurationInMinutes = preset.DurationInMinutes
+                        DurationInMinutes = preset.DurationInMinutes,
+                        BatteryCapacityInKwh = preset.BatteryCapacityInKwh
                     })
                     .ToList()
             })
@@ -66,29 +87,40 @@ public class DeviceRepository : IDeviceRepository
             {
                 Model = device.Model,
                 Category = device.Category,
+                BatteryCapacityInKwh = _db.Preset
+                    .Where(preset => preset.DeviceId == device.Id)
+                    .OrderByDescending(preset => preset.PresetName == "Info")
+                    .ThenBy(preset => preset.Id)
+                    .Select(preset => preset.BatteryCapacityInKwh)
+                    .FirstOrDefault(),
                 Preset = _db.Preset
                     .Where(preset => preset.DeviceId == device.Id)
-                    .OrderBy(preset => preset.Id)
+                    .OrderByDescending(preset => preset.PresetName == "Info")
+                    .ThenBy(preset => preset.Id)
                     .Select(preset => preset.PresetName)
                     .FirstOrDefault() ?? "standard",
                 ConsumptionInKwh = _db.Preset
                     .Where(preset => preset.DeviceId == device.Id)
-                    .OrderBy(preset => preset.Id)
+                    .OrderByDescending(preset => preset.PresetName == "Info")
+                    .ThenBy(preset => preset.Id)
                     .Select(preset => (decimal?)preset.ConsumptionInKwh)
                     .FirstOrDefault(),
                 DurationInMinutes = _db.Preset
                     .Where(preset => preset.DeviceId == device.Id)
-                    .OrderBy(preset => preset.Id)
+                    .OrderByDescending(preset => preset.PresetName == "Info")
+                    .ThenBy(preset => preset.Id)
                     .Select(preset => (int?)preset.DurationInMinutes)
                     .FirstOrDefault()
             })
             .ToListAsync();
     }
 
-    public async Task AddDeviceAsync(Device device, DevicePreset preset, UserDevice userDevice)
+    public async Task AddDeviceAsync(Device device, DevicePreset? preset, UserDevice userDevice)
     {
-        _db.Device.Add(device);
-        _db.Preset.Add(preset);
+        if (device.Id == 0)
+            _db.Device.Add(device);
+        if (preset is not null)
+            _db.Preset.Add(preset);
         _db.UserDevice.Add(userDevice);
         await _db.SaveChangesAsync();
     }
