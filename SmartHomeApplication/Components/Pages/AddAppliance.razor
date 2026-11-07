@@ -30,7 +30,7 @@
     <div class="col-12 col-lg-6">
         <div class="card shadow-sm border-0 rounded-4 p-4 bg-white h-100">
             <h2 class="h5 mb-4">Add a new device</h2>
-                    <EditForm Method="post" EditContext="@editContext" OnSubmit="HandleSubmit" FormName="AddDeviceForm" data-enhance="false">
+                    <EditForm Method="post" Model="CreateDeviceDto" OnValidSubmit="CreateDevice" FormName="AddDeviceForm" data-enhance="false">
                         <AntiforgeryToken/>
                         <DataAnnotationsValidator />   
                         <div class="mb-3">
@@ -70,9 +70,9 @@
                         @if (IsInterruptible)
                         {
                             <div class="mb-3">
-                                <label for="deviceMaxBatteryCapacity" class="form-label">Max Battery Capacity (kWh)</label>
-                                <InputNumber id="deviceMaxBatteryCapacity" class="form-control" @bind-Value="CreateDeviceDto.MaxBatteryCapacityInKwh" />
-                                <ValidationMessage For="() => CreateDeviceDto.MaxBatteryCapacityInKwh" class="text-danger" />
+                                <label for="deviceBatteryCapacity" class="form-label">Battery Capacity (kWh)</label>
+                                <InputNumber id="deviceBatteryCapacity" class="form-control" @bind-Value="CreateDeviceDto.BatteryCapacityInKwh" />
+                                <ValidationMessage For="() => CreateDeviceDto.BatteryCapacityInKwh" class="text-danger" />
                             </div>
                         }
                         else
@@ -140,41 +140,9 @@
     };
 
     private CreateDeviceDto CreateDeviceDto { get; set; } = new CreateDeviceDto();
-    private EditContext editContext = default!;
-    private ValidationMessageStore customValidationMessages = default!;
 
     private bool IsInterruptible =>
         string.Equals(CreateDeviceDto.Category, "Interruptible", StringComparison.OrdinalIgnoreCase);
-
-    private async Task HandleSubmit(EditContext context)
-    {
-        customValidationMessages.Clear();
-
-        int? duration = CreateDeviceDto.DurationInMinutes;
-        if (IsInterruptible)
-        {
-            CreateDeviceDto.DurationInMinutes = 1;
-        }
-
-        bool isValid = context.Validate();
-        CreateDeviceDto.DurationInMinutes = IsInterruptible ? null : duration;
-
-        if (IsInterruptible && !CreateDeviceDto.MaxBatteryCapacityInKwh.HasValue)
-        {
-            customValidationMessages.Add(
-                FieldIdentifier.Create(() => CreateDeviceDto.MaxBatteryCapacityInKwh),
-                "Max battery capacity is required for interruptible devices.");
-            isValid = false;
-        }
-
-        if (!isValid)
-        {
-            context.NotifyValidationStateChanged();
-            return;
-        }
-
-        await CreateDevice();
-    }
 
     public async Task CreateDevice()
     {
@@ -204,8 +172,6 @@
 
     protected override async Task OnInitializedAsync()
     {
-        editContext = new EditContext(CreateDeviceDto);
-        customValidationMessages = new ValidationMessageStore(editContext);
         devices = (await DeviceService.GetAllDevicesAsync()).ToList();
         amount = (await DeviceService.GetUserDevicesAsync()).Count();
     }
@@ -214,17 +180,16 @@
     {
         CreateDeviceDto.Model = device.Model;
         CreateDeviceDto.Category = device.Category;
-        CreateDeviceDto.MaxBatteryCapacityInKwh = null;
+        CreateDeviceDto.BatteryCapacityInKwh = device.BatteryCapacityInKwh;
         CreateDeviceDto.Preset = IsInterruptible ? "Info" : device.Preset;
         CreateDeviceDto.ConsumptionInKwh = device.ConsumptionInKwh;
         CreateDeviceDto.DurationInMinutes = IsInterruptible ? null : device.DurationInMinutes;
-        editContext.NotifyFieldChanged(FieldIdentifier.Create(() => CreateDeviceDto.Category));
     }
 
     private void CategoryChanged(string? category)
     {
         CreateDeviceDto.Category = category ?? string.Empty;
-        CreateDeviceDto.MaxBatteryCapacityInKwh = null;
+        CreateDeviceDto.BatteryCapacityInKwh = null;
 
         if (IsInterruptible)
         {

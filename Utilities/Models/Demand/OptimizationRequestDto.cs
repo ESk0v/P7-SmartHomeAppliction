@@ -10,6 +10,8 @@ namespace Utilities.Models
         [StringLength(50)]
 		public string DeviceName { get; set; } = string.Empty;
 
+        public decimal? BatteryCapacityInKwh { get; set; }
+
         [Range(0, 100)]
 		public int? ChargeStartPercentage { get; set; }
 
