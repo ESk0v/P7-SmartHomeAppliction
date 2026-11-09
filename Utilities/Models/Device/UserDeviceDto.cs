@@ -21,6 +21,10 @@ namespace Utilities.Models
 
         public bool IsFavorite { get; set; }
 
+        public decimal? BatteryCapacityInKwh { get; set; }
+
+        public decimal? ConsumptionInKwh { get; set; }
+
         public List<PresetDeviceDto> Presets { get; set; } = new List<PresetDeviceDto>();
     }
 }

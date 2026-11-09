@@ -26,8 +26,11 @@ namespace SmartHomeApplicationAPI.Infrastructure.Models
 		[Column("consumption_in_kwh")]
 		public decimal ConsumptionInKwh { get; set; }
 
-		[Required]
 		[Column("duration_in_minutes")]
-		public int DurationInMinutes { get; set; }
+		public int? DurationInMinutes { get; set; }
+
+		[Precision(7, 3)]
+		[Column("battery_capacity_in_kwh")]
+		public decimal? BatteryCapacityInKwh { get; set; }
 	}
 }

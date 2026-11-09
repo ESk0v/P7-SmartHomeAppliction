@@ -18,6 +18,17 @@ public class DeviceService : IDeviceService
         var userDevice = await _repository.FindUserDeviceByIdAsync(device.Id);
         if (userDevice == null) return false;
 
+        if (userDevice.Device?.Category == "Interruptible")
+        {
+            if (device.BatteryCapacityInKwh is null || device.ConsumptionInKwh is null)
+                throw new ArgumentException("Battery capacity and consumption are required for interruptible devices.");
+
+            DevicePreset? preset = await _repository.FindPresetForDeviceAsync(userDevice.DeviceId);
+            if (preset is null) return false;
+            preset.BatteryCapacityInKwh = device.BatteryCapacityInKwh;
+            preset.ConsumptionInKwh = device.ConsumptionInKwh.Value;
+        }
+
         userDevice.Nickname = device.Nickname;
         userDevice.Icon = device.Icon;
         userDevice.Color = device.Color;
@@ -41,7 +52,8 @@ public class DeviceService : IDeviceService
     {
         var userDevice = await _repository.FindUserDeviceByIdAsync(userDeviceId);
         var existingPreset = await _repository.FindPresetByIdAsync(preset.Id);
-        if (userDevice is null || existingPreset is null || existingPreset.DeviceId != userDevice.DeviceId)
+        if (userDevice is null || userDevice.Device?.Category == "Interruptible" ||
+            existingPreset is null || existingPreset.DeviceId != userDevice.DeviceId)
         {
             return false;
         }
@@ -55,7 +67,7 @@ public class DeviceService : IDeviceService
     public async Task<bool> CreatePresetAsync(int userDeviceId, PresetDeviceDto preset)
     {
         var userDevice = await _repository.FindUserDeviceByIdAsync(userDeviceId);
-        if (userDevice is null)
+        if (userDevice is null || userDevice.Device?.Category == "Interruptible")
         {
             return false;
         }
@@ -71,8 +83,7 @@ public class DeviceService : IDeviceService
     }
 
     public async Task<int> CreateDeviceAsync(CreateDeviceDto dto)
-    {   
-      
+    {
         var device = await _repository.FindDeviceByModelAndCategoryAsync(dto.Model, dto.Category);
         if (device == null)
         {
@@ -81,19 +92,32 @@ public class DeviceService : IDeviceService
                 Model = dto.Model,
                 Category = dto.Category
             };
-        } 
-
-        var preset = await _repository.FindPresetByDeviceIdAndPresetNameAsync(device.Id, dto.Preset);
-        if (preset == null)
-        {
-            preset = new DevicePreset
-            {
-                Device = device,
-                PresetName = dto.Preset,
-                ConsumptionInKwh = dto.ConsumptionInKwh ?? 0m,
-                DurationInMinutes = dto.DurationInMinutes ?? 0
-            };
         }
+
+        DevicePreset? preset = null;
+        if (dto.Category == "Interruptible" && device.Id != 0)
+        {
+            DevicePreset? existingPreset = await _repository.FindPresetForDeviceAsync(device.Id);
+            if (existingPreset is not null)
+            {
+                if (existingPreset.BatteryCapacityInKwh is not null &&
+                    (existingPreset.BatteryCapacityInKwh != dto.BatteryCapacityInKwh ||
+                     existingPreset.ConsumptionInKwh != dto.ConsumptionInKwh))
+                    throw new DeviceCapacityConflictException();
+
+                existingPreset.BatteryCapacityInKwh = dto.BatteryCapacityInKwh;
+                existingPreset.ConsumptionInKwh = dto.ConsumptionInKwh!.Value;
+            }
+            else
+            {
+                preset = CreatePreset(device, dto);
+            }
+        }
+        else
+        {
+            preset = CreatePreset(device, dto);
+        }
+
         var userDevice = new UserDevice
         {
             Device = device,
@@ -108,11 +132,28 @@ public class DeviceService : IDeviceService
         return device.Id;
     }
 
+    private static DevicePreset CreatePreset(Device device, CreateDeviceDto dto) => new()
+    {
+        Device = device,
+        PresetName = dto.Category == "Interruptible" ? "Info" : dto.Preset,
+        ConsumptionInKwh = dto.ConsumptionInKwh!.Value,
+        DurationInMinutes = dto.Category == "Interruptible" ? null : dto.DurationInMinutes,
+        BatteryCapacityInKwh = dto.Category == "Interruptible" ? dto.BatteryCapacityInKwh : null
+    };
+
     public async Task<bool> DeleteUserDeviceAsync(int userDeviceId)
     {
         var userDevice = await _repository.FindUserDeviceByIdAsync(userDeviceId);
         if (userDevice == null) return false;
         await _repository.DeleteUserDevice(userDevice);
         return true;
+    }
+}
+
+public sealed class DeviceCapacityConflictException : Exception
+{
+    public DeviceCapacityConflictException()
+        : base("This model already has different battery capacity or consumption values. Select its saved values from the catalogue or edit them in the device registry.")
+    {
     }
 }
