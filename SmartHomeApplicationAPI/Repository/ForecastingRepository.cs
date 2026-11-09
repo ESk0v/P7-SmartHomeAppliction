@@ -15,6 +15,21 @@ public class ForecastingRepository : IForecastingRepository
     }
 
     // Method implementation here
+    public async Task<List<HistoricalPricePoint>> GetRecentPricesAsync(string priceArea, int count = 96)
+    {
+        return await _db.Electricity
+            .Where(e => e.PriceArea == priceArea && !e.IsPredicted)
+            .OrderByDescending(e => e.Time)
+            .Take(count)
+            .OrderBy(e => e.Time)
+            .Select(e => new HistoricalPricePoint
+            {
+                Time = e.Time,
+                PricePerKwh = (float)e.PricePerKwh
+            })
+            .ToListAsync();
+    }
+
     public async Task<ForecastingResponseDto> PostPrices(ForecastingResponseDto respDto)
     {
         // All database communication should reside here

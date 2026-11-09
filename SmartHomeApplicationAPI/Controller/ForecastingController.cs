@@ -16,11 +16,10 @@ public class ForecastingController : ControllerBase
     }
 
     [HttpPost("forecast")]
-    public async Task<ActionResult<ForecastingResponseDto>> Forecast([FromBody] ForecastingRequestDto request)
+    public async Task<ActionResult<ForecastingResponseDto>> Forecast(string priceArea = "DK1", [FromQuery] int stepsAhead = 96)
     {
-        // DER ER POTENTIELT NOGET GALT MED METHODS HELE VEJEN IGENNEM DETTE FLOW
-        // OG DERES PARAMETRE OG RETURN TYPER. Tror jeg er kommet til at rodde rundt i Request og Response.
-        // Skal der tjekkes op på
-        return null;
+        // Mangler lige lidt fejl tjeks, men ellers.
+        var result = await _service.GenerateForecastForAreaAsync(priceArea, stepsAhead);
+        return Ok(result);
     }
 }    

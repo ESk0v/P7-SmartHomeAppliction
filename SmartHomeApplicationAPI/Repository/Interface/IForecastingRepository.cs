@@ -5,5 +5,6 @@ namespace SmartHomeApplicationAPI.Repository;
 public interface IForecastingRepository
 {
     // Method signature here
-    Task<ForecastingResponseDto> PostPrices(ForecastingResponseDto forecastingRequestDto);
+    Task<List<HistoricalPricePoint>> GetRecentPricesAsync(string priceArea, int count = 96);
+    Task<ForecastingResponseDto> PostPrices(ForecastingResponseDto forecastingResponseDto);
 }

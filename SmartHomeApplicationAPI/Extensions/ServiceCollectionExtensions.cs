@@ -20,7 +20,12 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IOptimizationService, OptimizationService>();
         services.AddScoped<IDeviceService, DeviceService>();
         services.AddScoped<IHistoryService, HistoryService>();
-        services.AddScoped<IForecastingService, ForecastingService>();
+        services.AddHttpClient<IForecastingService, ForecastingService>((sp, client) =>
+        {
+            var config = sp.GetRequiredService<IConfiguration>();
+            var pythonUrl = config["ForecastingApiUrl"] ?? "http://127.0.0.1:6767";
+            client.BaseAddress = new Uri(pythonUrl);
+        });
 
         //REPOSITORIES
         services.AddScoped<IElectricityPriceRepository, ElectricityPriceRepository>();

@@ -1,5 +1,6 @@
 using Hangfire;
 using SmartHomeApplicationAPI.Hangfire.Services;
+using SmartHomeApplicationAPI.Service;
 
 namespace SmartHomeApplicationAPI.Hangfire;
 
@@ -30,6 +31,8 @@ public static class Jobs
             {
                 TimeZone = Copenhagen
             });
+
+        RecurringJob.AddOrUpdate<IForecastingService>("daily-price-forecast", service => service.RunDailyForecastJobAsync(), Cron.Daily(12, 0));
 
 //        RecurringJob.AddOrUpdate<ICo2ImportService>(
 //            Co2ActualsImport,
