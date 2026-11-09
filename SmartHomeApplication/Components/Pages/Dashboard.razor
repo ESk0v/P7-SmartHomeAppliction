@@ -6,7 +6,7 @@
 @using System.Globalization
 @using Utilities.Models
 @using System.Security.Claims
-
+@inject NavigationManager NavigationManager
 @inject HttpClient Http
 @inject AuthenticationStateProvider AuthProvider
 @inject ILogger<Dashboard> Logger
@@ -24,7 +24,7 @@
             <SecondaryButton>
                 Re-optimize
             </SecondaryButton>
-            <PrimaryButton>
+            <PrimaryButton OnClick="GoToMakePlan">
                 New plan
             </PrimaryButton>
         </div>
@@ -47,14 +47,14 @@
     </div>
 
     <div class="devices">
-        @if (activeSchedules is null)
+        @if (displaySchedules is null)
         {
             <p>Loading...</p>
         }
         else {
-            @foreach (PlanDto activeSchedule in activeSchedules)
+            @foreach (PlanDto schedule in displaySchedules)
             {
-                <Schedules activeSchedule="activeSchedule" />
+                <Schedules activeSchedule="schedule" />
             }
         }
     </div>    
@@ -65,6 +65,10 @@
     private string area = "Nordpool DK1";
 
     private List<PlanDto>? activeSchedules;
+    private List<PlanDto>? displaySchedules;  
+    
+    private void GoToMakePlan() => NavigationManager.NavigateTo("/new-plan");
+
 
     protected override async Task OnInitializedAsync()
     {
@@ -77,7 +81,66 @@
         var response = await Http.SendAsync(request);
         response.EnsureSuccessStatusCode();
         activeSchedules = await response.Content.ReadFromJsonAsync<List<PlanDto>>();
+        displaySchedules = BuildDisplaySchedules(activeSchedules ?? new List<PlanDto>());
     }
+    private List<PlanDto> BuildDisplaySchedules(List<PlanDto> allSchedules)
+    {
+        if (allSchedules.Count == 0)
+            return new List<PlanDto>();
+
+        var plansById = allSchedules.ToDictionary(x => x.planId);
+
+        HashSet<int> continuationIds = allSchedules
+            .Where(x => x.nextPlanId.HasValue)
+            .Select(x => x.nextPlanId!.Value)
+            .ToHashSet();
+
+        var normalPlans = allSchedules
+            .Where(x => !continuationIds.Contains(x.planId))
+            .ToList();
+
+        var result = new List<PlanDto>();
+
+        foreach (var plan in normalPlans)
+        {
+            PlanDto current = plan;
+            PlanDto lastPlan = plan;
+
+            HashSet<int> visited = new();
+
+            visited.Add(current.planId);
+
+            while (current.nextPlanId is { } nextId
+                && plansById.TryGetValue(nextId, out PlanDto? next)
+                && visited.Add(nextId))
+            {
+                current = next;
+                lastPlan = current;
+            }
+
+            var combinedPlan = new PlanDto
+            (
+                planId: plan.planId,
+                nextPlanId: plan.nextPlanId,
+                planName: plan.planName,
+                icon: plan.icon,
+                colorCode: plan.colorCode,
+                deviceName: plan.deviceName,
+                startTime: plan.startTime,
+                endTime: lastPlan.endTime,
+                windowStartTime: plan.windowStartTime,
+                windowEndTime: lastPlan.windowEndTime,
+                estimatedCost: plan.estimatedCost,
+                estimatedCo2Emissions: plan.estimatedCo2Emissions,
+                batteryCapacityInKwh: plan.batteryCapacityInKwh
+            );
+            
+            result.Add(combinedPlan);
+        }
+
+        return result;
+    }
+
 }
 
 <style>
