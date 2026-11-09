@@ -18,7 +18,7 @@ namespace Utilities.Models
 		public decimal? BatteryCapacityInKwh { get; set; }
 
 		[Required]
-		[StringLength(20)]
+		[StringLength(50)]
 		public string Preset { get; set; } = "";
 
 		[Required(ErrorMessage = "Consumption is required.")]
