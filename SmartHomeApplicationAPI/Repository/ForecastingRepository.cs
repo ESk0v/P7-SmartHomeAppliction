@@ -38,7 +38,7 @@ public class ForecastingRepository : IForecastingRepository
             // Mapping gøres med Select() hvor hver PredictedPricePoint fra respDto pakke ud til 1 Electrity entry
         var prices = respDto.Predictions.Select(p => new Electricity
         {
-            Time = p.Time,
+            Time = DateTime.SpecifyKind(p.Time, DateTimeKind.Unspecified),
             PricePerKwh = (decimal)p.PricePerKwh,
             PriceArea = p.PriceArea,
             IsPredicted = p.IsPredicted

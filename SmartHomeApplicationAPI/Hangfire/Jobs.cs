@@ -32,7 +32,7 @@ public static class Jobs
                 TimeZone = Copenhagen
             });
 
-        RecurringJob.AddOrUpdate<IForecastingService>("daily-price-forecast", service => service.RunDailyForecastJobAsync(), Cron.Daily(12, 0));
+        RecurringJob.AddOrUpdate<IForecastingService>("daily-price-forecast", service => service.RunDailyForecastJobAsync(), "0 14 * * *");
 
 //        RecurringJob.AddOrUpdate<ICo2ImportService>(
 //            Co2ActualsImport,

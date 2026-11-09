@@ -4,7 +4,7 @@ import joblib
 import numpy as np
 import pandas as pd
 from datetime import datetime
-from typing import List, Literal
+from typing import List, Literal, cast
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
@@ -161,30 +161,53 @@ def generate_forecast(req: ForecastingRequest):
     y_window = y_recent.iloc[-WINDOW_LENGTH:]
     X_window = create_calender_features(pd.DatetimeIndex(y_window.index, freq=FREQ))
 
-    forecaster = copy.deepcopy(models[area])
+    forecaster = models[area]
 
-    # Update the models state to reflect the new 24 hour window
-    forecaster._y = y_window
-    forecaster._X = X_window
-    forecaster._cutoff = y_window.index[-1:]
+    xgb_model = getattr(forecaster, "estimator_", getattr(forecaster, "_estimator", None))
+    assert xgb_model is not None
 
-    # Get the future horizon from latest known price-timepoint
-    fh = ForecastingHorizon(np.arange(1, req.steps_ahead + 1), is_relative=True)
-    future_start = forecaster.cutoff[0] + pd.Timedelta(minutes=15)
+    future_start = y_window.index[-1] + pd.Timedelta(minutes=15)
     future_idx = pd.date_range(start=future_start, periods=req.steps_ahead, freq=FREQ)
     X_future = create_calender_features(future_idx)
 
-    # The prediction itself, getting y value, using fh as the forecasting horizon
-    # and using X_future as the X value
-    y_pred = forecaster.predict(fh=fh, X=X_future)
+    X_all_np = pd.concat([X_window, X_future]).to_numpy(dtype=np.float64)
+    history_y = list(np.nan_to_num(y_window.to_numpy(dtype=np.float64), nan=0.0))
+    
+    n_expected = int(xgb_model.n_features_in_)
+    n_x_cols = X_all_np.shape[1]
+    preds: list[float] = []
 
-    predictions = [PredictedPricePoint(
-            time = pd.Timestamp(ts).tz_localize("UTC").to_pydatetime(),
-            price_per_kwh=round(float(val), 5),
+    for i in range(req.steps_ahead):
+        # De seneste 96 y-værdier
+        y_lags = np.asarray(history_y[-WINDOW_LENGTH:], dtype=np.float64)
+
+        # sktime's make_reduction inkluderer enten kun aktuel X (96 + 7 = 103 features)
+        # eller hele vinduet af X (96 + 96*7 = 768 features). Vi matcher automatisk:
+        if n_expected == WINDOW_LENGTH + n_x_cols:
+            x_feat = X_all_np[WINDOW_LENGTH + i]
+        elif n_expected == WINDOW_LENGTH + (WINDOW_LENGTH * n_x_cols):
+            x_feat = X_all_np[i + 1 : i + 1 + WINDOW_LENGTH].ravel()
+        else:
+            x_feat = X_all_np[i : i + WINDOW_LENGTH + 1].ravel()[: n_expected - WINDOW_LENGTH]
+
+        features = np.concatenate((y_lags, x_feat)).reshape(1, -1)
+        pred_val = float(xgb_model.predict(features)[0])
+        
+        # Sikr at vi aldrig sender NaN tilbage til C#
+        if np.isnan(pred_val):
+            pred_val = float(history_y[-1])
+
+        preds.append(pred_val)
+        history_y.append(pred_val)
+
+    predictions = [
+        PredictedPricePoint(
+            time=pd.Timestamp(ts).tz_localize("UTC").to_pydatetime(),
+            price_per_kwh=round(val, 5),
             price_area=area,
             is_predicted=True,
-            )
-        for ts, val in y_pred.items()
+        )
+        for ts, val in zip(future_idx, preds)
     ]
 
     return ForecastResponse(price_area=area, predictions=predictions)
