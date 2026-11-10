@@ -148,7 +148,7 @@ else if (isLoading)
         <div class="priceoverview">
             @if (activeSchedules is not null)
             {
-                <PriceChart activeSchedules="activeSchedules"/>
+                <PriceChart activeSchedules="activeSchedules" MaxDisplayedPrices="24"/>
             }
         </div>
         <div class="optimized-side-column">
@@ -1101,6 +1101,12 @@ else if (isLoading)
         min-height: 300px;
         max-height: 300px;
         flex-direction: column;
+    }
+
+    .priceoverview {
+        width: 100%;
+        box-sizing: border-box;
+        overflow: hidden;
     }
 
     .optimized-side-column {
