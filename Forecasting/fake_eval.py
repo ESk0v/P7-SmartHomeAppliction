@@ -7,7 +7,7 @@ from xgboost import XGBRegressor
 from sktime.forecasting.base import ForecastingHorizon
 from sktime.forecasting.compose import make_reduction
 
-from main_sktime import (
+from fake import (
     CSV_PATH,
     FREQ,
     WINDOW_LENGTH,
