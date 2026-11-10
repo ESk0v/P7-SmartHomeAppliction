@@ -74,7 +74,7 @@
                                 <ValidationMessage For="() => CreateDeviceDto.BatteryCapacityInKwh" class="text-danger" />
                             </div>
                             <div class="mb-3">
-                                <label for="deviceConsumption" class="form-label">Consumption (kWh)</label>
+                                <label for="deviceConsumption" class="form-label">Charging Speed (kWh)</label>
                                 <InputNumber id="deviceConsumption" class="form-control" @bind-Value="CreateDeviceDto.ConsumptionInKwh" />
                                 <ValidationMessage For="() => CreateDeviceDto.ConsumptionInKwh" class="text-danger" /> 
                             </div>
@@ -212,6 +212,13 @@
 
     public async Task CreateDevice()
     {
+        if (IsCustomPreset && CreateDeviceDto.Presets.Any(preset =>
+                string.Equals(preset.PresetName.Trim(), CreateDeviceDto.Preset.Trim(), StringComparison.OrdinalIgnoreCase)))
+        {
+            NotificationService.ErrorNotification($"Preset \"{CreateDeviceDto.Preset}\" already exists for device \"{CreateDeviceDto.Model}\".");
+            return;
+        }
+
         try 
         {
             if (IsInterruptible)
