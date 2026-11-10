@@ -23,7 +23,7 @@ public static class ServiceCollectionExtensions
         services.AddHttpClient<IForecastingService, ForecastingService>((sp, client) =>
         {
             var config = sp.GetRequiredService<IConfiguration>();
-            var pythonUrl = config["ForecastingApiUrl"] ?? "http://127.0.0.1:6767";
+            var pythonUrl = config["ForecastingApiUrl"] ?? "https://elpriser.org";
             client.BaseAddress = new Uri(pythonUrl);
         });
 

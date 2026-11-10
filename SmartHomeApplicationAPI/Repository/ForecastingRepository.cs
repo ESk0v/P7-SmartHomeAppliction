@@ -15,33 +15,38 @@ public class ForecastingRepository : IForecastingRepository
     }
 
     // Method implementation here
-    public async Task<List<HistoricalPricePoint>> GetRecentPricesAsync(string priceArea, int count = 96)
+    public async Task<DateTime?> GetLatestActualPriceTimeAsync(string priceArea)
     {
         return await _db.Electricity
             .Where(e => e.PriceArea == priceArea && !e.IsPredicted)
-            .OrderByDescending(e => e.Time)
-            .Take(count)
-            .OrderBy(e => e.Time)
-            .Select(e => new HistoricalPricePoint
-            {
-                Time = e.Time,
-                PricePerKwh = (float)e.PricePerKwh
-            })
-            .ToListAsync();
+            .MaxAsync(e => (DateTime?)e.Time);
     }
 
     public async Task<ForecastingResponseDto> PostPrices(ForecastingResponseDto respDto)
     {
-        // All database communication should reside here
-
         // Tag imod ResponseDto, pak listen ad Predictions ud og tilføj den til database, er jeg ret sikker på
             // Mapping gøres med Select() hvor hver PredictedPricePoint fra respDto pakke ud til 1 Electrity entry
+        var existingPredictions = await _db.Electricity
+            .Where(e => e.PriceArea == respDto.PriceArea && e.IsPredicted)
+            .ToListAsync();
+
+        if (existingPredictions.Count > 0)
+        {
+            _db.Electricity.RemoveRange(existingPredictions);
+        }
+
+        if (respDto.Predictions.Count == 0)
+        {
+            await _db.SaveChangesAsync();
+            return respDto;
+        }
+
         var prices = respDto.Predictions.Select(p => new Electricity
         {
             Time = DateTime.SpecifyKind(p.Time, DateTimeKind.Unspecified),
-            PricePerKwh = (decimal)p.PricePerKwh,
-            PriceArea = p.PriceArea,
-            IsPredicted = p.IsPredicted
+            PricePerKwh = Math.Round((decimal)p.PricePerKwh, 5),
+            PriceArea = p.PriceArea.ToUpperInvariant(),
+            IsPredicted = true
         }).ToList();
 
         await _db.Electricity.AddRangeAsync(prices);
