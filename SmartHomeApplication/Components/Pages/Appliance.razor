@@ -194,6 +194,7 @@
     private UpdateUserDeviceDto? editDevice;
     private PresetDeviceDto? editPreset;
     private bool isAddingPreset;
+    private string previouslySelectedDeviceName = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
@@ -322,6 +323,7 @@
     {
         try
         {
+            previouslySelectedDeviceName = selected?.Nickname ?? string.Empty;
             await DeviceService.DeleteUserDeviceAsync(userDeviceId);
             userdevices = (await DeviceService.GetUserDevicesAsync()).ToList();
             selected = userdevices.FirstOrDefault();
@@ -336,10 +338,10 @@
                 BatteryCapacityInKwh = selected.BatteryCapacityInKwh,
                 ConsumptionInKwh = selected.ConsumptionInKwh,
             } : null;
-            NotificationService.SuccessNotification($"Device: \"{selected?.Nickname}\" deleted successfully.");   
+            NotificationService.SuccessNotification($"Device: \"{previouslySelectedDeviceName}\" deleted successfully.");   
         }
         catch (Exception ex)
-        {
+        {   
             NotificationService.ErrorNotification($"Error deleting device: {ex.Message}");
         }
     }
