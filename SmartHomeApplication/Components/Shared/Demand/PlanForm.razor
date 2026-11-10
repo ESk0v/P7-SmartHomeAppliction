@@ -41,6 +41,7 @@ else if (isLoading)
                 @if (isInterruptible)
                 {
                     <div class="charge-settings mt-4 mb-4">
+                        <p>Battery capacity: @(SelectedDevice?.batteryCapacityInKwh is decimal capacity ? $"{capacity:0.###} kWh" : "Unknown")</p>
                         <div class="charge-slider">
                             <div class="charge-slider-header">
                                 <label for="chargeStop">Charge to</label>
@@ -147,7 +148,7 @@ else if (isLoading)
         <div class="priceoverview">
             @if (activeSchedules is not null)
             {
-                <PriceChart activeSchedules="activeSchedules"/>
+                <PriceChart activeSchedules="activeSchedules" MaxDisplayedPrices="24"/>
             }
         </div>
         <div class="optimized-side-column">
@@ -213,7 +214,9 @@ else if (isLoading)
     private static readonly TimeZoneInfo CopenhagenTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen");
     private string DisplayedDuration => IsEditMode && existingPlan is not null
         ? ((int)(existingPlan.endTime - existingPlan.startTime).TotalMinutes).ToString(CultureInfo.InvariantCulture)
-        : ScheduleForm.Preset?.duration.ToString(CultureInfo.InvariantCulture) ?? "?";
+        : isInterruptible && response is not null
+            ? ((int)(response.EndTime - response.StartTime).TotalMinutes).ToString(CultureInfo.InvariantCulture)
+            : ScheduleForm.Preset?.duration?.ToString(CultureInfo.InvariantCulture) ?? "?";
 
     // Active schedules populate the price chart beside the form.
     private List<PlanDto>? activeSchedules;
@@ -225,6 +228,8 @@ else if (isLoading)
     private string? selectedPresetId;
     // Devices registered by the current user.
     private List<PlanUserDeviceDto> userDevices = new List<PlanUserDeviceDto>();
+    private PlanUserDeviceDto? SelectedDevice => userDevices
+        .FirstOrDefault(device => device.id.ToString(CultureInfo.InvariantCulture) == selectedDeviceId);
     // Presets indexed by device so the picker can filter them.
     private Dictionary<int, List<PresetDto>> presetsByDevice = new Dictionary<int, List<PresetDto>>();
     private string? selectedDeviceId;
@@ -424,8 +429,7 @@ else if (isLoading)
     // Update the selected device name, available presets, and device category.
     private void OnDeviceSelected()
     {
-        PlanUserDeviceDto? selectedDevice = userDevices
-            .FirstOrDefault(x => x.id.ToString() == selectedDeviceId);
+        PlanUserDeviceDto? selectedDevice = SelectedDevice;
 
         ScheduleForm.DeviceName = selectedDevice?.deviceNickname ?? string.Empty;
 
@@ -437,7 +441,7 @@ else if (isLoading)
         isNonInterruptible = selectedDevice is not null && !isInterruptible;
         
         selectedPresetId = null;
-        ScheduleForm.Preset = new PresetDto();
+        ScheduleForm.Preset = isInterruptible ? filteredPresets.FirstOrDefault() : new PresetDto();
         ScheduleForm.ChargeStopPercentage = null;
     }
 
@@ -520,6 +524,7 @@ else if (isLoading)
         {
             Area = area,
             DeviceName = ScheduleForm.DeviceName,
+            BatteryCapacityInKwh = SelectedDevice?.batteryCapacityInKwh,
             ChargeStopPercentage = isInterruptible ? ScheduleForm.ChargeStopPercentage : null,
             Preset = isInterruptible ? null : ScheduleForm.Preset,
             StartTime = startTime,
@@ -586,8 +591,9 @@ else if (isLoading)
             estimatedUnscheduledCo2Emissions = response.EstimatedCo2Emissions + 1,
             planName = (ScheduleForm.PlanName == string.Empty) ? ScheduleForm.DeviceName : ScheduleForm.PlanName,
             optimizationObjective = ScheduleForm.Priority,
-            presetId = isInterruptible ? ScheduleForm.Preset?.id : null,
-            chargeStopPercentage = isInterruptible ? ScheduleForm.ChargeStopPercentage : null
+            presetId = ScheduleForm.Preset?.id,
+            chargeStopPercentage = isInterruptible ? ScheduleForm.ChargeStopPercentage : null,
+            batteryCapacityInKwh = selectedDevice.batteryCapacityInKwh
         };
 
         try
@@ -685,8 +691,9 @@ else if (isLoading)
             windowStartTime = windowStartUtc,
             windowEndTime = windowEndUtc,
             optimizationObjective = ScheduleForm.Priority,
-            presetId = isNonInterruptible ? ScheduleForm.Preset?.id : null,
-            chargeStopPercentage = isInterruptible ? ScheduleForm.ChargeStopPercentage : null
+            presetId = ScheduleForm.Preset?.id,
+            chargeStopPercentage = isInterruptible ? ScheduleForm.ChargeStopPercentage : null,
+            batteryCapacityInKwh = SelectedDevice?.batteryCapacityInKwh
         };
 
         try
@@ -1094,6 +1101,12 @@ else if (isLoading)
         min-height: 300px;
         max-height: 300px;
         flex-direction: column;
+    }
+
+    .priceoverview {
+        width: 100%;
+        box-sizing: border-box;
+        overflow: hidden;
     }
 
     .optimized-side-column {

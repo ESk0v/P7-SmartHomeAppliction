@@ -13,7 +13,10 @@ namespace Utilities.Models
         [Range(0.01, 2000.0)]
         public decimal ConsumptionInKwh { get; set; }
 
+        [Range(0.01, 1000000.0)]
+        public decimal? BatteryCapacityInKwh { get; set; }
+
         [Range(1, 1440)]
-        public int DurationInMinutes { get; set; }
+        public int? DurationInMinutes { get; set; }
     }
 }

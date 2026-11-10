@@ -34,6 +34,8 @@ namespace Utilities.Models
 
         public string? deviceName { get; set; }
 
+        public decimal? batteryCapacityInKwh { get; set; }
+
         public string? optimizationObjective { get; set; }
 
         public int? presetId { get; set; }

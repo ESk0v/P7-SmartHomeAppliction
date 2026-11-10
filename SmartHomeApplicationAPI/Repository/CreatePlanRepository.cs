@@ -18,11 +18,14 @@ public class CreatePlanRepository : ICreatePlanRepository
     {
         return await _db.Preset
             .Where(p => p.DeviceId == deviceId)
+            .OrderByDescending(p => p.PresetName == "Info")
+            .ThenBy(p => p.Id)
             .Select(p => new PresetDto{
                 id = p.Id,
                 presetName = p.PresetName,
                 consumption = p.ConsumptionInKwh,
-                duration = p.DurationInMinutes
+                duration = p.DurationInMinutes,
+                batteryCapacityInKwh = p.BatteryCapacityInKwh
             })
             .ToListAsync();
         
@@ -43,7 +46,13 @@ public class CreatePlanRepository : ICreatePlanRepository
                     ud.Icon,
                     ud.Color,
                     d.Category,
-                    d.Model
+                    d.Model,
+                    _db.Preset
+                        .Where(preset => preset.DeviceId == d.Id)
+                        .OrderByDescending(preset => preset.PresetName == "Info")
+                        .ThenBy(preset => preset.Id)
+                        .Select(preset => preset.BatteryCapacityInKwh)
+                        .FirstOrDefault()
                 ))
             .ToListAsync();
     }
@@ -73,6 +82,16 @@ public class CreatePlanRepository : ICreatePlanRepository
 
         await _db.SaveChangesAsync();
 
+        decimal? batteryCapacity = await _db.UserDevice
+            .Where(device => device.Id == plan.UserDeviceId)
+            .Select(device => _db.Preset
+                .Where(preset => preset.DeviceId == device.DeviceId)
+                .OrderByDescending(preset => preset.PresetName == "Info")
+                .ThenBy(preset => preset.Id)
+                .Select(preset => preset.BatteryCapacityInKwh)
+                .FirstOrDefault())
+            .FirstOrDefaultAsync();
+
         return new PlanDTO
         {
             planId = plan.Id,
@@ -88,7 +107,8 @@ public class CreatePlanRepository : ICreatePlanRepository
             userDeviceId = plan.UserDeviceId,
             optimizationObjective = plan.OptimizationObjective,
             presetId = plan.DevicePresetId,
-            chargeStopPercentage = plan.ChargeStopPercentage
+            chargeStopPercentage = plan.ChargeStopPercentage,
+            batteryCapacityInKwh = batteryCapacity
         };
           
     

@@ -70,7 +70,7 @@
         DateTime? from = From;
         DateTime? to = To;
 
-        if (!isPeriodType && planId is null)
+        if (!isPeriodType && (planId is null || planId <= 0))
         {
             Data = new StatisticsDto { Value = "--", Description = "No plan selected" };
             return;
