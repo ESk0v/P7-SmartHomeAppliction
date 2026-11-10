@@ -18,17 +18,15 @@ namespace Utilities.Models
 		public decimal? BatteryCapacityInKwh { get; set; }
 
 		[Required]
-		[StringLength(50)]
-		public string Preset { get; set; } = "";
+		[StringLength(10)]
+		public string Preset { get; set; } = "standard";
 
 		[Required(ErrorMessage = "Consumption is required.")]
-		[Range(0.01, 500.0)]
+		[Range(0.01, 2000.0)]
 		public decimal? ConsumptionInKwh { get; set; }
 
 		[Range(1, 1440)]
 		public int? DurationInMinutes { get; set; }
-
-		public ICollection<PresetDeviceDto> Presets { get; set; } = new List<PresetDeviceDto>();
 
 		public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
 		{
