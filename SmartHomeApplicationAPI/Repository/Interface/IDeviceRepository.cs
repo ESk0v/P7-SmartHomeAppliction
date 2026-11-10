@@ -9,6 +9,7 @@ public interface IDeviceRepository
     Task<DevicePreset?> FindPresetByIdAsync(int presetId);
     Task<DevicePreset?> FindPresetForDeviceAsync(int deviceId);
     Task<Device?> FindDeviceByModelAndCategoryAsync(string model, string category);
+    Task<DevicePreset?> FindPresetByDeviceIdAndPresetNameAsync(int deviceId, string presetName);
     Task<List<UserDeviceDto>> GetUserDevicesAsync(string userId);
     Task<List<CatalogueDeviceDto>> GetAllDevicesAsync();
     Task AddDeviceAsync(Device device, DevicePreset? preset, UserDevice userDevice);
