@@ -1,7 +1,8 @@
 using Utilities.Models;
 using SmartHomeApplicationAPI.Repository;
 using SmartHomeApplicationAPI.DTOs.Optimization;
-using System.Net.Http.Json;   // top of the file, for PostAsJsonAsync
+using System.Net.Http.Json;
+using System.Collections.Concurrent;
 
 namespace SmartHomeApplicationAPI.Service;
 
@@ -9,21 +10,32 @@ public class CreatePlanService : ICreatePlanService
 {
     private readonly ICreatePlanRepository _repository;
     private readonly ILogger<CreatePlanService> _logger;
-    private static readonly HttpClient _http = new()
-    {
-        BaseAddress = new Uri("http://127.0.0.1:8001"),
-        Timeout = TimeSpan.FromSeconds(30)
-    };
+   private const string DefaultOptimisationUrl = "http://127.0.0.1:8001";
+
+    // One client per address, shared across requests (the service itself is created per request)
+    private static readonly ConcurrentDictionary<string, HttpClient> Clients = new();
+    private readonly HttpClient _http;
 
     private static readonly System.Text.Json.JsonSerializerOptions _solverJson = new()
     {
         PropertyNamingPolicy = null
     };
 
-    public CreatePlanService(ICreatePlanRepository repository, ILogger<CreatePlanService> logger)
+    public CreatePlanService(ICreatePlanRepository repository, ILogger<CreatePlanService> logger, IConfiguration? configuration = null)
     {
         _repository = repository;
         _logger = logger;
+
+        // Optimisation:BaseUrl comes from appsettings (8001 locally, set in appsettings.Production.json on the server)
+        var baseUrl = configuration?["Optimisation:BaseUrl"];
+        if (string.IsNullOrWhiteSpace(baseUrl))
+            baseUrl = DefaultOptimisationUrl;
+
+        _http = Clients.GetOrAdd(baseUrl, url => new HttpClient
+        {
+            BaseAddress = new Uri(url),
+            Timeout = TimeSpan.FromSeconds(30)
+        });
     }
 
     public async Task<List<PresetDto>> GetPresetsAsync(int deviceId)
