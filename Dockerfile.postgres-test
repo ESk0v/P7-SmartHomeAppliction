@@ -1,0 +1,9 @@
+FROM postgres:18
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends locales \
+    && sed -i '/da_DK.UTF-8/s/^# //' /etc/locale.gen \
+    && locale-gen \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+

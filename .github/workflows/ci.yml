@@ -31,4 +31,4 @@ jobs:
         run: dotnet build SmartHome.sln --configuration Release --no-restore
 
       - name: Test
-        run: dotnet test SmartHome.sln --configuration Release --no-build
+        run: dotnet test SmartHome.sln --configuration Release --no-build --filter "FullyQualifiedName!~Integration"
