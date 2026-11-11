@@ -768,7 +768,7 @@ else if (isLoading)
             selectedDevice,
             existingPlan.startTime,
             existingPlan.endTime,
-            windowStartUtc);
+            localStart);
         if (unscheduledEstimate is null)
         {
             schedulingError = baselineError ?? "Could not calculate the unscheduled baseline.";
