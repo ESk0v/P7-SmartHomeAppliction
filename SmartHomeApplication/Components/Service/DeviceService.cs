@@ -27,6 +27,7 @@ namespace SmartHomeApplication.Service
                 UserId = userId,
                 Model = deviceDto.Model,
                 Category = deviceDto.Category,
+                BatteryCapacityInKwh = deviceDto.BatteryCapacityInKwh,
                 Preset = deviceDto.Preset,
                 ConsumptionInKwh = deviceDto.ConsumptionInKwh,
                 DurationInMinutes = deviceDto.DurationInMinutes

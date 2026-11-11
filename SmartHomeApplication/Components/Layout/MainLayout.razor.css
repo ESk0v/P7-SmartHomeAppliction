@@ -2,11 +2,18 @@
     position: relative;
     display: flex;
     flex-direction: column;
+    min-width: 0;
+    width: 100%;
 }
 
 main {
     flex: 1;
+    min-width: 0;
     background-color: #f7f6f4;
+}
+
+.content {
+    min-width: 0;
 }
 
 .sidebar {

@@ -189,27 +189,27 @@ namespace SmartHomeApplicationAPI.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<decimal>("ConsumptionInKwh")
-
+                    b.Property<decimal?>("BatteryCapacityInKwh")
                         .HasPrecision(7, 3)
                         .HasColumnType("numeric(7,3)")
+                        .HasColumnName("battery_capacity_in_kwh");
 
+                    b.Property<decimal>("ConsumptionInKwh")
+                        .HasPrecision(7, 3)
+                        .HasColumnType("numeric(7,3)")
                         .HasColumnName("consumption_in_kwh");
 
                     b.Property<int>("DeviceId")
                         .HasColumnType("integer")
                         .HasColumnName("device_id");
 
-                    b.Property<int>("DurationInMinutes")
+                    b.Property<int?>("DurationInMinutes")
                         .HasColumnType("integer")
                         .HasColumnName("duration_in_minutes");
 
                     b.Property<string>("PresetName")
                         .IsRequired()
-
-                        .HasMaxLength(30)
-                        .HasColumnType("character varying(30)")
-
+                        .HasColumnType("text")
                         .HasColumnName("preset_name");
 
                     b.HasKey("Id");
@@ -264,38 +264,65 @@ namespace SmartHomeApplicationAPI.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<DateTime>("EndTime")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("end_time");
+                    b.Property<int?>("ChargeStopPercentage")
+                        .HasColumnType("integer")
+                        .HasColumnName("charge_stop_percentage");
+
+                    b.Property<int?>("DevicePresetId")
+                        .HasColumnType("integer")
+                        .HasColumnName("device_preset_id");
 
                     b.Property<decimal>("EstimatedCo2Emissions")
                         .HasColumnType("numeric")
-                        .HasColumnName("estimated_co2_emissions_in_percent");
+                        .HasColumnName("estimated_co2_emissions_in_grams");
 
                     b.Property<decimal>("EstimatedPrice")
-                        .HasColumnType("money")
+                        .HasColumnType("numeric")
                         .HasColumnName("estimated_price_in_kroner");
+
+                    b.Property<decimal>("EstimatedUnscheduledCo2Emissions")
+                        .HasColumnType("numeric")
+                        .HasColumnName("estimated_unscheduled_co2_emissions_in_grams");
+
+                    b.Property<decimal>("EstimatedUnscheduledPrice")
+                        .HasColumnType("numeric")
+                        .HasColumnName("estimated_unscheduled_price_in_kroner");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")
                         .HasColumnName("name");
-                    b.Property<decimal>("EstimatedUnscheduledPrice")
-                        .HasColumnType("money")
-                        .HasColumnName("estimated_unscheduled_price_in_kroner");
 
                     b.Property<int?>("NextPlanId")
                         .HasColumnType("integer")
                         .HasColumnName("next_plan_id");
 
-                    b.Property<DateTime>("StartTime")
+                    b.Property<string>("OptimizationObjective")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("optimization_objective");
+
+                    b.Property<DateTime>("PlanEndTime")
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("start_time");
+                        .HasColumnName("plan_end_time");
+
+                    b.Property<DateTime>("PlanStartTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("plan_start_time");
 
                     b.Property<int>("UserDeviceId")
                         .HasColumnType("integer")
                         .HasColumnName("user_device_id");
+
+                    b.Property<DateTime>("WindowEndTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("window_end_time");
+
+                    b.Property<DateTime>("WindowStartTime")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("window_start_time");
 
                     b.HasKey("Id");
 

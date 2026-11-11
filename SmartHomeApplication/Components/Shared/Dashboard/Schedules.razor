@@ -9,8 +9,8 @@
 <div class="schedules-card">
     <div class="schedule-top">
         <div class="schedule-title">
-            <span class="schedule-icon"><i class="bi @ScheduleIcons.Get(activeSchedule.icon)"></i></span>
-            <span class="schedule-name">@activeSchedule.deviceName</span>
+            <span class="schedule-icon" style="color: @activeSchedule.colorCode"><i class="bi @ScheduleIcons.Get(activeSchedule.icon)"></i></span>
+            <span class="schedule-name">@activeSchedule.planName</span>
         </div>
 
         <div class="schedule-status @StatusClass">
