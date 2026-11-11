@@ -540,7 +540,12 @@ else if (isLoading)
             }
             else
             {
-                response = await result.Content.ReadFromJsonAsync<OptimizationResultDTO>();
+                OptimizationResultDTO? raw = await result.Content.ReadFromJsonAsync<OptimizationResultDTO>();
+                response = raw is null ? null : raw with
+                {
+                    StartTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(raw.StartTime, DateTimeKind.Utc), CopenhagenTimeZone),
+                    EndTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(raw.EndTime, DateTimeKind.Utc), CopenhagenTimeZone)
+                };
                 
                 displayPlan = true;
 
