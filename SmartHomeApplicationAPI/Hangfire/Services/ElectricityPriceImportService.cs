@@ -71,7 +71,8 @@ public class ElectricityPriceImportService
         {
             if (existingByKey.TryGetValue((price.Time, price.PriceArea), out var row))
             {
-                row.PricePerKwh = price.PricePerKwh;   // price only, CO2 and IsPredicted are left alone
+                row.PricePerKwh = price.PricePerKwh;
+                row.IsPredicted = false;
             }
             else
             {
