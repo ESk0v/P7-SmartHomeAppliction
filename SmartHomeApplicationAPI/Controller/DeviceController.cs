@@ -23,7 +23,15 @@ public class DeviceController : ControllerBase
             return ValidationProblem(ModelState);
         }
 
-        var result = await _service.UpdateUserDeviceAsync(dto);
+        bool result;
+        try
+        {
+            result = await _service.UpdateUserDeviceAsync(dto);
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(exception.Message);
+        }
 
         if (!result)
         {
@@ -59,7 +67,15 @@ public class DeviceController : ControllerBase
             return ValidationProblem(ModelState);
         }
 
-        var deviceId = await _service.CreateDeviceAsync(dto);
+        int deviceId;
+        try
+        {
+            deviceId = await _service.CreateDeviceAsync(dto);
+        }
+        catch (DeviceCapacityConflictException exception)
+        {
+            return Conflict(exception.Message);
+        }
         return Ok(new { message = "Device created successfully", id = deviceId });
     }
 

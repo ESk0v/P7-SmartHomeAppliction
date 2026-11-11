@@ -1,4 +1,4 @@
-<button type="button" class="header-button header-button-primary">
+<button type="button" class="header-button header-button-primary" @onclick="OnClick">
     @if (ShowPlusIcon)
     {
         <span class="header-button-icon" aria-hidden="true"><i class="bi bi-plus"></i></span>
@@ -10,6 +10,9 @@
 @code {
     [Parameter]
     public bool ShowPlusIcon { get; set; } = true;
+
+    [Parameter]
+    public EventCallback OnClick { get; set; }
 
     [Parameter]
     public RenderFragment? ChildContent { get; set; }

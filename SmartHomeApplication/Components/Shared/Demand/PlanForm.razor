@@ -39,9 +39,10 @@ else if (isLoading)
                     <ValidationMessage For="() => ScheduleForm.DeviceName" class="text-danger" />
                 </div>   
                 
-                @if (isEVSelected)
+                @if (isInterruptible)
                 {
                     <div class="charge-settings mt-4 mb-4">
+                        <p>Battery capacity: @(SelectedDevice?.batteryCapacityInKwh is decimal capacity ? $"{capacity:0.###} kWh" : "Unknown")</p>
                         <div class="charge-slider">
                             <div class="charge-slider-header">
                                 <label for="chargeStop">Charge to</label>
@@ -53,7 +54,7 @@ else if (isLoading)
                     </div>
                 }
 
-                @if (isApplianceSelected)
+                @if (isNonInterruptible)
                 {
                     <div class="inboxes">
                         <label for="devicePreset" class="form-label form-label-down">Device Preset</label>
@@ -148,7 +149,7 @@ else if (isLoading)
         <div class="priceoverview">
             @if (activeSchedules is not null)
             {
-                <PriceChart activeSchedules="activeSchedules"/>
+                <PriceChart activeSchedules="activeSchedules" MaxDisplayedPrices="24"/>
             }
         </div>
         <div class="optimized-side-column">
@@ -214,7 +215,9 @@ else if (isLoading)
     private static readonly TimeZoneInfo CopenhagenTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen");
     private string DisplayedDuration => IsEditMode && existingPlan is not null
         ? ((int)(existingPlan.endTime - existingPlan.startTime).TotalMinutes).ToString(CultureInfo.InvariantCulture)
-        : ScheduleForm.Preset?.duration.ToString(CultureInfo.InvariantCulture) ?? "?";
+        : isInterruptible && response is not null
+            ? ((int)(response.EndTime - response.StartTime).TotalMinutes).ToString(CultureInfo.InvariantCulture)
+            : ScheduleForm.Preset?.duration?.ToString(CultureInfo.InvariantCulture) ?? "?";
 
     // Active schedules populate the price chart beside the form.
     private List<PlanDto>? activeSchedules;
@@ -226,6 +229,8 @@ else if (isLoading)
     private string? selectedPresetId;
     // Devices registered by the current user.
     private List<PlanUserDeviceDto> userDevices = new List<PlanUserDeviceDto>();
+    private PlanUserDeviceDto? SelectedDevice => userDevices
+        .FirstOrDefault(device => device.id.ToString(CultureInfo.InvariantCulture) == selectedDeviceId);
     // Presets indexed by device so the picker can filter them.
     private Dictionary<int, List<PresetDto>> presetsByDevice = new Dictionary<int, List<PresetDto>>();
     private string? selectedDeviceId;
@@ -268,8 +273,8 @@ else if (isLoading)
         set => ScheduleForm.EndMinute =
             int.TryParse(value, out int minute) ? minute : null;
     }
-    private bool isEVSelected = false;
-    private bool isApplianceSelected = false;
+    private bool isInterruptible = false;
+    private bool isNonInterruptible = false;
     private bool displayPlan = false;
 
 
@@ -383,11 +388,11 @@ else if (isLoading)
         Minutes = Minutes.Concat(new[] { localStart.Minute, localEnd.Minute })
             .Distinct().OrderBy(minute => minute).ToArray();
 
-        if (isEVSelected)
+        if (isInterruptible)
         {
             ScheduleForm.ChargeStopPercentage = existingPlan.chargeStopPercentage;
         }
-        else if (isApplianceSelected)
+        else if (isNonInterruptible)
         {
             PresetDto? preset = filteredPresets.FirstOrDefault(item => item.id == existingPlan.presetId);
             selectedPresetId = preset?.id.ToString(CultureInfo.InvariantCulture);
@@ -426,27 +431,26 @@ else if (isLoading)
         requestedWindowStart = null;
         requestedWindowEnd = null;
         displayPlan = false;
-        isEVSelected = false;
-        isApplianceSelected = false;
+        isInterruptible = false;
+        isNonInterruptible = false;
     }
 
     // Update the selected device name, available presets, and device category.
     private void OnDeviceSelected()
     {
-        PlanUserDeviceDto? selectedDevice = userDevices
-            .FirstOrDefault(x => x.id.ToString() == selectedDeviceId);
+        PlanUserDeviceDto? selectedDevice = SelectedDevice;
 
         ScheduleForm.DeviceName = selectedDevice?.deviceNickname ?? string.Empty;
 
         filteredPresets = selectedDevice != null && presetsByDevice.TryGetValue(selectedDevice.id, out List<PresetDto>? presets)
         ? presets : new List<PresetDto>();
 
-        isEVSelected = selectedDevice?.category == "ev_charger";
+        isInterruptible = selectedDevice?.category == "Interruptible";
 
-        isApplianceSelected = selectedDevice is not null && !isEVSelected;
+        isNonInterruptible = selectedDevice is not null && !isInterruptible;
         
         selectedPresetId = null;
-        ScheduleForm.Preset = new PresetDto();
+        ScheduleForm.Preset = isInterruptible ? filteredPresets.FirstOrDefault() : new PresetDto();
         ScheduleForm.ChargeStopPercentage = null;
     }
 
@@ -481,13 +485,13 @@ else if (isLoading)
             return;
 
         schedulingError = null;
-        if (isApplianceSelected && (ScheduleForm.Preset?.id ?? 0) <= 0)
+        if (isNonInterruptible && (ScheduleForm.Preset?.id ?? 0) <= 0)
         {
             schedulingError = "Select a device preset before generating a plan.";
             return;
         }
 
-        if (isEVSelected && ScheduleForm.ChargeStopPercentage is null)
+        if (isInterruptible && ScheduleForm.ChargeStopPercentage is null)
         {
             schedulingError = "Select a charge percentage before generating a plan.";
             return;
@@ -529,8 +533,9 @@ else if (isLoading)
         {
             Area = area,
             DeviceName = ScheduleForm.DeviceName,
-            ChargeStopPercentage = isEVSelected ? ScheduleForm.ChargeStopPercentage : null,
-            Preset = isEVSelected ? null : ScheduleForm.Preset,
+            BatteryCapacityInKwh = SelectedDevice?.batteryCapacityInKwh,
+            ChargeStopPercentage = isInterruptible ? ScheduleForm.ChargeStopPercentage : null,
+            Preset = isInterruptible ? null : ScheduleForm.Preset,
             StartTime = startTime,
             EndTime = endTime,
             Priority = ScheduleForm.Priority
@@ -595,8 +600,9 @@ else if (isLoading)
             estimatedUnscheduledCo2Emissions = response.EstimatedCo2Emissions + 1,
             planName = (ScheduleForm.PlanName == string.Empty) ? ScheduleForm.DeviceName : ScheduleForm.PlanName,
             optimizationObjective = ScheduleForm.Priority,
-            presetId = isApplianceSelected ? ScheduleForm.Preset?.id : null,
-            chargeStopPercentage = isEVSelected ? ScheduleForm.ChargeStopPercentage : null
+            presetId = ScheduleForm.Preset?.id,
+            chargeStopPercentage = isInterruptible ? ScheduleForm.ChargeStopPercentage : null,
+            batteryCapacityInKwh = selectedDevice.batteryCapacityInKwh
         };
 
         try
@@ -642,13 +648,13 @@ else if (isLoading)
             return;
         }
 
-        if (isApplianceSelected && (ScheduleForm.Preset?.id ?? 0) <= 0)
+        if (isNonInterruptible && (ScheduleForm.Preset?.id ?? 0) <= 0)
         {
             schedulingError = "Select a device preset before updating.";
             return;
         }
 
-        if (isEVSelected && ScheduleForm.ChargeStopPercentage is null)
+        if (isInterruptible && ScheduleForm.ChargeStopPercentage is null)
         {
             schedulingError = "Select a charge percentage before updating.";
             return;
@@ -687,8 +693,9 @@ else if (isLoading)
             windowStartTime = TimeZoneInfo.ConvertTimeToUtc(localStart, CopenhagenTimeZone),
             windowEndTime = TimeZoneInfo.ConvertTimeToUtc(localEnd, CopenhagenTimeZone),
             optimizationObjective = ScheduleForm.Priority,
-            presetId = isApplianceSelected ? ScheduleForm.Preset?.id : null,
-            chargeStopPercentage = isEVSelected ? ScheduleForm.ChargeStopPercentage : null
+            presetId = ScheduleForm.Preset?.id,
+            chargeStopPercentage = isInterruptible ? ScheduleForm.ChargeStopPercentage : null,
+            batteryCapacityInKwh = SelectedDevice?.batteryCapacityInKwh
         };
 
         Logger.LogInformation(
@@ -1113,6 +1120,12 @@ else if (isLoading)
         min-height: 300px;
         max-height: 300px;
         flex-direction: column;
+    }
+
+    .priceoverview {
+        width: 100%;
+        box-sizing: border-box;
+        overflow: hidden;
     }
 
     .optimized-side-column {

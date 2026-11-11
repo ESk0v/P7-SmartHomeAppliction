@@ -1,21 +1,21 @@
-﻿@page "/appliance"
+﻿@page "/device"
 @attribute [Authorize]
 @inject SmartHomeApplication.Service.IDeviceService DeviceService
 @inject INotificationService NotificationService
 @using Utilities.Models
 @using global::Shared.Dashboard
 
-<PageTitle>Appliances</PageTitle>
+<PageTitle>Devices</PageTitle>
 
 <SectionContent SectionName="TopBarActions">
     <div class="header">
         <div class="heading">
-            <h1>Appliance registry</h1>
+            <h1>Device registry</h1>
             <p>@amount devices</p>
         </div>
 
         <div class="header-actions">
-            <NavLink class="nav-link" href="addAppliance" Match="NavLinkMatch.All">
+            <NavLink class="nav-link" href="add-device" Match="NavLinkMatch.All">
                 <PrimaryButton>
                 New device
                 </PrimaryButton>
@@ -32,9 +32,9 @@
         {
             <p class="p-3 text-muted">No devices yet.</p>
         }
-        @foreach (var device in userdevices)
+        @foreach (UserDeviceDto device in userdevices)
 {
-    var isExpanded = expandedIds.Contains(device.Id);
+    bool isExpanded = expandedIds.Contains(device.Id);
 
     <div class="device-group">
         <div class="device-item @(selected?.Id == device.Id ? "active" : "")">
@@ -45,17 +45,20 @@
                 <div class="device-name">@device.Nickname</div>
             </button>
 
-            <button type="button" class="device-expand" title="Presets"
-                    @onclick="() => ToggleExpand(device.Id)">
-                <span class="preset-count">@device.Presets.Count</span>
-                <i class="bi @(isExpanded ? "bi-chevron-up" : "bi-chevron-down")"></i>
-            </button>
+            @if (device.Category != "Interruptible")
+            {
+                <button type="button" class="device-expand" title="Presets"
+                        @onclick="() => ToggleExpand(device.Id)">
+                    <span class="preset-count">@device.Presets.Count</span>
+                    <i class="bi @(isExpanded ? "bi-chevron-up" : "bi-chevron-down")"></i>
+                </button>
+            }
         </div>
 
-        @if (isExpanded)
+        @if (isExpanded && device.Category != "Interruptible")
         {
             <div class="preset-list">
-                @foreach (var preset in device.Presets)
+                @foreach (PresetDeviceDto preset in device.Presets)
                 {
                     <button type="button"
                             class="preset-item @(selected?.Id == device.Id && editPreset?.Id == preset.Id && !isAddingPreset ? "active" : "")"
@@ -154,6 +157,20 @@
                         <label class="form-label">Category</label>
                         <input class="form-control" value="@selected!.Category" disabled />
                     </div>
+                    @if (selected.Category == "Interruptible")
+                    {
+                        <div class="mb-3">
+                            <label class="form-label" for="batteryCapacity">Battery capacity (kWh)</label>
+                            <InputNumber id="batteryCapacity" class="form-control" @bind-Value="editDevice.BatteryCapacityInKwh" />
+                            <ValidationMessage For="() => editDevice.BatteryCapacityInKwh" class="text-danger" />
+                            <small class="text-muted">Shared by devices with the same model.</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label" for="deviceConsumption">Consumption (kWh)</label>
+                            <InputNumber id="deviceConsumption" class="form-control" @bind-Value="editDevice.ConsumptionInKwh" />
+                            <ValidationMessage For="() => editDevice.ConsumptionInKwh" class="text-danger" />
+                        </div>
+                    }
                 <div class="mt-4 d-flex align-items-center">
                     <button type="submit" class="btn btn-primary">Save</button>
                     <button type="button" class="btn btn-outline-secondary" @onclick="Cancel">Cancel</button> 
@@ -177,6 +194,7 @@
     private UpdateUserDeviceDto? editDevice;
     private PresetDeviceDto? editPreset;
     private bool isAddingPreset;
+    private string previouslySelectedDeviceName = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
@@ -213,10 +231,13 @@
         isAddingPreset = false;
         editDevice = new UpdateUserDeviceDto
         {   Id = device.Id,
+            Category = device.Category,
             Nickname = device.Nickname,
             Icon = device.Icon,
             IsFavorite = device.IsFavorite,
             Color = device.Color,
+            BatteryCapacityInKwh = device.BatteryCapacityInKwh,
+            ConsumptionInKwh = device.ConsumptionInKwh,
         };  
     }
 
@@ -227,7 +248,8 @@
             Id = preset.Id,
             PresetName = preset.PresetName,
             ConsumptionInKwh = preset.ConsumptionInKwh,
-            DurationInMinutes = preset.DurationInMinutes
+            DurationInMinutes = preset.DurationInMinutes,
+            BatteryCapacityInKwh = preset.BatteryCapacityInKwh
         };
         isAddingPreset = false;
     }
@@ -252,13 +274,13 @@
     {
         await DeviceService.UpdateUserDeviceAsync(editDevice);
 
-        selected.Id = editDevice.Id;
-        selected.Nickname = editDevice.Nickname;
-        selected.Icon = editDevice.Icon;
-        selected.Color = editDevice.Color;
-        selected.IsFavorite = editDevice.IsFavorite;
+        int selectedId = selected.Id;
+        userdevices = (await DeviceService.GetUserDevicesAsync()).ToList();
+        UserDeviceDto? updated = userdevices.FirstOrDefault(device => device.Id == selectedId);
+        if (updated is not null)
+            Select(updated);
 
-        NotificationService.SuccessNotification($"Device: \"{selected.Nickname}\" updated successfully.");
+        NotificationService.SuccessNotification($"Device: \"{updated?.Nickname}\" updated successfully.");
     }
     catch (Exception ex)
     {
@@ -301,6 +323,7 @@
     {
         try
         {
+            previouslySelectedDeviceName = selected?.Nickname ?? string.Empty;
             await DeviceService.DeleteUserDeviceAsync(userDeviceId);
             userdevices = (await DeviceService.GetUserDevicesAsync()).ToList();
             selected = userdevices.FirstOrDefault();
@@ -311,11 +334,14 @@
                 Icon = selected.Icon,
                 IsFavorite = selected.IsFavorite,
                 Color = selected.Color,
+                Category = selected.Category,
+                BatteryCapacityInKwh = selected.BatteryCapacityInKwh,
+                ConsumptionInKwh = selected.ConsumptionInKwh,
             } : null;
-            NotificationService.SuccessNotification($"Device: \"{selected?.Nickname}\" deleted successfully.");   
+            NotificationService.SuccessNotification($"Device: \"{previouslySelectedDeviceName}\" deleted successfully.");   
         }
         catch (Exception ex)
-        {
+        {   
             NotificationService.ErrorNotification($"Error deleting device: {ex.Message}");
         }
     }

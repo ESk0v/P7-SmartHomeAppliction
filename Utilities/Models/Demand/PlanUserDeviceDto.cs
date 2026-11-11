@@ -7,5 +7,6 @@ public record PlanUserDeviceDto(
     string icon,
     string color,
     string category,
-    string model
+    string model,
+    decimal? batteryCapacityInKwh
 );
