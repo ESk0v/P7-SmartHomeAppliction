@@ -27,16 +27,23 @@ public class PlanRepository : IPlanRepository
                 icon: p.UserDevice.Icon,
                 colorCode: p.UserDevice.Color,
                 deviceName: p.UserDevice.Nickname,
+                deviceCategory: p.UserDevice.Device!.Category,
+                optimizationObjective: p.OptimizationObjective,
+                chargeStopPercentage: p.ChargeStopPercentage,
+                presetDurationInMinutes: _db.Preset
+                    .Where(preset => preset.Id == p.DevicePresetId)
+                    .Select(preset => preset.DurationInMinutes)
+                    .FirstOrDefault(),
                 startTime: p.PlanStartTime,
                 endTime: p.PlanEndTime,
                 windowStartTime: p.WindowStartTime,
                 windowEndTime: p.WindowEndTime,
                 estimatedCost: p.EstimatedPrice,
                 estimatedCo2Emissions: p.EstimatedCo2Emissions,
+                estimatedUnscheduledPrice: p.EstimatedUnscheduledPrice,
+                estimatedUnscheduledCo2Emissions: p.EstimatedUnscheduledCo2Emissions,
                 batteryCapacityInKwh: _db.Preset
-                    .Where(preset => preset.DeviceId == p.UserDevice.DeviceId)
-                    .OrderByDescending(preset => preset.PresetName == "Info")
-                    .ThenBy(preset => preset.Id)
+                    .Where(preset => preset.Id == p.DevicePresetId)
                     .Select(preset => preset.BatteryCapacityInKwh)
                     .FirstOrDefault()
             ))
