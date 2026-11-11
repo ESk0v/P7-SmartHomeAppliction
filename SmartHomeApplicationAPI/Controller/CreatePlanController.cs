@@ -34,4 +34,12 @@ public class CreatePlanController : ControllerBase
 
         return Ok(savedPlan);
     }
+
+    [HttpPost("optimize")]
+    public async Task<ActionResult<OptimizationResultDTO>> Optimize(
+        [FromBody] OptimizationRequestDTO request)
+    {
+        var result = await _service.OptimizeAsync(request);
+        return Ok(result);
+    }
 }

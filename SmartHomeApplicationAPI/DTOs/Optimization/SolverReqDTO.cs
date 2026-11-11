@@ -7,14 +7,12 @@ namespace SmartHomeApplicationAPI.DTOs.Optimization
     {
         public DateTime StartTime { get; set; }
 
-        [Length(96, 96)]
-        public List<double> Prices { get; set; } = [];    // c_t, DKK/kWh
+        public List<double> Prices { get; set; } = [];          // c_t, DKK/kWh
 
-        [Length(96, 96)]
-        public List<double> BaseLoad { get; set; } = [];  // P_base_t, kW
+        public List<double> BaseLoad { get; set; } = [];        // P_base_t, kW
 
         [Range(0.0, double.MaxValue)]
-        public double FuseLimit { get; set; }             // P_fuse, kW
+        public double FuseLimit { get; set; }                   // P_fuse, kW
 
         public List<SolverLoadDTO> Loads { get; set; } = [];
     }
@@ -23,7 +21,7 @@ namespace SmartHomeApplicationAPI.DTOs.Optimization
     public class SolverLoadDTO
     {
         [Required]
-        public string Type { get; set; } = string.Empty;       // "appliance" or "ev"
+        public string Type { get; set; } = string.Empty;            // "appliance" or "ev"
 
         public string? Name { get; set; }
 
