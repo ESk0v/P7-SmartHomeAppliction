@@ -46,7 +46,7 @@
                         <div class="mb-3">
                             <label for="deviceCategory" class="form-label">Device Category
                                 <div class="info-tooltip">
-                                    <span><i class="bi bi-info-circle-fill"/></span>
+                                    <p class="bi bi-info-circle-fill"> </p>
                                     <span class="info-tooltiptext">
                                         Interruptible devices can be paused. This is devices such as an EV-Charger or Robot vacuum.<br><br>
                                         Non-Interruptible devices cannot be paused. This is devices such as a washing machine or a dryer.
@@ -399,36 +399,30 @@
     .catalogue-card {
         min-height: 0;
     }
-.info-tooltip {
-    position: relative;
-    display: inline-block;
-    text-align: center;
-}
 
-.info-tooltip .info-tooltiptext {
-    visibility: visible;
-    width: 450px;
-    background-color: #464646;
-    color: #fff;
-    text-align: center;
-    border-radius: 6px;
-    padding: 5px;
-    position: absolute;
-    z-index: 1;
-    bottom: 125%;
-    left: 50%;
-    transform: translateX(-50%);
-    opacity: 0;
-    transition: opacity 0.3s;
-}
+    .info-tooltip {
+        position: relative;
+        display: inline-block;
+        text-align: left;
+    }
 
-.info-tooltip:hover a {
-    color: #fff;
-}
+    .info-tooltip .info-tooltiptext {
+        position: fixed; 
+        visibility: hidden;
+        width: 450px;
+        background-color: #464646;
+        color: #fff;
+        text-align: left;
+        border-radius: 6px;
+        padding: 5px;
+        z-index: 1;
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
 
-.info-tooltip:hover .info-tooltiptext {
-    visibility: visible;
-    opacity: 1;
-}
+    .info-tooltip:hover .info-tooltiptext {
+        visibility: visible;
+        opacity: 1;
+    }
     
 </style>

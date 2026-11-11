@@ -3,10 +3,11 @@
 @inject AuthenticationStateProvider AuthProvider
 @inject OptimizedPlanState PlanState
 
-@using global::Shared.Dashboard
 @using System.Globalization
 @using System.Security.Claims
+@using Hangfire.Dashboard
 @using Utilities.Models
+@using global::Shared.Dashboard
 
 @if (loadError is not null)
 {
@@ -71,37 +72,40 @@ else if (isLoading)
             </div>
             <div class="boxes">
                 <div class ="row">
-                    <div class="mb-4 col-sm-6 inboxes">
-                        <div>
-                            <div class="choices mb-4">
-                                <span>Scheduling window</span>
-                            </div>
-                            <div>
-                                <label class="form-label1">Start  <i class="bi bi-clock"/></label>
-                                <div class="d-flex gap-2 align-items-center">
-                                    <ButtonSelect Options="HourOptions" @bind-Value="StartHourText" 
-                                        CssClass="time-picker" Placeholder="" />
-                                    <span>:</span>
-
-                                    <ButtonSelect Options="MinuteOptions" @bind-Value="StartMinuteText"
-                                        CssClass="time-picker" Placeholder="" />
+                    <div class="mb-6 choices">
+                        <span>Scheduling window</span><br />
+                        <label class="form-label1">Choose a time window for the plan</label>
+                    </div>
+                    <div class="mb-4 inboxes">
+                        <div class="charge-settings mt-4 mb-4">
+                            <div class="charge-slider">
+                                <div class="charge-slider-header">
+                                    <label for="startTime">Start  <i class="bi bi-clock"/></label>
+                                    <span>@Format(ScheduleForm.Start)</span>
                                 </div>
-                                <ValidationMessage For="() => ScheduleForm.StartHour" class="text-danger" />
-                                <ValidationMessage For="() => ScheduleForm.StartMinute" class="text-danger" />
+                                <input id="startMinute" class="charge-range" @bind="ScheduleForm.Start" 
+                                    @bind:event="oninput" @bind:after="OnStartChanged" min="@MinMinutes" max="@MaxMinutes" step="15" type="range" />
                             </div>
-                            <div class="mt-4">
-                                <label class="form-label1">End  <i class="bi bi-clock"/></label>
-                                <div class="d-flex gap-2 align-items-center">
-                                    <ButtonSelect Options="HourOptions" @bind-Value="EndHourText" 
-                                        CssClass="time-picker" Placeholder="" />
-                                    <span>:</span>
-
-                                    <ButtonSelect Options="MinuteOptions" @bind-Value="EndMinuteText"
-                                        CssClass="time-picker" Placeholder="" />
+                        
+                            <div class="charge-slider mt-3">
+                                <div class="charge-slider-header">
+                                    <label for="startTime">End  <i class="bi bi-clock"/></label>
+                                    <span>@Format(ScheduleForm.End)</span>
                                 </div>
-                            </div>
-                            <ValidationMessage For="() => ScheduleForm.EndHour" class="text-danger" />
-                            <ValidationMessage For="() => ScheduleForm.EndMinute" class="text-danger" />
+                                <input id="endMinute" class="charge-range" @bind="ScheduleForm.End"
+                                    @bind:event="oninput" @bind:after="OnEndChanged" min="@MinMinutes" max="@MaxMinutes" step="15" type="range" />
+                            
+                            </div><br />
+
+                            <div class="charge-slider-ticks">
+                                <span>Today 00:00</span>
+                                <span>12:00</span>
+                                <span>Tomorrow 00:00</span>
+                                <span>12:00</span>
+                            </div><br />
+
+                            <span class="mt-6 charge-slider-duration">Duration: @Duration</span>
+
                             @if (!string.IsNullOrEmpty(schedulingError))
                             {
                                 <div class="alert alert-danger mt-5" roles="alert">
@@ -109,37 +113,37 @@ else if (isLoading)
                                 </div>
                             }
                         </div>
-                    </div> 
-                    <div class="mb-4 col-sm-6 inboxes">
-                        <div class="mb-6 choices">
-                            <span>Priority</span><br />
-                            <label class="form-label1">Choose an option for optimization</label>
-                        </div>
-            
-                        <div class="priority-toggle @(ScheduleForm.Priority == "Greenest" ? "is-right" : "is-left")"
-                            role="radiogroup" aria-labelledby="priority-label">
-                            <span class="priority-thumb" aria-hidden="true"></span>
-
-                            <button type="button" role="radio"
-                                    class="priority-option @(ScheduleForm.Priority == "Cheapest" ? "active" : "")"
-                                    aria-checked="@(ScheduleForm.Priority == "Cheapest")"
-                                    @onclick='() => SetPriority("Cheapest")'>
-                                Cheapest
-                            </button>
-
-                            <button type="button" role="radio"
-                                    class="priority-option @(ScheduleForm.Priority == "Greenest" ? "active" : "")"
-                                    aria-checked="@(ScheduleForm.Priority == "Greenest")"
-                                    @onclick='() => SetPriority("Greenest")'>
-                                Greenest
-                            </button>
-                        </div>
-
-                        <ValidationMessage For="() => ScheduleForm.Priority" class="text-danger" />
                     </div>
-                    <div class="mb-3 d-flex justify-content-end">
-                        <button type="submit" class="btn btn-primary" disabled="@IsEditMode" title="@(IsEditMode ? "Plan regeneration will be available later" : null)">Generate Plan</button>
+                </div> 
+                <div class ="row">
+                    <div class="mb-6 choices">
+                        <span>Priority</span><br />
+                        <label class="form-label1">Choose an option for optimization</label>
                     </div>
+        
+                    <div class="priority-toggle @(ScheduleForm.Priority == "Greenest" ? "is-right" : "is-left")"
+                        role="radiogroup" aria-labelledby="priority-label">
+                        <span class="priority-thumb" aria-hidden="true"></span>
+
+                        <button type="button" role="radio"
+                                class="priority-option @(ScheduleForm.Priority == "Cheapest" ? "active" : "")"
+                                aria-checked="@(ScheduleForm.Priority == "Cheapest")"
+                                @onclick='() => SetPriority("Cheapest")'>
+                            Cheapest
+                        </button>
+
+                        <button type="button" role="radio"
+                                class="priority-option @(ScheduleForm.Priority == "Greenest" ? "active" : "")"
+                                aria-checked="@(ScheduleForm.Priority == "Greenest")"
+                                @onclick='() => SetPriority("Greenest")'>
+                            Greenest
+                        </button>
+                    </div>
+
+                    <ValidationMessage For="() => ScheduleForm.Priority" class="text-danger" />
+                </div>
+                <div class="mb-3 d-flex justify-content-end">
+                    <button type="submit" class="btn btn-primary" disabled="@IsEditMode" title="@(IsEditMode ? "Plan regeneration will be available later" : null)">Generate Plan</button>
                 </div>
             </div>
         </EditForm>
@@ -272,6 +276,38 @@ else if (isLoading)
         set => ScheduleForm.EndMinute =
             int.TryParse(value, out int minute) ? minute : null;
     }
+
+    private int MaxMinutes = 2865;
+    private int MinMinutes = 0;
+    private static string Format(int minutes)
+    {
+        var day = minutes < 1440 ? "Today" : "Tomorrow";
+        var inDay = minutes % 1440;
+        return $"{day} {inDay / 60:00}:{inDay % 60:00}";
+    }
+
+    private void OnStartChanged()
+    {
+        ScheduleForm.Start = Math.Min(ScheduleForm.Start, MaxMinutes - 15);
+        if (ScheduleForm.End <= ScheduleForm.Start)
+            ScheduleForm.End = ScheduleForm.Start + 15;
+    }
+
+    private void OnEndChanged()
+    {
+        ScheduleForm.End = Math.Max(ScheduleForm.End, 15);
+        if (ScheduleForm.Start >= ScheduleForm.End)
+            ScheduleForm.Start = ScheduleForm.End - 15;
+    }
+    private string Duration
+    {
+        get
+        {
+            var diff = ScheduleForm.End - ScheduleForm.Start;
+            return $"{diff / 60}h {diff % 60}m";
+        }
+    }
+
     private bool isInterruptible = false;
     private bool isNonInterruptible = false;
     private bool displayPlan = false;
@@ -317,6 +353,23 @@ else if (isLoading)
             Hours = Enumerable.Range(0, 24)
                 .Select(i => (currentHour + i) % 24)
                 .ToList();
+
+
+            DateTime now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, CopenhagenTimeZone);
+            DateTime then = now.Date;
+            int cc = ((int)(now - then).TotalMinutes) % 15;
+            if (cc == 0)
+            {
+                MinMinutes = (int)(now - then).TotalMinutes;
+            } 
+            else
+            {
+                MinMinutes = (int)(now - then).TotalMinutes + (15-cc);
+                
+            } 
+
+            ScheduleForm.Start = MinMinutes;
+            ScheduleForm.End = MaxMinutes;
 
             if (IsEditMode)
                 await LoadExistingPlanAsync();
@@ -1118,5 +1171,18 @@ else if (isLoading)
         display: flex;
         flex-direction: column;
         gap: 1.5rem;
+    }
+
+    .charge-slider-ticks {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.75rem;
+        color: #6c757d;
+        margin-top: 0.25rem;
+    }
+
+    .charge-slider-duration {
+        font-size: 1.0rem;
+        color: #6c757d;
     }
 </style>

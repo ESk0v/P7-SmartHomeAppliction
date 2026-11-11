@@ -37,5 +37,12 @@ namespace Utilities.Models
         public string PlanName { get; set; } = string.Empty;
 
 
+        public int Start { get; set; } = 0;
+
+      
+        public int End { get; set; } = 0;
+
+
+
 	}
 }
