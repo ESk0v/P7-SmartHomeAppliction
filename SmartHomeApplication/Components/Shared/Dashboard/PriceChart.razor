@@ -9,26 +9,63 @@
     <div class="chart-content">
         <div class="chart-header">
             <span class="chart-title">Price forecast and schedule</span>
-            <div class="legend">
-                @foreach (var row in rows)
+            <div class="legend-container">
+                <div class="legend">
+                    @foreach (PlanRow row in VisibleLegendRows)
+                    {
+                        <span class="schedulename-overview" title="@row.Head.planName">
+                            <span class="legend-dot" style="background-color:@row.Head.colorCode"></span>
+                            <span class="legend-name">@row.Head.planName</span>
+                        </span>
+                    }
+                    @if (HiddenLegendCount > 0)
+                    {
+                        <button type="button" class="legend-more" @onclick="ToggleLegend">
+                            @(isLegendExpanded ? "Close plans" : $"+ {HiddenLegendCount} more")
+                        </button>
+                    }
+                </div>
+                @if (isLegendExpanded && HiddenLegendCount > 0)
                 {
-                    <span class="schedulename-overview">
-                        <span class="legend-dot" style="background-color:@row.Head.colorCode"></span>
-                        @row.Head.planName
-                    </span>
+                    <div class="legend-popover">
+                        @foreach (PlanRow row in rows)
+                        {
+                            <span class="legend-popover-item" title="@row.Head.planName">
+                                <span class="legend-dot" style="background-color:@row.Head.colorCode"></span>
+                                <span class="legend-name">@row.Head.planName</span>
+                            </span>
+                        }
+                    </div>
                 }
             </div>
         </div>
 
         <div class="chart-uppersection">
-            @foreach (var p in prices)
+            @foreach (HourPriceDto p in prices)
             {
                 <div class="price-column">
                     <div class="price-tooltip">
-                        @p.Hour.Hour:00 - @p.Price.ToString("0.00", CultureInfo.CurrentCulture)
+                        @{
+                            List<PlanDto> overlappingSchedules = GetSchedulesForHour(p.Hour);
+                        }
+                        <div class="price-tooltip-content">
+                            <span>@p.Hour.Hour:00 - @p.Price.ToString("0.00", CultureInfo.CurrentCulture)</span>
+                            @if (overlappingSchedules.Count > 1)
+                            {
+                                <span class="price-tooltip-overlap">
+                                    @foreach (PlanDto schedule in overlappingSchedules)
+                                    {
+                                        <span class="legend-dot tooltip-plan-dot"
+                                              title="@schedule.planName"
+                                              style="background-color:@schedule.colorCode"></span>
+                                    }
+                                </span>
+                            }
+                        </div>
                     </div>
                     <div class="price-bar-area">
-                        <div class="price-bar" style="@BarStyle(p)"></div>
+                        <div class="price-bar" style="@BarStyle(p)">
+                        </div>
                     </div>
 
                     <span class="price-label">@p.Hour.Hour</span>
@@ -39,12 +76,12 @@
         <div class="chart-card-divider"></div>
 
         <div class="chart-lowersection">
-            @foreach (var row in rows)
+            @foreach (PlanRow row in rows)
             {
                 <div class="plan-row">
-                    <span class="plan-name">@row.Head.planName</span>
+                    <span class="plan-name" title="@row.Head.planName">@row.Head.planName</span>
                     <div class="plan-track">
-                        @foreach (var seg in row.Segments)
+                        @foreach (PlanDto seg in row.Segments)
                         {
                             <div class="plan-fill" style="@FillStyle(seg)"></div>
                         }
@@ -59,21 +96,31 @@
 </div>
 
 @code {
-    [Parameter] public List<PlanDto> activeSchedules { get; set; } = new();
+    [Parameter] public List<PlanDto> activeSchedules { get; set; } = new List<PlanDto>();
     [Parameter] public int MaxDisplayedPrices { get; set; } = 0;
 
-    private List<HourPriceDto> prices = new();
+    private List<HourPriceDto> prices = new List<HourPriceDto>();
     private decimal maxPrice;
     private string? error;
 
     private record PlanRow(PlanDto Head, List<PlanDto> Segments);
-    private List<PlanRow> rows = new();
+    private List<PlanRow> rows = new List<PlanRow>();
+    private bool isLegendExpanded;
+
+    private IEnumerable<PlanRow> VisibleLegendRows => rows.Take(3);
+
+    private int HiddenLegendCount => Math.Max(0, rows.Count - 3);
+
+    private void ToggleLegend()
+    {
+        isLegendExpanded = !isLegendExpanded;
+    }
     protected override async Task OnInitializedAsync()
     {
         try
         {
             prices = await Http.GetFromJsonAsync<List<HourPriceDto>>(
-                "api/electricity-price-controller/dashboard-showcase?areaCode=DK1") ?? new();
+                "api/electricity-price-controller/dashboard-showcase?areaCode=DK1") ?? new List<HourPriceDto>();
             if (MaxDisplayedPrices > 0)
             {
                 prices = prices.Take(MaxDisplayedPrices).ToList();
@@ -96,8 +143,8 @@
 
 protected override void OnParametersSet()
 {
-    var byId = activeSchedules.ToDictionary(p => p.planId);
-    var followers = activeSchedules
+    Dictionary<int, PlanDto>? byId = activeSchedules.ToDictionary(p => p.planId);
+    HashSet<int>? followers = activeSchedules
         .Where(p => p.nextPlanId.HasValue)
         .Select(p => p.nextPlanId!.Value)
         .ToHashSet();
@@ -106,14 +153,14 @@ protected override void OnParametersSet()
         .Where(p => !followers.Contains(p.planId))
         .Select(head =>
         {
-            var segments = new List<PlanDto>();
-            var visited = new HashSet<int>();
+            List<PlanDto>? segments = new List<PlanDto>();
+            HashSet<int>? visited = new HashSet<int>();
             PlanDto? current = head;
 
             while (current != null && visited.Add(current.planId))
             {
                 segments.Add(current);
-                current = current.nextPlanId is int id && byId.TryGetValue(id, out var next)
+                current = current.nextPlanId is int id && byId.TryGetValue(id, out PlanDto? next)
                     ? next : null;
             }
 
@@ -128,32 +175,32 @@ protected override void OnParametersSet()
             return "display:none";
         }
 
-        var now = DateTime.Now;
+        DateTime now = DateTime.Now;
 
-        var first = prices.Min(p => p.Hour);
-        var last = prices.Max(p => p.Hour);
-        var firstStart = first.Date.AddHours(first.Hour);
-        var chartEnd = last.Date.AddHours(last.Hour).AddHours(1);
+        DateTime first = prices.Min(p => p.Hour);
+        DateTime last = prices.Max(p => p.Hour);
+        DateTime firstStart = first.Date.AddHours(first.Hour);
+        DateTime chartEnd = last.Date.AddHours(last.Hour).AddHours(1);
 
-        var origin = now > firstStart ? now : firstStart;
+        DateTime origin = now > firstStart ? now : firstStart;
 
-        var totalHours = (chartEnd - origin).TotalHours;
+        double totalHours = (chartEnd - origin).TotalHours;
 
         if (schedule.endTime <= origin || totalHours <= 0)
         {
             return "display:none";
         }
 
-        var start = schedule.startTime > origin ? schedule.startTime : origin;
-        var end = schedule.endTime < chartEnd ? schedule.endTime : chartEnd;
+        DateTime start = schedule.startTime > origin ? schedule.startTime : origin;
+        DateTime end = schedule.endTime < chartEnd ? schedule.endTime : chartEnd;
 
         if (end <= start)
         {
             return "display:none";
         }
 
-        var left = (start - origin).TotalHours / totalHours * 100;
-        var width = (end - start).TotalHours / totalHours * 100;
+        double left = (start - origin).TotalHours / totalHours * 100;
+        double width = (end - start).TotalHours / totalHours * 100;
 
         left = Math.Clamp(left, 0, 100);
         width = Math.Clamp(width, 0, 100 - left);
@@ -164,40 +211,48 @@ protected override void OnParametersSet()
 
     private string BarStyle(HourPriceDto p)
     {
-        var height = maxPrice > 0 ? (double)(p.Price / maxPrice * 100) : 0;
-        var style = string.Create(CultureInfo.InvariantCulture, $"height:{height:0.##}%");
+        double height = maxPrice > 0 ? (double)(p.Price / maxPrice * 100) : 0;
+        string? style = string.Create(CultureInfo.InvariantCulture, $"height:{height:0.##}%");
 
-        var color = ScheduleColorFor(p.Hour);
+        List<PlanDto>? schedules = GetSchedulesForHour(p.Hour);
+        string? color = schedules.FirstOrDefault()?.colorCode;
         if (!string.IsNullOrWhiteSpace(color))
         {
             style += $";background-color:{color}";
         }
 
+        if (schedules.Count > 1)
+        {
+            style += ";background-image:repeating-linear-gradient(135deg, rgba(255,255,255,0.3) 0, rgba(255,255,255,0.3) 3px, transparent 3px, transparent 7px)";
+        }
+
         return style;
     }
 
-    private string? ScheduleColorFor(DateTime hour)
+    private List<PlanDto> GetSchedulesForHour(DateTime hour)
     {
-        var hourStart = hour.Date.AddHours(hour.Hour);
-        var hourEnd = hourStart.AddHours(1);
+        DateTime hourStart = hour.Date.AddHours(hour.Hour);
+        DateTime hourEnd = hourStart.AddHours(1);
 
-        // a schedule covers the hour if the two time ranges overlap
         return activeSchedules
-            .FirstOrDefault(s => s.startTime < hourEnd && s.endTime > hourStart)
-            ?.colorCode;
+            .Where(s => s.startTime < hourEnd && s.endTime > hourStart)
+            .ToList();
     }
+
 }
 
 <style>
     .chart-card {
-        --name-col: 120px;
-        --time-col: 80px;
-        --col-gap: 0px;
+        --name-col: 140px;
+        --time-col: 110px;
+        --col-gap: 1rem;
 
         --scrollbar-w: 6px;
         --scrollbar-gap: 6px;
 
         height: 100%;
+        max-width: 100%;
+        min-width: 0;
         width: 100%;
         box-sizing: border-box;
 
@@ -211,6 +266,8 @@ protected override void OnParametersSet()
         height: 100%;
         display: flex;
         flex-direction: column;
+        min-width: 0;
+        width: 100%;
     }
 
     .chart-header {
@@ -219,12 +276,29 @@ protected override void OnParametersSet()
         align-items: flex-start;
         justify-content: space-between;
         gap: 16px;
+        min-width: 0;
+    }
+
+    .chart-title {
+        flex: 0 1 auto;
+        min-width: 0;
+        white-space: nowrap;
+    }
+
+    .legend-container {
+        flex: 0 1 65%;
+        min-width: 0;
+        position: relative;
     }
 
     .legend {
         display: flex;
         align-items: center;
-        gap: 1.5vw;
+        flex-wrap: wrap;
+        gap: 0.5rem 1.5vw;
+        justify-content: flex-end;
+        min-width: 0;
+        overflow: hidden;
     }
 
     .schedulename-overview {
@@ -232,7 +306,55 @@ protected override void OnParametersSet()
         align-items: center;
         gap: 0.3vw;
         font-size: 12px;
+        max-width: 11rem;
         white-space: nowrap;
+    }
+
+    .legend-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .legend-more {
+        background: transparent;
+        border: 0;
+        color: #7569e8;
+        cursor: pointer;
+        font: inherit;
+        font-size: 12px;
+        padding: 0;
+        white-space: nowrap;
+    }
+
+    .legend-popover {
+        background: #fff;
+        border: 1px solid #e5e2dc;
+        border-radius: 8px;
+        box-shadow: 0 8px 20px rgba(34, 34, 34, 0.14);
+        display: grid;
+        gap: 0.55rem;
+        max-width: min(22rem, 80vw);
+        padding: 0.75rem;
+        position: absolute;
+        right: 0;
+        top: calc(100% + 0.5rem);
+        width: max-content;
+        z-index: 20;
+    }
+
+    .legend-popover-item {
+        align-items: center;
+        display: inline-flex;
+        gap: 0.4rem;
+        max-width: 20rem;
+        min-width: 0;
+        white-space: nowrap;
+    }
+
+    .legend-more:hover,
+    .legend-more:focus-visible {
+        color: #5f54c9;
+        text-decoration: underline;
     }
 
     .legend-dot {
@@ -245,6 +367,7 @@ protected override void OnParametersSet()
     .chart-uppersection {
         flex: 3.5 1 0;
         min-height: 0;
+        min-width: 0;
         width: 100%;            
         margin: 0;            
         display: flex;
@@ -265,6 +388,7 @@ protected override void OnParametersSet()
     .chart-lowersection {
         flex: 1.5 1 0;
         min-height: 0;
+        min-width: 0;
         overflow-y: auto;
         overflow-x: hidden;
         margin-right: calc(-1 * (var(--scrollbar-w) + var(--scrollbar-gap)));
@@ -290,12 +414,16 @@ protected override void OnParametersSet()
         display: flex;
         align-items: center;
         gap: var(--col-gap);
+        min-width: 0;
         padding: 0.5vh 0;
     }
 
     .plan-name {
         flex: 0 0 var(--name-col);
         font-size: 12px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     .plan-track {
@@ -344,6 +472,7 @@ protected override void OnParametersSet()
     }
 
     .price-bar {
+        position: relative;
         width: 100%;         
         background-color: #e5e2dc;
         border-radius: 6px 6px 0 0;
@@ -380,6 +509,18 @@ protected override void OnParametersSet()
         transition: opacity 0.4s ease;
 
         z-index: 10;
+    }
+
+    .price-tooltip-content,
+    .price-tooltip-overlap {
+        align-items: center;
+        display: flex;
+        gap: 0.35rem;
+    }
+
+    .tooltip-plan-dot {
+        height: 7px;
+        width: 7px;
     }
 
     .price-column:hover .price-tooltip {
