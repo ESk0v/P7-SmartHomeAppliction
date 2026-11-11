@@ -97,6 +97,8 @@ public class PlanRepository : IPlanRepository
         plan.OptimizationObjective = update.optimizationObjective!;
         plan.DevicePresetId = update.presetId;
         plan.ChargeStopPercentage = update.chargeStopPercentage;
+        plan.EstimatedUnscheduledPrice = update.estimatedUnscheduledCost!.Value;
+        plan.EstimatedUnscheduledCo2Emissions = update.estimatedUnscheduledCo2Emissions!.Value;
 
         await _db.SaveChangesAsync();
         return await ToPlanDtoAsync(plan);

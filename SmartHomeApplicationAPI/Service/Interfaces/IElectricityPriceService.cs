@@ -4,4 +4,5 @@ namespace SmartHomeApplicationAPI.Service;
 public interface IElectricityPriceService
 {
     Task<List<HourPriceDto>> GetPricesForDateAsync(string areaCode);
+    Task<UnscheduledEstimateResultDto> GetUnscheduledEstimateAsync(UnscheduledEstimateRequestDto request);
 }
