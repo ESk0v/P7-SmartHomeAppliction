@@ -2,6 +2,7 @@
 @inject NavigationManager NavigationManager
 @inject AuthenticationStateProvider AuthProvider
 @inject OptimizedPlanState PlanState
+@inject ILogger<PlanForm> Logger
 
 @using global::Shared.Dashboard
 @using System.Globalization
@@ -160,7 +161,7 @@ else if (isLoading)
                     </div>
                     <div class="summary-row">
                         <div>
-                            <span>Start time</span>
+                            <span>@(IsEditMode ? "Scheduled start time" : "Start time")</span>
                             <small>@((ScheduleForm.PlanName == string.Empty) ? ScheduleForm.DeviceName : ScheduleForm.PlanName) runs for @DisplayedDuration minutes</small>
                         </div>
                         <strong>@response.StartTime.ToString("HH:mm")</strong>
@@ -348,6 +349,14 @@ else if (isLoading)
         if (existingPlan is null)
         {
             loadError = "The selected plan could not be loaded.";
+            return;
+        }
+
+        if (existingPlan.planId != editingPlanId)
+        {
+            loadError = "The selected plan did not match the plan returned by the server.";
+            Logger.LogWarning("Edit plan ID mismatch: requested {PlanId}, received {ReturnedPlanId}",
+                editingPlanId, existingPlan.planId);
             return;
         }
 
@@ -741,14 +750,7 @@ else if (isLoading)
         if (localEnd <= localStart)
             localEnd = localEnd.AddDays(1);
 
-        DateTime windowStartUtc;
-        DateTime windowEndUtc;
-        try
-        {
-            windowStartUtc = TimeZoneInfo.ConvertTimeToUtc(localStart, CopenhagenTimeZone);
-            windowEndUtc = TimeZoneInfo.ConvertTimeToUtc(localEnd, CopenhagenTimeZone);
-        }
-        catch (ArgumentException)
+        if (CopenhagenTimeZone.IsInvalidTime(localStart) || CopenhagenTimeZone.IsInvalidTime(localEnd))
         {
             schedulingError = "The selected time does not exist on this date. Choose another time.";
             return;
@@ -778,8 +780,8 @@ else if (isLoading)
             planId = editingPlanId,
             userDeviceId = deviceId,
             planName = planName,
-            windowStartTime = windowStartUtc,
-            windowEndTime = windowEndUtc,
+            windowStartTime = TimeZoneInfo.ConvertTimeToUtc(localStart, CopenhagenTimeZone),
+            windowEndTime = TimeZoneInfo.ConvertTimeToUtc(localEnd, CopenhagenTimeZone),
             optimizationObjective = ScheduleForm.Priority,
             presetId = ScheduleForm.Preset?.id,
             chargeStopPercentage = isInterruptible ? ScheduleForm.ChargeStopPercentage : null,
@@ -787,6 +789,10 @@ else if (isLoading)
             estimatedUnscheduledCost = unscheduledEstimate.EstimatedPrice,
             estimatedUnscheduledCo2Emissions = unscheduledEstimate.EstimatedCo2Emissions
         };
+
+        Logger.LogInformation(
+            "Updating plan {PlanId}: selected window {SelectedStartTime}–{SelectedEndTime}, sent window {WindowStartTime}–{WindowEndTime}",
+            editingPlanId, localStart, localEnd, update.windowStartTime, update.windowEndTime);
 
         try
         {
@@ -803,7 +809,20 @@ else if (isLoading)
                 return;
             }
 
+            PlanDTO? savedPlan = await result.Content.ReadFromJsonAsync<PlanDTO>();
+            if (savedPlan?.planId != editingPlanId)
+            {
+                schedulingError = "The server returned a different plan after the update. Please reload before editing again.";
+                Logger.LogWarning("Updated plan ID mismatch: requested {PlanId}, received {ReturnedPlanId}",
+                    editingPlanId, savedPlan?.planId);
+                return;
+            }
+
+            Logger.LogInformation(
+                "Updated plan {PlanId}: server returned window {WindowStartTime}–{WindowEndTime}",
+                savedPlan.planId, savedPlan.windowStartTime, savedPlan.windowEndTime);
             PlanState.SelectedPlanId = editingPlanId;
+            PlanState.ReturnToSelectedPlan = true;
             NavigationManager.NavigateTo("/optimized");
         }
         catch (Exception exception)

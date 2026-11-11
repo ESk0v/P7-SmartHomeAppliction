@@ -109,6 +109,8 @@
             HashSet<int> visited = new();
 
             visited.Add(current.planId);
+            decimal estimatedUnscheduledPrice = plan.estimatedUnscheduledPrice;
+            decimal estimatedUnscheduledCo2Emissions = plan.estimatedUnscheduledCo2Emissions;
 
             while (current.nextPlanId is { } nextId
                 && plansById.TryGetValue(nextId, out PlanDto? next)
@@ -116,6 +118,8 @@
             {
                 current = next;
                 lastPlan = current;
+                estimatedUnscheduledPrice += current.estimatedUnscheduledPrice;
+                estimatedUnscheduledCo2Emissions += current.estimatedUnscheduledCo2Emissions;
             }
 
             var combinedPlan = new PlanDto
@@ -126,12 +130,18 @@
                 icon: plan.icon,
                 colorCode: plan.colorCode,
                 deviceName: plan.deviceName,
+                deviceCategory: plan.deviceCategory,
+                optimizationObjective: plan.optimizationObjective,
+                chargeStopPercentage: plan.chargeStopPercentage,
+                presetDurationInMinutes: plan.presetDurationInMinutes,
                 startTime: plan.startTime,
                 endTime: lastPlan.endTime,
                 windowStartTime: plan.windowStartTime,
                 windowEndTime: lastPlan.windowEndTime,
                 estimatedCost: plan.estimatedCost,
                 estimatedCo2Emissions: plan.estimatedCo2Emissions,
+                estimatedUnscheduledPrice: estimatedUnscheduledPrice,
+                estimatedUnscheduledCo2Emissions: estimatedUnscheduledCo2Emissions,
                 batteryCapacityInKwh: plan.batteryCapacityInKwh
             );
             

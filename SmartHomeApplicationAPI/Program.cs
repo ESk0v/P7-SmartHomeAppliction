@@ -13,7 +13,7 @@ using SmartHomeApplicationAPI.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-if (!builder.Environment.IsDevelopment())
+if (!builder.Environment.IsDevelopment() && !builder.Environment.IsEnvironment("Testing"))
 {
     var secretsPath = Environment.GetEnvironmentVariable("SECRETS_PATH")
         ?? @"C:\Secrets\SmartHome\secrets.json";

@@ -3,6 +3,7 @@
 @rendermode InteractiveServer
 @using SmartHomeApplication.Components.Shared.Demand
 @inject NavigationManager NavigationManager
+@inject OptimizedPlanState PlanState
 
 <PageTitle>@(planName is null ? "Edit plan" : $"Edit: {planName}")</PageTitle>
 
@@ -27,5 +28,9 @@
 
     private void SetPlanName(string name) => planName = name;
 
-    private void ReturnToOverview() => NavigationManager.NavigateTo("/optimized");
+    private void ReturnToOverview()
+    {
+        PlanState.ReturnToSelectedPlan = true;
+        NavigationManager.NavigateTo("/optimized");
+    }
 }
