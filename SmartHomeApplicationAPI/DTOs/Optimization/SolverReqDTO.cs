@@ -7,10 +7,8 @@ namespace SmartHomeApplicationAPI.DTOs.Optimization
     {
         public DateTime StartTime { get; set; }
 
-        [Length(96, 96)]
         public List<double> Prices { get; set; } = [];          // c_t, DKK/kWh
 
-        [Length(96, 96)]
         public List<double> BaseLoad { get; set; } = [];        // P_base_t, kW
 
         [Range(0.0, double.MaxValue)]

@@ -523,12 +523,10 @@ else if (isLoading)
         OptimizationRequestDTO? optimizationRequest = new OptimizationRequestDTO
         {
             Area = area,
-            DeviceName = ScheduleForm.DeviceName,
-            BatteryCapacityInKwh = SelectedDevice?.batteryCapacityInKwh,
-            ChargeStopPercentage = isInterruptible ? ScheduleForm.ChargeStopPercentage : null,
-            Preset = isInterruptible ? null : ScheduleForm.Preset,
-            StartTime = startTime,
-            EndTime = endTime,
+            UserDeviceId = SelectedDevice!.id,
+            DevicePresetId = ScheduleForm.Preset?.id ?? 0,
+            StartWindow = requestedWindowStart.Value,   // UTC, already computed above
+            EndWindow = requestedWindowEnd.Value,
             Priority = ScheduleForm.Priority
         };
 
