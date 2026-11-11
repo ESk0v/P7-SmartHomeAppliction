@@ -82,13 +82,13 @@ public class PlanService : IPlanService
             .When(plan => plan.chargeStopPercentage.HasValue)
             .WithMessage("The charge percentage must be between 0 and 100.");
 
-        validator.When(_ => device?.category == "ev_charger", () =>
+        validator.When(_ => device?.category == "Interruptible", () =>
         {
             validator.RuleFor(plan => plan.chargeStopPercentage)
                 .NotNull().WithMessage("Select a charge percentage.");
         });
 
-        validator.When(_ => device is not null && device.category != "ev_charger", () =>
+        validator.When(_ => device is not null && device.category != "Interruptible", () =>
         {
             validator.RuleFor(plan => plan.presetId)
                 .NotNull().WithMessage("Select a device preset.");

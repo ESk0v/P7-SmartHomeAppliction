@@ -12,5 +12,6 @@ public record PlanDto(
     DateTime windowStartTime,
     DateTime windowEndTime,
     decimal estimatedCost,
-    decimal estimatedCo2Emissions
+    decimal estimatedCo2Emissions,
+    decimal? batteryCapacityInKwh
 );
