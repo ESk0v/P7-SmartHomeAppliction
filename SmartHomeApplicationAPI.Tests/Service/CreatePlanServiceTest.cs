@@ -41,6 +41,41 @@ public class CreatePlanServiceTests
         Assert.Same(expectedPresets, result);
 
     }
+    [Fact]
+    public async Task GetUserDevicesAsync_WithValidUserId_ReturnsExpectedUserDevices()
+    {
+        // Arrange
+        var mockRepo = new Mock<ICreatePlanRepository>();
+        string userId = "c76c5a71-0b33-4a63-9ad0-0d749c72d324";
+
+        var expectedUserDevices = new List<PlanUserDeviceDto>
+        {
+            new PlanUserDeviceDto(
+                48,
+                34,
+                "EV1",
+                "eEvCharger",
+                "#c50bea",
+                "Interruptible",
+                "EV1",
+                400.000m)
+        };
+        
+
+        mockRepo.Setup(repo => repo.GetUserDevicesAsync(userId))
+            .Returns(Task.FromResult(expectedUserDevices));
+
+        var service = new CreatePlanService(mockRepo.Object);
+
+        // Act
+        var result = await service.GetUserDevicesAsync(userId);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(400.000m, result[0].batteryCapacityInKwh);
+        Assert.Same(expectedUserDevices, result);
+
+    }
 
     [Fact]
     public async Task PostPlanAsync_WithValidPlan_ReturnsCreatedPlan()
