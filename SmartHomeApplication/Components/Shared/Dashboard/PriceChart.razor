@@ -14,7 +14,7 @@
                 {
                     <span class="schedulename-overview">
                         <span class="legend-dot" style="background-color:@row.Head.colorCode"></span>
-                        @row.Head.deviceName
+                        @row.Head.planName
                     </span>
                 }
             </div>
@@ -23,7 +23,10 @@
         <div class="chart-uppersection">
             @foreach (var p in prices)
             {
-                <div class="price-column" title="@p.Hour.Hour:00 - @p.Price.ToString("0.00", CultureInfo.CurrentCulture)">
+                <div class="price-column">
+                    <div class="price-tooltip">
+                        @p.Hour.Hour:00 - @p.Price.ToString("0.00", CultureInfo.CurrentCulture)
+                    </div>
                     <div class="price-bar-area">
                         <div class="price-bar" style="@BarStyle(p)"></div>
                     </div>
@@ -39,7 +42,7 @@
             @foreach (var row in rows)
             {
                 <div class="plan-row">
-                    <span class="plan-name">@row.Head.deviceName</span>
+                    <span class="plan-name">@row.Head.planName</span>
                     <div class="plan-track">
                         @foreach (var seg in row.Segments)
                         {
@@ -57,6 +60,7 @@
 
 @code {
     [Parameter] public List<PlanDto> activeSchedules { get; set; } = new();
+    [Parameter] public int MaxDisplayedPrices { get; set; } = 0;
 
     private List<HourPriceDto> prices = new();
     private decimal maxPrice;
@@ -70,6 +74,10 @@
         {
             prices = await Http.GetFromJsonAsync<List<HourPriceDto>>(
                 "api/electricity-price-controller/dashboard-showcase?areaCode=DK1") ?? new();
+            if (MaxDisplayedPrices > 0)
+            {
+                prices = prices.Take(MaxDisplayedPrices).ToList();
+            }
             maxPrice = prices.Count > 0 ? prices.Max(p => p.Price) : 0;
 
             if (prices.Count > 0)
@@ -347,5 +355,35 @@ protected override void OnParametersSet()
         text-align: center;
         margin-top: 8px;
         font-size: 12px;
+    }
+
+    .price-column {
+        position: relative;
+    }
+
+    .price-tooltip {
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+
+        background-color: #373737;
+        color: white;
+        padding: 6px 10px;
+        border-radius: 6px;
+
+        font-size: 12px;
+        white-space: nowrap;
+
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.4s ease;
+
+        z-index: 10;
+    }
+
+    .price-column:hover .price-tooltip {
+        opacity: 1;
+        visibility: visible;
     }
 </style>
