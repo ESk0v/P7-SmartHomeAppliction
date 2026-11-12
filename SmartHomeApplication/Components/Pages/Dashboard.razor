@@ -180,14 +180,6 @@
     }
 
     .devices {
-        display: flex;
-        gap: 3vw;
-        overflow-x: auto;
-        overflow-y: hidden;
-        padding-bottom: 8px;
-    }
-
-    .devices {
         flex: 0 0 20%;
         display: flex;
         gap: 3vw;
@@ -195,11 +187,11 @@
         overflow-y: hidden;
         padding-bottom: 8px;
         min-height: 0;
-        scrollbar-width: thin;   
+        scrollbar-width: thin;
         scrollbar-color: #cfcbc3 transparent;
         --scrollbar-w: 6px;
         --scrollbar-gap: 6px;
-        
+
     }
 
     .devices > * {
@@ -246,15 +238,33 @@
         min-width: 6rem;
     }
 
-    @@media (max-width: 640.98px) {
-        .header {
-            align-items: flex-start;
-            flex-direction: column;
-            gap: 0.5rem;
+    @@media (max-width: 640.98px), (max-width: 960px) and (max-height: 500px) and (pointer: coarse) {
+        .dashboard {
+            height: auto;
+            padding: 0;
+            gap: 1rem;
         }
 
-        .header-actions {
-            width: 100%;
+        .dashboard .statistics {
+            flex: none;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.75rem;
+        }
+
+        .dashboard .priceoverview {
+            flex: none;
+            height: auto;
+            min-height: 0;
+            max-height: none;
+        }
+
+        .dashboard .devices {
+            flex: none;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            gap: 0.75rem;
+            overflow: visible;
+            padding: 0;
         }
 
     }
