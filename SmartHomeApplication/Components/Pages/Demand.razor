@@ -6,7 +6,7 @@
 <PageTitle>New plan</PageTitle>
 
 <SectionContent SectionName="TopBarActions">
-    <div class="header">
+    <div class="header demand-header">
         <div class="heading">
             <h1>New plan</h1>
             <p>Configure a new scheduling plan</p>
@@ -16,3 +16,54 @@
 </SectionContent>
 
 <PlanForm />
+
+<style>
+    .demand-header {
+        align-items: center;
+        display: flex;
+        gap: 1rem;
+        justify-content: space-between;
+        width: 100%;
+    }
+
+    .demand-header .heading h1 {
+        color: #222;
+        font-size: 1.1rem;
+        font-weight: 700;
+        line-height: 0.6;
+        margin: 0;
+    }
+
+    .demand-header .heading p {
+        color: #999;
+        font-size: 0.65rem;
+        line-height: 0.75;
+        margin: 0;
+    }
+
+    .demand-header .heading {
+        display: flex;
+        flex-direction: column;
+        gap: 0.7rem;
+    }
+
+    .demand-header .header-actions {
+        align-items: center;
+        display: flex;
+        flex-shrink: 0;
+        gap: 0.5rem;
+    }
+
+    @@media (max-width: 800px) {
+        .demand-header {
+            align-items: flex-start;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .demand-header .header-actions {
+            width: 100%;
+        }
+
+    }
+</style>

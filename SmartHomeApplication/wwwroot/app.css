@@ -58,3 +58,55 @@ h1:focus {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
+
+/* Phone portraits and short touch-screen landscapes; desktop styles stay intact. */
+@media (max-width: 640.98px), (max-width: 960px) and (max-height: 500px) and (pointer: coarse) {
+    .content .form-control,
+    .content .form-select {
+        min-width: 0;
+        min-height: 44px;
+        font-size: 1rem;
+    }
+
+    .content .btn {
+        min-height: 44px;
+        white-space: normal;
+    }
+
+    .content .plan-picker {
+        min-width: 0;
+    }
+
+    .content .plan-picker-trigger,
+    .content .plan-picker-option {
+        min-height: 44px;
+        overflow-wrap: anywhere;
+    }
+
+    .content .plan-picker-trigger > span:not(.plan-picker-chevron) {
+        min-width: 0;
+    }
+
+    .content .plan-picker-chevron,
+    .content .plan-picker-check {
+        flex-shrink: 0;
+    }
+
+    .content .validation-message,
+    .content .alert {
+        overflow-wrap: anywhere;
+    }
+
+    .empty-layout .content {
+        padding: 1rem !important;
+    }
+
+    .empty-layout .row {
+        margin: 0;
+    }
+
+    .empty-layout .row > div {
+        padding: 1.5rem 1rem;
+        min-width: 0;
+    }
+}
