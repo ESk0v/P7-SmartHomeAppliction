@@ -17,7 +17,6 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IElectricityPriceService, ElectricityPriceService>();
         services.AddScoped<IStatisticsService, StatisticsService>();
         services.AddScoped<ICreatePlanService, CreatePlanService>();
-        services.AddScoped<IOptimizationService, OptimizationService>();
         services.AddScoped<IDeviceService, DeviceService>();
         services.AddScoped<IHistoryService, HistoryService>();
         services.AddHttpClient<IForecastingService, ForecastingService>((sp, client) =>

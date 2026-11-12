@@ -532,18 +532,16 @@ else if (isLoading)
         OptimizationRequestDTO? optimizationRequest = new OptimizationRequestDTO
         {
             Area = area,
-            DeviceName = ScheduleForm.DeviceName,
-            BatteryCapacityInKwh = SelectedDevice?.batteryCapacityInKwh,
-            ChargeStopPercentage = isInterruptible ? ScheduleForm.ChargeStopPercentage : null,
-            Preset = isInterruptible ? null : ScheduleForm.Preset,
-            StartTime = startTime,
-            EndTime = endTime,
+            UserDeviceId = SelectedDevice!.id,
+            DevicePresetId = ScheduleForm.Preset?.id ?? 0,
+            StartWindow = requestedWindowStart.Value,   // UTC, already computed above
+            EndWindow = requestedWindowEnd.Value,
             Priority = ScheduleForm.Priority
         };
 
         try
         {
-            HttpResponseMessage? result = await Http.PostAsJsonAsync("api/optimization-controller/optimize", optimizationRequest);
+            HttpResponseMessage? result = await Http.PostAsJsonAsync("api/createPlan-controller/optimize", optimizationRequest);
 
             if (!result.IsSuccessStatusCode)
             {
@@ -551,7 +549,12 @@ else if (isLoading)
             }
             else
             {
-                response = await result.Content.ReadFromJsonAsync<OptimizationResultDTO>();
+                OptimizationResultDTO? raw = await result.Content.ReadFromJsonAsync<OptimizationResultDTO>();
+                response = raw is null ? null : raw with
+                {
+                    StartTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(raw.StartTime, DateTimeKind.Utc), CopenhagenTimeZone),
+                    EndTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(raw.EndTime, DateTimeKind.Utc), CopenhagenTimeZone)
+                };
                 
                 displayPlan = true;
 
