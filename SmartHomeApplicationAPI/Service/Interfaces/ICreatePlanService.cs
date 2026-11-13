@@ -9,5 +9,5 @@ public interface ICreatePlanService
 
     Task<PlanDTO> PostPlanAsync(PlanDTO planDTO);
 
-    Task<OptimizationResultDTO> OptimizeAsync(OptimizationRequestDTO request);
+    Task<List<OptimizationResultDTO>> OptimizeAsync(OptimizationRequestDTO request);
 }

@@ -53,7 +53,7 @@ public class CreatePlanService : ICreatePlanService
         return await _repository.PostPlanAsync(planDTO);
     }
 
-    public async Task<OptimizationResultDTO> OptimizeAsync(OptimizationRequestDTO request)
+    public async Task<List<OptimizationResultDTO>> OptimizeAsync(OptimizationRequestDTO request)
     {
         #region Data Retrival
         var now = DateTime.UtcNow;
@@ -98,7 +98,11 @@ public class CreatePlanService : ICreatePlanService
             var presetId = isRequested ? request.DevicePresetId : plan!.DevicePresetId;
             var preset = presets.FirstOrDefault(p => p.Id == presetId) ?? presets.First();
 
-            var isEv = device.category == "EV"; // check the real category string in your DB
+            var isEv = string.Equals(
+                device.category?.Trim(),
+                "Interruptible",
+                StringComparison.OrdinalIgnoreCase
+            );
 
             var load = new SolverLoadDTO
             {
@@ -169,19 +173,87 @@ public class CreatePlanService : ICreatePlanService
         using var doc = System.Text.Json.JsonDocument.Parse(body);
         var root = doc.RootElement;
 
-        // the device we optimise = the appliance that is not fixed, otherwise the EV
+        var results = new List<OptimizationResultDTO>();
+
+        // APPLIANCE
         var app = root.GetProperty("appliances").EnumerateArray()
             .Where(a => !a.GetProperty("fixed").GetBoolean())
             .Select(a => (System.Text.Json.JsonElement?)a)
             .FirstOrDefault();
-        var item = app ?? root.GetProperty("evs")[0];
 
-        return new OptimizationResultDTO(
-            item.GetProperty("start_time").GetDateTime().ToUniversalTime(),
-            item.GetProperty("end_time").GetDateTime().ToUniversalTime(),
-            Math.Round(item.GetProperty("cost").GetDecimal(), 2),
-            20m);   // CO2 hardcoded for now
+        if (app.HasValue)
+        {
+            var item = app.Value;
 
+            results.Add(new OptimizationResultDTO(
+                item.GetProperty("start_time").GetDateTime().ToUniversalTime(),
+                item.GetProperty("end_time").GetDateTime().ToUniversalTime(),
+                Math.Round(item.GetProperty("cost").GetDecimal(), 2),
+                20m
+            ));
+
+            return results;
+        }
+
+        // EV
+        var evs = root.GetProperty("evs");
+
+        if (evs.GetArrayLength() == 0)
+        {
+            throw new InvalidOperationException(
+                "Solver returned no optimizable appliance or EV.");
+        }
+
+        var ev = evs[0];
+
+        var powers = ev.GetProperty("power_kw")
+            .EnumerateArray()
+            .Select(x => x.GetDouble())
+            .ToArray();
+
+        int? chargingStart = null;
+
+        for (int t = 0; t <= powers.Length; t++)
+        {
+            bool charging = t < powers.Length && powers[t] > 0.0001;
+
+            if (charging && chargingStart is null)
+            {
+                chargingStart = t;
+            }
+            else if (!charging && chargingStart is not null)
+            {
+                int from = chargingStart.Value;
+                int to = t;
+
+                decimal intervalCost = 0m;
+
+                for (int i = from; i < to; i++)
+                {
+                    intervalCost +=
+                        (decimal)powers[i] *
+                        0.25m *
+                        (decimal)prices[i];
+                }
+
+                results.Add(new OptimizationResultDTO(
+                    start.AddMinutes(from * 15),
+                    start.AddMinutes(to * 15),
+                    Math.Round(intervalCost, 2),
+                    20m
+                ));
+
+                chargingStart = null;
+            }
+        }
+
+        if (results.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "Solver returned no charging intervals for EV.");
+        }
+
+        return results;
     }
 
 }
