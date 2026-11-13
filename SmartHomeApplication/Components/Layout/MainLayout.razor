@@ -1,12 +1,12 @@
 ﻿@inherits LayoutComponentBase
 
 
-<div class="page">
+<div class="page app-layout">
     <div class="sidebar">
         <NavMenu />
     </div>
 
-    <main>
+    <main class="app-main">
         <div class="top-row px-4">
             <SectionOutlet SectionName="TopBarActions" />
         </div>
@@ -24,3 +24,163 @@
     <a href="." class="reload">Reload</a>
     <span class="dismiss">🗙</span>
 </div>
+
+<style>
+    .app-layout {
+        position: relative;
+        display: flex;
+        flex-direction: row;
+        min-width: 0;
+        width: 100%;
+    }
+
+    .app-main {
+        flex: 1;
+        min-width: 0;
+        background-color: #f7f6f4;
+    }
+
+    .app-main > .content {
+        min-width: 0;
+    }
+
+    .app-layout > .sidebar {
+        background-image: linear-gradient(180deg, #042250 0%, #0a66c3 70%);
+        width: 250px;
+        height: 100vh;
+        position: sticky;
+        top: 0;
+    }
+
+    .app-main > .top-row {
+        background-color: #ffffff;
+        border-bottom: 1px solid #d6d5d5;
+        justify-content: flex-end;
+        height: 4.5rem;
+        display: flex;
+        align-items: center;
+        position: sticky;
+        top: 0;
+        z-index: 1;
+    }
+
+    .app-main > .top-row a,
+    .app-main > .top-row .btn-link {
+        white-space: nowrap;
+        margin-left: 1.5rem;
+        text-decoration: none;
+    }
+
+    .app-main > .top-row a:hover,
+    .app-main > .top-row .btn-link:hover {
+        text-decoration: underline;
+    }
+
+    .app-main > .top-row a:first-child {
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .app-main > .top-row,
+    .app-main > article {
+        padding-left: 2rem !important;
+        padding-right: 1.5rem !important;
+    }
+
+    @@media (max-width: 640.98px), (max-width: 960px) and (max-height: 500px) and (pointer: coarse) {
+        .app-layout {
+            flex-direction: column;
+        }
+
+        .app-layout > .sidebar {
+            width: auto;
+            height: auto;
+            position: static;
+        }
+
+        .app-main > .top-row {
+            height: auto;
+            min-height: 4.5rem;
+            padding: 1rem !important;
+            position: relative;
+            z-index: 2;
+        }
+
+        .app-main > article.content {
+            padding: 1rem !important;
+        }
+
+        .app-main > .top-row .header {
+            min-width: 0;
+            align-items: stretch;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .app-main > .top-row .heading {
+            min-width: 0;
+            margin: 0;
+            gap: 0.35rem;
+        }
+
+        .app-main > .top-row .heading h1,
+        .app-main > .top-row .heading p {
+            line-height: 1.4;
+            overflow-wrap: anywhere;
+        }
+
+        .app-main > .top-row .header-actions {
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            width: 100%;
+        }
+
+        .app-main > .top-row .header-actions > * {
+            flex: 1 1 0;
+            min-width: 0;
+        }
+
+        .app-main > .top-row .header-actions .header-button,
+        .app-main > .top-row .optimized-action {
+            min-width: 0;
+            min-height: 44px;
+            width: 100%;
+        }
+
+        .app-main > .top-row .plan-picker-trigger {
+            min-height: 44px;
+        }
+
+        .app-main > .top-row .plan-picker-trigger > span:nth-child(2) {
+            min-width: 0;
+            overflow-wrap: anywhere;
+        }
+
+        .app-main > .top-row a,
+        .app-main > .top-row .btn-link {
+            margin-left: 0;
+        }
+
+    }
+
+    #blazor-error-ui {
+        color-scheme: light only;
+        background: lightyellow;
+        bottom: 0;
+        box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
+        box-sizing: border-box;
+        display: none;
+        left: 0;
+        padding: 0.6rem 1.25rem 0.7rem 1.25rem;
+        position: fixed;
+        width: 100%;
+        z-index: 1000;
+    }
+
+    #blazor-error-ui .dismiss {
+        cursor: pointer;
+        position: absolute;
+        right: 0.75rem;
+        top: 0.5rem;
+    }
+</style>

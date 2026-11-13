@@ -17,9 +17,14 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IElectricityPriceService, ElectricityPriceService>();
         services.AddScoped<IStatisticsService, StatisticsService>();
         services.AddScoped<ICreatePlanService, CreatePlanService>();
-        services.AddScoped<IOptimizationService, OptimizationService>();
         services.AddScoped<IDeviceService, DeviceService>();
         services.AddScoped<IHistoryService, HistoryService>();
+        services.AddHttpClient<IForecastingService, ForecastingService>((sp, client) =>
+        {
+            var config = sp.GetRequiredService<IConfiguration>();
+            var pythonUrl = config["ForecastingApiUrl"] ?? "https://elpriser.org";
+            client.BaseAddress = new Uri(pythonUrl);
+        });
 
         //REPOSITORIES
         services.AddScoped<IElectricityPriceRepository, ElectricityPriceRepository>();
@@ -28,6 +33,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICreatePlanRepository, CreatePlanRepository>();
         services.AddScoped<IDeviceRepository, DeviceRepository>();
         services.AddScoped<IHistoryRepository, HistoryRepository>();
+        services.AddScoped<IForecastingRepository, ForecastingRepository>();
 
 
         //HANGFIRE

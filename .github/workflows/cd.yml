@@ -9,7 +9,10 @@ env:
   SITE_NAME: Sk0v.dk
   API_SERVICE: Sk0vApi
   API_PORT: '6200'
+  OPT_SERVICE: Sk0vOptimisationApi
+  OPT_PORT: '6203'
   SITE_ROOT: C:\ActiveServers\Sk0v.dk\Sk0v
+  PYTHON_EXE: C:\Python312\python.exe
 
 jobs:
   build-and-publish:
@@ -38,6 +41,12 @@ jobs:
       - name: Publish API
         run: dotnet publish SmartHomeApplicationAPI/SmartHomeApplicationAPI.csproj --configuration Release --output ./publish/api --runtime win-x64 --self-contained false
 
+      # Python source only. The virtual environment is built on the server.
+      - name: Package Optimisation API
+        run: |
+          mkdir -p ./publish/optimisation
+          rsync -a --exclude '.venv' --exclude '__pycache__' --exclude '*.pyc' ./Optimisation/ ./publish/optimisation/
+
       - name: Write deployment manifest
         run: echo "commit=$GITHUB_SHA run=$GITHUB_RUN_ID built=$(date -u +%FT%TZ)" > ./publish/api/DEPLOYMENT.txt
 
@@ -59,22 +68,25 @@ jobs:
           name: smarthome-release
           path: ./publish
 
-      - name: Stop API and IIS site
+      # The API is stopped first because it depends on the Optimisation API
+      - name: Stop API, Optimisation API and IIS site
         shell: powershell
         run: |
           Import-Module WebAdministration
 
-          $svc = Get-Service -Name $env:API_SERVICE -ErrorAction SilentlyContinue
-          if ($svc -and $svc.Status -ne 'Stopped') {
-            Stop-Service -Name $env:API_SERVICE -Force
-            $svc.WaitForStatus('Stopped', [TimeSpan]::FromSeconds(60))
+          foreach ($name in @($env:API_SERVICE, $env:OPT_SERVICE)) {
+            $svc = Get-Service -Name $name -ErrorAction SilentlyContinue
+            if ($svc -and $svc.Status -ne 'Stopped') {
+              Stop-Service -Name $name -Force
+              $svc.WaitForStatus('Stopped', [TimeSpan]::FromSeconds(60))
+            }
           }
 
           $pool = (Get-Website -Name $env:SITE_NAME).applicationPool
           Stop-Website -Name $env:SITE_NAME -ErrorAction SilentlyContinue
           if ((Get-WebAppPoolState -Name $pool).Value -ne 'Stopped') { Stop-WebAppPool -Name $pool }
           Start-Sleep -Seconds 3
-          Write-Host 'API and IIS site stopped.'
+          Write-Host 'API, Optimisation API and IIS site stopped.'
 
       # /NFL /NDL /NP /NJH keep the Robocopy log to the summary table only
       - name: Deploy frontend
@@ -102,6 +114,55 @@ jobs:
           $global:LASTEXITCODE = 0
 
           Write-Host "Deployed to ${dst}: $(Get-Content (Join-Path $dst 'DEPLOYMENT.txt'))"
+
+      # Copies the source, creates the virtual environment on first run and
+      # installs requirements.txt. /XD keeps .venv from being purged by /MIR.
+      - name: Deploy Optimisation API
+        shell: powershell
+        run: |
+          $src = Join-Path $env:GITHUB_WORKSPACE 'publish\optimisation'
+          $dst = Join-Path $env:SITE_ROOT 'OptimisationAPI'
+          if (-not (Test-Path (Join-Path $src 'main.py'))) { throw 'main.py missing from artifact' }
+          New-Item -ItemType Directory -Force -Path $dst | Out-Null
+
+          robocopy $src $dst /MIR /R:3 /W:5 /NFL /NDL /NP /NJH /XD .venv __pycache__
+          if ($LASTEXITCODE -ge 8) { throw "Optimisation copy failed: $LASTEXITCODE" }
+          $global:LASTEXITCODE = 0
+
+          $venv = Join-Path $dst '.venv'
+          $py = Join-Path $venv 'Scripts\python.exe'
+          if (-not (Test-Path $py)) {
+            & $env:PYTHON_EXE -m venv $venv
+            if ($LASTEXITCODE -ne 0) { throw "Could not create the virtual environment: $LASTEXITCODE" }
+          }
+
+          & $py -m pip install --disable-pip-version-check --no-input -r (Join-Path $dst 'requirements.txt')
+          if ($LASTEXITCODE -ne 0) { throw "pip install failed: $LASTEXITCODE" }
+
+          Write-Host "Optimisation API deployed to $dst"
+
+      # Started before the API so the API never comes up without its dependency.
+      # Gives up after 90 seconds or the service stopping, and stops the service
+      # so NSSM does not keep restarting it.
+      - name: Start Optimisation API
+        id: start_opt
+        shell: powershell
+        run: |
+          $name = $env:OPT_SERVICE
+          $started = Get-Date
+          Start-Service -Name $name
+
+          do {
+            Start-Sleep -Seconds 3
+            $up = Test-NetConnection -ComputerName 127.0.0.1 -Port ([int]$env:OPT_PORT) -InformationLevel Quiet -WarningAction SilentlyContinue
+            $state = (Get-Service -Name $name).Status
+          } until ($up -or $state -eq 'Stopped' -or (Get-Date) -ge $started.AddSeconds(90))
+
+          if (-not $up) {
+            Stop-Service -Name $name -Force -ErrorAction SilentlyContinue
+            throw "Optimisation API did not start (service: $state)"
+          }
+          Write-Host "Optimisation API listening on port $env:OPT_PORT"
 
       # Gives up after 3 logged errors, 120 seconds, or the service stopping,
       # and stops the service so NSSM does not keep restarting it.
@@ -138,14 +199,14 @@ jobs:
           Start-Website -Name $env:SITE_NAME
           Write-Host 'IIS site started.'
 
-      # Runs only when the API failed to start. Credential-looking lines are hidden.
-      - name: API diagnostics
-        if: ${{ failure() && steps.start_api.outcome == 'failure' }}
+      # Runs only when the Optimisation API or the API failed to start.
+      # Credential-looking lines are hidden.
+      - name: Service diagnostics
+        if: ${{ failure() && (steps.start_opt.outcome == 'failure' || steps.start_api.outcome == 'failure') }}
         continue-on-error: true
         shell: powershell
         run: |
           $ErrorActionPreference = 'Continue'
-          $name = $env:API_SERVICE
 
           function Hide-Secrets([string[]]$lines) {
             $lines | ForEach-Object {
@@ -156,24 +217,27 @@ jobs:
           $stop = [guid]::NewGuid().ToString('N')
           Write-Output "::stop-commands::$stop"
 
-          Write-Output '=== Service ==='
-          Get-CimInstance Win32_Service -Filter "Name='$name'" | Format-List State, ExitCode, StartName
+          foreach ($name in @($env:OPT_SERVICE, $env:API_SERVICE)) {
+            Write-Output "=== Service: $name ==="
+            Get-CimInstance Win32_Service -Filter "Name='$name'" | Format-List State, ExitCode, StartName
 
-          Write-Output '=== NSSM ==='
-          $params = "HKLM:\SYSTEM\CurrentControlSet\Services\$name\Parameters"
-          if (Test-Path $params) {
-            $p = Get-ItemProperty $params
-            Write-Output "Application:  $($p.Application)"
-            Write-Output "AppDirectory: $($p.AppDirectory)"
-            foreach ($f in @($p.AppStdout, $p.AppStderr)) {
-              if ($f -and (Test-Path $f)) {
-                Write-Output "--- last 40 lines of $f"
-                Hide-Secrets (Get-Content $f -Tail 40)
+            Write-Output "=== NSSM: $name ==="
+            $params = "HKLM:\SYSTEM\CurrentControlSet\Services\$name\Parameters"
+            if (Test-Path $params) {
+              $p = Get-ItemProperty $params
+              Write-Output "Application:   $($p.Application)"
+              Write-Output "AppParameters: $($p.AppParameters)"
+              Write-Output "AppDirectory:  $($p.AppDirectory)"
+              foreach ($f in @($p.AppStdout, $p.AppStderr)) {
+                if ($f -and (Test-Path $f)) {
+                  Write-Output "--- last 40 lines of $f"
+                  Hide-Secrets (Get-Content $f -Tail 40)
+                }
+                elseif ($f) { Write-Output "--- $f (not found)" }
               }
-              elseif ($f) { Write-Output "--- $f (not found)" }
             }
+            else { Write-Output "No NSSM parameters found for $name" }
           }
-          else { Write-Output "No NSSM parameters found for $name" }
 
           Write-Output '=== Error summary (Application log, last 10 minutes, repeats counted) ==='
           Get-WinEvent -FilterHashtable @{ LogName = 'Application'; Level = 2; StartTime = (Get-Date).AddMinutes(-10) } -ErrorAction SilentlyContinue |

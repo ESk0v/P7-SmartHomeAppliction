@@ -1,3 +1,4 @@
+
 using System.Text.Json;
 using Hangfire;
 using SmartHomeApplicationAPI.DTOs.EnergiDataService;
@@ -11,7 +12,7 @@ public class ElectricityPriceImportService
 {
     private const string ApiUrl = "https://api.energidataservice.dk/dataset/DayAheadPrices";
     private static readonly TimeZoneInfo DanishTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen");
-    
+
     private readonly HttpClient _httpClient;
     private readonly IElectricityPriceImportRepository _repository;
     private readonly ILogger<ElectricityPriceImportService> _logger;
@@ -28,29 +29,20 @@ public class ElectricityPriceImportService
 
     public async Task StartImportAsync()
     {
-        var today = TimeZoneInfo.ConvertTimeFromUtc(
+        var tomorrow = TimeZoneInfo.ConvertTimeFromUtc(
             DateTime.UtcNow,
-            DanishTimeZone).Date;
+            DanishTimeZone).Date.AddDays(1);
 
-        await ImportDayAsync(today);
-        await ImportDayAsync(today.AddDays(1));
+        await ImportDayAsync(tomorrow);
     }
 
     #region Helpers
+
     private async Task ImportDayAsync(DateTime targetDate)
     {
-        var dayLength =
-            DanishMidnightToUtc(targetDate.AddDays(1)) - DanishMidnightToUtc(targetDate);
-        var expectedRecordCount = (int)(dayLength.TotalMinutes / 15) * 2;
-
         var existing = await _repository.GetRangeAsync(
             targetDate,
             targetDate.AddDays(1));
-
-        if (existing.Count >= expectedRecordCount)
-        {
-            return;
-        }
 
         var prices = await DownloadPricesAsync(targetDate);
 
@@ -63,15 +55,19 @@ public class ElectricityPriceImportService
             return;
         }
 
-        // Merge in memory: update the price on rows that exist, collect the rest as inserts.
-        var existingByKey = existing.ToDictionary(row => (row.Time, row.PriceArea));
+        var existingByKey = existing.ToDictionary(
+            row => (row.Time, row.PriceArea));
+
         var newRows = new List<Electricity>();
 
         foreach (var price in prices)
         {
-            if (existingByKey.TryGetValue((price.Time, price.PriceArea), out var row))
+            if (existingByKey.TryGetValue(
+                    (price.Time, price.PriceArea),
+                    out var existingRow))
             {
-                row.PricePerKwh = price.PricePerKwh;   // price only, CO2 and IsPredicted are left alone
+                existingRow.PricePerKwh = price.PricePerKwh;
+                existingRow.IsPredicted = false;
             }
             else
             {
@@ -82,18 +78,13 @@ public class ElectricityPriceImportService
         await _repository.SaveAsync(newRows);
 
         _logger.LogInformation(
-            "Day-ahead import for {Date}: {New} inserted, {Total} fetched, {Expected} expected.",
+            "Day-ahead import for {Date}: {New} inserted, {Updated} updated, {Total} fetched.",
             targetDate,
             newRows.Count,
-            prices.Count,
-            expectedRecordCount);
+            prices.Count - newRows.Count,
+            prices.Count);
     }
 
-    private static DateTime DanishMidnightToUtc(DateTime danishDate) =>
-        TimeZoneInfo.ConvertTimeToUtc(
-            DateTime.SpecifyKind(danishDate.Date, DateTimeKind.Unspecified),
-            DanishTimeZone);
-    
     private async Task<List<Electricity>> DownloadPricesAsync(DateTime targetDate)
     {
         var filter = "{\"PriceArea\":[\"DK1\",\"DK2\"]}";
@@ -108,7 +99,6 @@ public class ElectricityPriceImportService
 
         var json = await _httpClient.GetFromJsonAsync<JsonElement>(url);
 
-        // A missing "records" property is a real failure. An empty list only means "not published yet".
         if (!json.TryGetProperty("records", out var recordsElement))
         {
             throw new InvalidOperationException(
@@ -128,7 +118,6 @@ public class ElectricityPriceImportService
             })
             .ToList();
     }
-    
-    #endregion
 
+    #endregion
 }

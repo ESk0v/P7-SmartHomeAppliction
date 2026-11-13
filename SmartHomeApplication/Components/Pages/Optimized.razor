@@ -16,7 +16,7 @@
 <PageTitle>Optimized plans</PageTitle>
 
 <SectionContent SectionName="TopBarActions">
-    <div class="header">
+    <div class="header optimized-header">
         <div class="heading">
             <div class="plan-title">
                 <label id="plan-select-label" class="visually-hidden">Optimized plan</label>
@@ -62,7 +62,7 @@
 
 </SectionContent>
 
-<div class="body">
+<div class="body optimized-page">
     <div class="statistics">
         <Statistics Type="StatisticsType.EstimatedCost" PlanID="selectedPlanID"/>
         <Statistics Type="StatisticsType.MoneySaved" PlanID="selectedPlanID"/>
@@ -119,57 +119,68 @@
             </div>
 
             <div class="optimized-side-column">
-                <section class="optimized-card plan-summary-card">
+                <section class="optimized-card plan-details-card">
                     <div class="card-heading">
-                        <h2>Plan summary</h2>
+                        <h2>Plan details</h2>
                     </div>
                     <div class="summary-row">
                         <div>
-                            <span>Finishes</span>
-                            <small>@FinishDescription</small>
+                            <span>Device</span>
+                            <small>@selectedPlan!.deviceCategory</small>
                         </div>
-                        <strong class="summary-positive">@selectedSchedules.Max(schedule => schedule.endTime).ToString("HH:mm")</strong>
+                        <strong>@selectedPlan.deviceName</strong>
                     </div>
                     <div class="summary-row">
                         <div>
-                            <span>Peak household load</span>
-                            <small>Temporary demo estimate</small>
+                            <span>Optimization objective</span>
+                            <small>Selected for this plan</small>
                         </div>
-                        <strong>9.1 kW</strong>
+                        <strong>@selectedPlan.optimizationObjective</strong>
                     </div>
                     <div class="summary-row">
                         <div>
-                            <span>Optimization status</span>
-                            <small>Based on the selected schedule</small>
+                            @if (IsInterruptible)
+                            {
+                                <span>Charge stop</span>
+                                <small>Target battery level</small>
+                            }
+                            else
+                            {
+                                <span>Preset duration</span>
+                                <small>Selected operating time</small>
+                            }
                         </div>
-                        <strong>Optimized</strong>
+                        <strong>@PlanDetailValue</strong>
                     </div>
                 </section>
 
-                <section class="optimized-card load-impact-card">
+                <section class="optimized-card co2-impact-card">
                     <div class="card-heading">
                         <div>
-                            <h2>Peak household load</h2>
-                            <p>Temporary demo estimate</p>
+                            <h2>CO<sub>2</sub> impact</h2>
+                            <p>Compared with the unscheduled baseline</p>
                         </div>
                     </div>
-                    <div class="load-metric">
+                    <div class="co2-comparison">
                         <div>
-                            <span>Selected load</span>
-                            <strong>7.4 kW</strong>
+                            <span>Optimized plan</span>
+                            <strong>@FormatGrams(OptimizedCo2) CO<sub>2</sub></strong>
                         </div>
-                        <div class="load-bar"><span class="selected-load"></span></div>
+                        <div class="co2-bar"><span class="co2-bar-fill co2-bar-optimized" style="@GetCo2BarStyle(OptimizedCo2)"></span></div>
                     </div>
-                    <div class="load-metric">
+                    <div class="co2-comparison">
                         <div>
-                            <span>Base load</span>
-                            <strong>1.7 kW</strong>
+                            <span>Unscheduled baseline</span>
+                            <strong>@FormatGrams(UnscheduledCo2) CO<sub>2</sub></strong>
                         </div>
-                        <div class="load-bar"><span class="base-load"></span></div>
+                        <div class="co2-bar"><span class="co2-bar-fill co2-bar-baseline" style="@GetCo2BarStyle(UnscheduledCo2)"></span></div>
                     </div>
-                    <div class="load-total">
-                        <span>Total peak</span>
-                        <strong>9.1 kW <small>/ 11 kW limit</small></strong>
+                    <div class="co2-total">
+                        <span>Estimated reduction</span>
+                        <strong class="@Co2ReductionClass">
+                            @FormatGrams(Co2Reduction) CO<sub>2</sub>
+                            <small>@FormatPercentage(Co2ReductionPercentage)</small>
+                        </strong>
                     </div>
                 </section>
             </div>
@@ -211,6 +222,49 @@
             ? $"Finishes {FormatDuration(remaining)} before deadline"
             : "Finishes right on deadline";
     }
+
+    private decimal OptimizedCo2 =>
+        selectedSchedules.Sum(schedule => schedule.estimatedCo2Emissions);
+
+    private decimal UnscheduledCo2 =>
+        selectedSchedules.Sum(schedule => schedule.estimatedUnscheduledCo2Emissions);
+
+    private decimal Co2Reduction => UnscheduledCo2 - OptimizedCo2;
+
+    private decimal Co2ReductionPercentage =>
+        UnscheduledCo2 > 0
+            ? Co2Reduction / UnscheduledCo2 * 100
+            : 0;
+
+    private bool IsInterruptible =>
+        string.Equals(selectedPlan?.deviceCategory, "Interruptible", StringComparison.OrdinalIgnoreCase);
+
+    private string PlanDetailValue =>
+        IsInterruptible
+            ? selectedPlan?.chargeStopPercentage is int chargeStop
+                ? $"{chargeStop}%"
+                : "Not specified"
+            : selectedPlan?.presetDurationInMinutes is int duration
+                ? FormatDuration(TimeSpan.FromMinutes(duration))
+                : "Not specified";
+
+    private string Co2ReductionClass =>
+        Co2Reduction > 0 ? "co2-positive" : Co2Reduction < 0 ? "co2-negative" : string.Empty;
+
+    private static string FormatGrams(decimal grams) =>
+        $"{grams.ToString("0.##", CultureInfo.InvariantCulture)} g";
+
+    private static string FormatPercentage(decimal percentage) =>
+        $"({percentage.ToString("0.#", CultureInfo.InvariantCulture)}%)";
+
+    private decimal GetCo2BarWidth(decimal value)
+    {
+        decimal maximum = Math.Max(OptimizedCo2, UnscheduledCo2);
+        return maximum > 0 ? Math.Clamp(value / maximum * 100, 0, 100) : 0;
+    }
+
+    private string GetCo2BarStyle(decimal value) =>
+        $"width: {GetCo2BarWidth(value).ToString("0.##", CultureInfo.InvariantCulture)}%;";
 
     private void TogglePlanPicker()
     {
@@ -279,6 +333,9 @@
 
     private void BuildPlansFromSchedules()
     {
+        int requestedPlanId = selectedPlanId;
+        PlanState.ReturnToSelectedPlan = false;
+
         if (allSchedules.Count == 0)
         {
             selectedPlanId = 0;
@@ -296,7 +353,13 @@
             .Where(schedule => !continuationIds.Contains(schedule.planId))
             .ToList();
 
-        selectedPlanId = plans.Count > 0 ? plans[0].planId : 0;
+        selectedPlanId = plans.Any(plan => plan.planId == requestedPlanId)
+            ? requestedPlanId
+            : plans.FirstOrDefault()?.planId ?? 0;
+
+        Logger.LogInformation(
+            "Loaded optimized plans: requested plan {RequestedPlanId}, selected plan {SelectedPlanId}, window {WindowStartTime}–{WindowEndTime}",
+            requestedPlanId, selectedPlanId, selectedPlan?.windowStartTime, selectedPlan?.windowEndTime);
 
         BuildSelectedSchedules();
     }
@@ -342,10 +405,6 @@
         flex: 1 1 auto;
         min-height: 0;
         min-width: 0;
-    }
-
-    .optimized-timeline ::deep .chart-card {
-        height: 100%;
     }
 
     .optimized-content {
@@ -474,8 +533,8 @@
         overflow: visible;
     }
 
-    .plan-summary-card,
-    .load-impact-card {
+    .plan-details-card,
+    .co2-impact-card {
         display: flex;
         flex: 1 1 0;
         flex-direction: column;
@@ -494,15 +553,15 @@
     }
 
     .summary-row div,
-    .load-metric div {
+    .co2-comparison div {
         display: flex;
         flex-direction: column;
         gap: 0.25rem;
     }
 
     .summary-row span,
-    .load-metric span,
-    .load-total span {
+    .co2-comparison span,
+    .co2-total span {
         color: #98938d;
         font-size: 0.82rem;
     }
@@ -513,8 +572,8 @@
     }
 
     .summary-row strong,
-    .load-metric strong,
-    .load-total strong {
+    .co2-comparison strong,
+    .co2-total strong {
         color: #242321;
         font-size: 0.95rem;
         white-space: nowrap;
@@ -524,15 +583,15 @@
         color: #159447 !important;
     }
 
-    .load-impact-card {
+    .co2-impact-card {
         padding-bottom: clamp(0.45rem, 1.2vh, 0.8rem);
     }
 
-    .load-impact-card .card-heading {
+    .co2-impact-card .card-heading {
         padding-bottom: clamp(0.3rem, 0.8vh, 0.5rem);
     }
 
-    .load-metric {
+    .co2-comparison {
         display: flex;
         flex: 1 1 0;
         flex-direction: column;
@@ -540,13 +599,13 @@
         padding: clamp(0.3rem, 0.8vh, 0.5rem) clamp(0.8rem, 1.5vw, 1.25rem) 0;
     }
 
-    .load-metric > div:first-child {
+    .co2-comparison > div:first-child {
         align-items: center;
         flex-direction: row;
         justify-content: space-between;
     }
 
-    .load-bar {
+    .co2-bar {
         background: #eeeae5;
         border-radius: 999px;
         height: 0.45rem;
@@ -554,23 +613,23 @@
         overflow: hidden;
     }
 
-    .load-bar span {
+    .co2-bar-fill {
         border-radius: inherit;
         display: block;
         height: 100%;
+        max-width: 100%;
+        min-width: 0;
     }
 
-    .selected-load {
+    .co2-bar-optimized {
         background: #7569e8;
-        width: 67%;
     }
 
-    .base-load {
+    .co2-bar-baseline {
         background: #c9c5bf;
-        width: 16%;
     }
 
-    .load-total {
+    .co2-total {
         align-items: center;
         border-top: 1px solid #eeeae5;
         display: flex;
@@ -579,10 +638,18 @@
         padding: clamp(0.45rem, 1vh, 0.7rem) clamp(0.8rem, 1.5vw, 1.25rem) 0;
     }
 
-    .load-total small {
+    .co2-total small {
         color: #aaa49d;
         font-size: 0.75rem;
         font-weight: 400;
+    }
+
+    .co2-positive {
+        color: #159447 !important;
+    }
+
+    .co2-negative {
+        color: #9f2d2d !important;
     }
 
     .optimized-empty,
@@ -794,67 +861,137 @@
         gap: 0.7rem;
     }
 
-    @@media (max-width: 640.98px) {
-        .body {
+    @@media (max-width: 640.98px), (max-width: 960px) and (max-height: 500px) and (pointer: coarse) {
+        .optimized-page {
             height: auto;
-            min-height: calc(100vh - 4.5rem);
             overflow: visible;
+            padding: 0;
+            min-height: 0;
+            gap: 1rem;
         }
 
-        .header {
-            align-items: flex-start;
-            flex-direction: column;
-            gap: 0.5rem;
+        .optimized-page .statistics {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.75rem;
         }
 
-        .header-actions {
-            width: 100%;
-        }
-
-        .plan-title {
+        .optimized-header .plan-title {
             flex-wrap: wrap;
             gap: 0.4rem;
         }
 
-        .plan-picker,
-        .plan-picker-trigger {
+        .optimized-header .plan-title,
+        .optimized-header .plan-picker {
             width: 100%;
+            min-width: 0;
         }
 
-        .header-actions {
-            justify-content: stretch;
+        .optimized-header .plan-picker-trigger {
+            min-width: 0;
         }
 
-        .optimized-action {
-            flex: 1;
+        .optimized-header .plan-picker-option > span:nth-child(2) {
+            min-width: 0;
+            overflow-wrap: anywhere;
         }
 
-        .statistics {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+        .optimized-header .plan-picker-menu {
+            max-height: 16rem;
+            overflow-y: auto;
+        }
+
+        .optimized-page .optimized-content,
+        .optimized-page .optimized-main-column,
+        .optimized-page .optimized-side-column {
+            flex: none;
+            min-width: 0;
             gap: 1rem;
         }
 
-        .optimized-content {
+        .optimized-page .optimized-content {
             display: flex;
             flex-direction: column;
         }
 
-        .optimized-main-column {
-            min-height: 24rem;
-        }
-
-        .optimized-side-column {
+        .optimized-page .optimized-side-column {
             height: auto;
-            overflow: visible;
         }
 
-        .plan-summary-card,
-        .load-impact-card {
-            flex: 0 0 auto;
+        .optimized-page .plan-details-card,
+        .optimized-page .co2-impact-card {
+            flex: none;
         }
 
-        .optimized-timeline {
-            min-height: 16rem;
+        .optimized-page .optimized-main-column,
+        .optimized-page .optimized-timeline {
+            min-height: 0;
         }
+
+        .optimized-page .optimized-main-column > .optimized-timeline {
+            flex: none;
+        }
+
+        .optimized-page .schedule-blocks-card,
+        .optimized-page .card-heading {
+            padding: 1rem;
+        }
+
+        .optimized-page .card-heading {
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .optimized-page .schedule-blocks-card .card-heading {
+            padding: 0 0 1rem;
+        }
+
+        .optimized-page .co2-impact-card .card-heading {
+            padding-bottom: clamp(0.3rem, 0.8vh, 0.5rem);
+        }
+
+        .optimized-page .schedule-block {
+            grid-template-columns: 2rem minmax(0, 1fr);
+            gap: 0.5rem;
+        }
+
+        .optimized-page .schedule-block-value {
+            grid-column: 2;
+            align-items: flex-start;
+        }
+
+        .optimized-page .schedule-block-details span,
+        .optimized-page .schedule-block-value span {
+            white-space: normal;
+            overflow-wrap: anywhere;
+        }
+
+        .optimized-page .summary-row,
+        .optimized-page .co2-comparison > div:first-child,
+        .optimized-page .co2-total {
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            padding: 1rem;
+        }
+
+        .optimized-page .summary-row,
+        .optimized-page .co2-comparison {
+            flex: none;
+        }
+
+        .optimized-page .summary-row div,
+        .optimized-page .summary-row strong {
+            min-width: 0;
+            white-space: normal;
+            overflow-wrap: anywhere;
+        }
+
+        .optimized-page .co2-comparison {
+            padding: 0 1rem 1rem;
+        }
+
+        .optimized-page .co2-comparison > div:first-child {
+            padding: 0;
+        }
+
     }
 </style>

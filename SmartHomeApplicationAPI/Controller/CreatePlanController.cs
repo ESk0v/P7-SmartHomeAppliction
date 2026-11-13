@@ -79,4 +79,12 @@ public class CreatePlanController : ControllerBase
             return StatusCode(500, "An error occurred while creating the plan.");
         }
     }
+
+    [HttpPost("optimize")]
+    public async Task<ActionResult<OptimizationResultDTO>> Optimize(
+        [FromBody] OptimizationRequestDTO request)
+    {
+        var result = await _service.OptimizeAsync(request);
+        return Ok(result);
+    }
 }
