@@ -42,14 +42,13 @@ else if (isLoading)
                 
                 @if (isInterruptible)
                 {
-                    <div class="charge-settings mt-4 mb-4">
-                        <p>Battery capacity: @(SelectedDevice?.batteryCapacityInKwh is decimal capacity ? $"{capacity:0.###} kWh" : "Unknown")</p>
+                    <div class="charge-settings mt-2 mb-4">
                         <div class="charge-slider">
                             <div class="charge-slider-header">
                                 <label for="chargeStop">Charge to</label>
                                 <span>@ScheduleForm.ChargeStopPercentage%</span>
                             </div>
-                            <InputNumber id="chargeStop" class="charge-range" @bind-Value="ScheduleForm.ChargeStopPercentage"
+                            <input id="chargeStop" class="charge-range" @bind="ScheduleForm.ChargeStopPercentage" @bind:event="oninput"
                                         min="5" max="100" step="5" type="range" />
                         </div>
                     </div>
@@ -73,12 +72,11 @@ else if (isLoading)
             </div>
             <div class="boxes">
                 <div class ="row">
-                    <div class="mb-6 choices">
-                        <span>Scheduling window</span><br />
-                        <label class="form-label1">Choose a time window for the plan</label>
+                    <div class="choices mt-2">
+                        <label class="form-label form-label-down">Scheduling window</label>
                     </div>
-                    <div class="mb-4 inboxes">
-                        <div class="charge-settings mt-4 mb-4">
+                    <div class="inboxes">
+                        <div class="charge-settings">
                             <div class="charge-slider">
                                 <div class="charge-slider-header">
                                     <label for="startTime">Start  <i class="bi bi-clock"/></label>
@@ -98,14 +96,7 @@ else if (isLoading)
                             
                             </div><br />
 
-                            <div class="charge-slider-ticks">
-                                <span>Today 00:00</span>
-                                <span>12:00</span>
-                                <span>Tomorrow 00:00</span>
-                                <span>12:00</span>
-                            </div><br />
-
-                            <span class="mt-6 charge-slider-duration">Duration: @Duration</span>
+                            <span class="charge-slider-duration">Window: @Duration</span>
 
                             @if (!string.IsNullOrEmpty(schedulingError))
                             {
@@ -117,12 +108,11 @@ else if (isLoading)
                     </div>
                 </div> 
                 <div class ="row">
-                    <div class="mb-6 choices">
-                        <span>Priority</span><br />
+                    <div class="col-sm-6 choices mt-3">
                         <label class="form-label1">Choose an option for optimization</label>
                     </div>
         
-                    <div class="priority-toggle @(ScheduleForm.Priority == "Greenest" ? "is-right" : "is-left")"
+                    <div class="col-sm-6 priority-toggle @(ScheduleForm.Priority == "Greenest" ? "is-right" : "is-left")"
                         role="radiogroup" aria-labelledby="priority-label">
                         <span class="priority-thumb" aria-hidden="true"></span>
 
@@ -143,7 +133,7 @@ else if (isLoading)
 
                     <ValidationMessage For="() => ScheduleForm.Priority" class="text-danger" />
                 </div>
-                <div class="mb-3 d-flex justify-content-end">
+                <div class="mt-4 mb-2 d-flex justify-content-end">
                     <button type="submit" class="btn btn-primary" disabled="@IsEditMode" title="@(IsEditMode ? "Plan regeneration will be available later" : null)">Generate Plan</button>
                 </div>
             </div>
@@ -242,47 +232,27 @@ else if (isLoading)
     private OptimizationResultDTO? response;
     private DateTime? requestedWindowStart;
     private DateTime? requestedWindowEnd;
-    private List<int> Hours { get; set; } = new List<int>();
-    private int [] Minutes = {00, 15, 30, 45};
-    private IEnumerable<(string Value, string Text)> HourOptions =>
-    Hours.Select(h => (h.ToString(), h.ToString("D2")));
-    private IEnumerable<(string Value, string Text)> MinuteOptions =>
-    Minutes.Select(m => (m.ToString(), m.ToString("D2")));
     private string? schedulingError;
-
-    // Convert the hour and minute picker values to and from strings.
-    private string? StartHourText
-    {
-        get => ScheduleForm.StartHour?.ToString();
-        set => ScheduleForm.StartHour =
-            int.TryParse(value, out int hour) ? hour : null;
-    }
-
-    private string? StartMinuteText
-    {
-        get => ScheduleForm.StartMinute?.ToString();
-        set => ScheduleForm.StartMinute =
-            int.TryParse(value, out int minute) ? minute : null;
-    }
-    private string? EndHourText
-    {
-        get => ScheduleForm.EndHour?.ToString();
-        set => ScheduleForm.EndHour =
-            int.TryParse(value, out int hour) ? hour : null;
-    }
-
-    private string? EndMinuteText
-    {
-        get => ScheduleForm.EndMinute?.ToString();
-        set => ScheduleForm.EndMinute =
-            int.TryParse(value, out int minute) ? minute : null;
-    }
-
-    private int MaxMinutes = 2865;
+    private int MaxMinutes = 0;
     private int MinMinutes = 0;
     private static string Format(int minutes)
     {
-        var day = minutes < 1440 ? "Today" : "Tomorrow";
+        var day = "";
+
+        if (minutes < 1440)
+        {
+            day = "Today";
+        }
+        else if (minutes < 2880)
+        {
+            day = "Tomorrow";
+        }
+        else
+        {
+            DateTime now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, CopenhagenTimeZone);
+            DateTime inTwoDays = now.AddDays(2);
+            day = inTwoDays.DayOfWeek.ToString();
+        }
         var inDay = minutes % 1440;
         return $"{day} {inDay / 60:00}:{inDay % 60:00}";
     }
@@ -312,7 +282,7 @@ else if (isLoading)
     private bool isInterruptible = false;
     private bool isNonInterruptible = false;
     private bool displayPlan = false;
-
+    
 
     // Load the current user's schedules, devices, and presets before showing the form.
     protected override async Task OnInitializedAsync()
@@ -350,23 +320,19 @@ else if (isLoading)
                 presetsByDevice[userDevice.id] = presets;
             }
 
-            int currentHour = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, CopenhagenTimeZone).Hour + 1;
-            Hours = Enumerable.Range(0, 24)
-                .Select(i => (currentHour + i) % 24)
-                .ToList();
-
-
             DateTime now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, CopenhagenTimeZone);
             DateTime then = now.Date;
-            int cc = ((int)(now - then).TotalMinutes) % 15;
-            if (cc == 0)
+            int addMinutes = ((int)(now - then).TotalMinutes) % 15;
+            if (addMinutes == 0)
             {
                 MinMinutes = (int)(now - then).TotalMinutes;
+                MaxMinutes = (int)(now - then).TotalMinutes + 2160;
             } 
             else
             {
-                MinMinutes = (int)(now - then).TotalMinutes + (15-cc);
-                
+                MinMinutes = (int)(now - then).TotalMinutes + (15-addMinutes);
+                MaxMinutes = (int)(now - then).TotalMinutes + 2160 + (15-addMinutes);
+
             } 
 
             ScheduleForm.Start = MinMinutes;
@@ -434,12 +400,25 @@ else if (isLoading)
 
         DateTime localStart = existingPlan.windowStartTime.Value;
         DateTime localEnd = existingPlan.windowEndTime.Value;
-        ScheduleForm.StartHour = localStart.Hour;
-        ScheduleForm.StartMinute = localStart.Minute;
-        ScheduleForm.EndHour = localEnd.Hour;
-        ScheduleForm.EndMinute = localEnd.Minute;
-        Minutes = Minutes.Concat(new[] { localStart.Minute, localEnd.Minute })
-            .Distinct().OrderBy(minute => minute).ToArray();
+        DateTime now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, CopenhagenTimeZone);
+        DateTime midnight = now.Date;
+
+        ScheduleForm.Start = (int)(localStart - midnight).TotalMinutes;
+        ScheduleForm.End = (int)(localEnd - midnight).TotalMinutes;
+
+
+        if (localStart < now)
+        {
+            ScheduleForm.Start = (int)(now - midnight).TotalMinutes;
+
+            int remainder = ((int)(now - midnight).TotalMinutes) % 15;
+
+            if (remainder != 0)
+            {
+                ScheduleForm.Start = (int)(now - midnight).TotalMinutes + (15 - remainder);
+            }
+
+        }
 
         if (isInterruptible)
         {
@@ -520,15 +499,11 @@ else if (isLoading)
     }
 
     // Resolve a selected clock time to today or tomorrow in Copenhagen.
-    private DateTime GetScheduledDateTime(int hour, int minute)
+    private DateTime GetScheduledDateTime(int minute)
     {
         DateTime now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, CopenhagenTimeZone);
-        DateTime scheduledTime = now.Date.AddHours(hour).AddMinutes(minute);
+        DateTime scheduledTime = now.Date.AddMinutes(minute);
 
-        if (scheduledTime < now)
-        {
-            scheduledTime = scheduledTime.AddDays(1);
-        }
         return scheduledTime;
     }
     // Request an optimized plan and show its result in the overview.
@@ -554,14 +529,13 @@ else if (isLoading)
         displayPlan = false;
         requestedWindowStart = null;
         requestedWindowEnd = null;
-        DateTime startTime = GetScheduledDateTime(ScheduleForm.StartHour!.Value, ScheduleForm.StartMinute!.Value);
-        DateTime endTime = GetScheduledDateTime(ScheduleForm.EndHour!.Value, ScheduleForm.EndMinute!.Value);
+     
+        DateTime startTime = GetScheduledDateTime(ScheduleForm.Start);
+        DateTime endTime = GetScheduledDateTime(ScheduleForm.End);
 
-        if (endTime <= startTime)
-        {
-            endTime = endTime.AddDays(1);
-        }
-
+        Console.WriteLine($"Start time: {startTime}");
+        Console.WriteLine($"End time: {endTime}");
+         
         int timeWindow = (int)(endTime - startTime).TotalMinutes;
 
         if (ScheduleForm.Preset != null && ScheduleForm.Preset.duration > timeWindow)
@@ -621,6 +595,7 @@ else if (isLoading)
 
         await Task.CompletedTask;
         return ;
+        
     }
 
     // Save the generated plan and its form values through the API.
@@ -687,18 +662,16 @@ else if (isLoading)
         }
 
     }
-
     private Task SubmitPlan() => IsEditMode ? UpdatePlanAsync() : addPlan();
-
+    
+    
     private async Task UpdatePlanAsync()
     {
         if (!editLoaded || existingPlan is null || editingPlanId <= 0 || string.IsNullOrWhiteSpace(userId))
             return;
 
         schedulingError = null;
-        if (!int.TryParse(selectedDeviceId, out int deviceId) ||
-            ScheduleForm.StartHour is null || ScheduleForm.StartMinute is null ||
-            ScheduleForm.EndHour is null || ScheduleForm.EndMinute is null)
+        if (!int.TryParse(selectedDeviceId, out int deviceId))
         {
             schedulingError = "Select a device and scheduling window.";
             return;
@@ -726,14 +699,12 @@ else if (isLoading)
         }
 
         DateTime localOriginalStart = existingPlan.windowStartTime!.Value;
+        DateTime baseTime = localOriginalStart.Date;
         DateTime localStart = DateTime.SpecifyKind(localOriginalStart.Date
-            .AddHours(ScheduleForm.StartHour.Value)
-            .AddMinutes(ScheduleForm.StartMinute.Value), DateTimeKind.Unspecified);
+            .AddMinutes(ScheduleForm.Start), DateTimeKind.Unspecified);
         DateTime localEnd = DateTime.SpecifyKind(localStart.Date
-            .AddHours(ScheduleForm.EndHour.Value)
-            .AddMinutes(ScheduleForm.EndMinute.Value), DateTimeKind.Unspecified);
-        if (localEnd <= localStart)
-            localEnd = localEnd.AddDays(1);
+            .AddMinutes(ScheduleForm.End), DateTimeKind.Unspecified);
+        
 
         if (CopenhagenTimeZone.IsInvalidTime(localStart) || CopenhagenTimeZone.IsInvalidTime(localEnd))
         {
@@ -794,6 +765,8 @@ else if (isLoading)
             schedulingError = $"The plan could not be updated: {exception.Message}";
         }
     }
+    
+    
 }
 
 <style>
@@ -803,7 +776,7 @@ else if (isLoading)
     }
     .form-label1 {
         color: #98938d;
-        font-size: 0.9rem;
+        font-size: 1.0rem;
     }
 
     .choices span {
@@ -835,8 +808,8 @@ else if (isLoading)
     }
 
     .boxes {
-        padding: 24px 40px;
-        margin-bottom: 24px;
+        padding: 10px 30px;
+        margin-bottom: 12px;
         font-family: Arial, sans-serif;
         background: #fff;
         border: 1px solid #e5e2dc;
@@ -957,7 +930,8 @@ else if (isLoading)
         padding: 4px;
         background: #f1f3f5;
         border-radius: 14px;
-        margin-top: 26px;
+        margin-top: 4px;
+        max-height: 66px;
     }
 
     .priority-thumb {
@@ -1013,7 +987,7 @@ else if (isLoading)
     }
 
     .charge-slider + .charge-slider {
-        margin-top: 24px;
+        margin-top: 12px;
         padding-top: 20px;
         border-top: 1px solid #f0f0f0;
     }
@@ -1182,8 +1156,9 @@ else if (isLoading)
         gap: 1.5rem;
     }
 
-    @@media (max-width: 640.98px), (max-width: 960px) and (max-height: 500px) and (pointer: coarse) {
+    @@media (max-width: 640.98px), (max-width: 960px) and (max-height: 400px) and (pointer: coarse) {
         .plan-form {
+            box-sizing: border-box;
             row-gap: 1rem;
         }
 
@@ -1216,6 +1191,7 @@ else if (isLoading)
             display: flex;
             margin-top: 1rem;
             width: 100%;
+            height: 22px;
         }
 
         .plan-form .priority-option {
@@ -1283,7 +1259,7 @@ else if (isLoading)
     }
 
     .charge-slider-duration {
-        font-size: 1.0rem;
+        font-size: 0.8rem;
         color: #6c757d;
     }
 </style>
