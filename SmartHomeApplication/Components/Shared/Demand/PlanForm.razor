@@ -588,6 +588,18 @@ else if (isLoading)
             return;
         }
 
+        (UnscheduledEstimateDto? unscheduledEstimate, string? baselineError) =
+            await GetUnscheduledEstimateAsync(
+            selectedDevice,
+            response.StartTime,
+            response.EndTime,
+            requestedWindowStart.Value);
+
+        if (unscheduledEstimate is null)
+        {
+            schedulingError = baselineError ?? "Could not calculate the unscheduled baseline.";
+            return;
+        }
 
         PlanDTO? planToSave = new PlanDTO
         {
@@ -599,8 +611,8 @@ else if (isLoading)
             nextPlanId = null,
             estimatedCost = response.EstimatedPrice,
             estimatedCo2Emissions = response.EstimatedCo2Emissions,
-            estimatedUnscheduledCost = response.EstimatedPrice + 1,
-            estimatedUnscheduledCo2Emissions = response.EstimatedCo2Emissions + 1,
+            estimatedUnscheduledCost = unscheduledEstimate.EstimatedPrice,
+            estimatedUnscheduledCo2Emissions = unscheduledEstimate.EstimatedCo2Emissions,
             planName = (ScheduleForm.PlanName == string.Empty) ? ScheduleForm.DeviceName : ScheduleForm.PlanName,
             optimizationObjective = ScheduleForm.Priority,
             presetId = ScheduleForm.Preset?.id,
@@ -622,6 +634,7 @@ else if (isLoading)
                 NavigationManager.NavigateTo("/optimized");
 
             }
+
             else
             {
                 string? error = await result.Content.ReadAsStringAsync();
@@ -633,6 +646,64 @@ else if (isLoading)
             Console.WriteLine($"Error with saving plan: {e.Message}");
         }
 
+    }
+
+    private async Task<(UnscheduledEstimateDto? Estimate, string? Error)> GetUnscheduledEstimateAsync(
+        PlanUserDeviceDto selectedDevice,
+        DateTime optimizedStart,
+        DateTime optimizedEnd,
+        DateTime baselineStart)
+    {
+        decimal energyInKwh;
+
+        if (isInterruptible)
+        {
+            // Interruptible baseline workload is the selected charge-stop percentage of the battery capacity.
+            if (selectedDevice.batteryCapacityInKwh is not decimal batteryCapacity ||
+                ScheduleForm.ChargeStopPercentage is not int chargeStopPercentage)
+            {
+                return (null, "Battery capacity and charge-stop percentage are required.");
+            }
+
+            energyInKwh = batteryCapacity * chargeStopPercentage / 100m;
+        }
+        else if (ScheduleForm.Preset?.consumption is decimal presetConsumption)
+        {
+            energyInKwh = presetConsumption;
+        }
+        else
+        {
+            return (null, "A device preset with consumption data is required.");
+        }
+
+        TimeSpan workloadDuration = optimizedEnd - optimizedStart;
+        DateTime baselineEnd = baselineStart + workloadDuration;
+
+        UnscheduledEstimateRequestDto request = new UnscheduledEstimateRequestDto()
+        {
+            AreaCode = area,
+            StartTime = baselineStart,
+            EndTime = baselineEnd,
+            EnergyInKwh = energyInKwh
+        };
+
+        HttpResponseMessage response = await Http.PostAsJsonAsync(
+            "api/electricity-price-controller/unscheduled-estimate",
+            request);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            string error = await response.Content.ReadAsStringAsync();
+            return (null, string.IsNullOrWhiteSpace(error)
+                ? "Could not calculate the unscheduled baseline."
+                : error);
+        }
+
+        UnscheduledEstimateDto? estimate =
+            await response.Content.ReadFromJsonAsync<UnscheduledEstimateDto>();
+        return estimate is null
+            ? (null, "The backend returned an empty unscheduled baseline.")
+            : (estimate, null);
     }
 
     private Task SubmitPlan() => IsEditMode ? UpdatePlanAsync() : addPlan();
@@ -688,6 +759,25 @@ else if (isLoading)
             return;
         }
 
+        PlanUserDeviceDto? selectedDevice = SelectedDevice;
+        if (selectedDevice is null)
+        {
+            schedulingError = "Select a valid device before updating.";
+            return;
+        }
+
+        (UnscheduledEstimateDto? unscheduledEstimate, string? baselineError) =
+            await GetUnscheduledEstimateAsync(
+            selectedDevice,
+            existingPlan.startTime,
+            existingPlan.endTime,
+            localStart);
+        if (unscheduledEstimate is null)
+        {
+            schedulingError = baselineError ?? "Could not calculate the unscheduled baseline.";
+            return;
+        }
+
         PlanDTO? update = new PlanDTO
         {
             planId = editingPlanId,
@@ -698,7 +788,9 @@ else if (isLoading)
             optimizationObjective = ScheduleForm.Priority,
             presetId = ScheduleForm.Preset?.id,
             chargeStopPercentage = isInterruptible ? ScheduleForm.ChargeStopPercentage : null,
-            batteryCapacityInKwh = SelectedDevice?.batteryCapacityInKwh
+            batteryCapacityInKwh = selectedDevice.batteryCapacityInKwh,
+            estimatedUnscheduledCost = unscheduledEstimate.EstimatedPrice,
+            estimatedUnscheduledCo2Emissions = unscheduledEstimate.EstimatedCo2Emissions
         };
 
         Logger.LogInformation(
