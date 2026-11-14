@@ -154,7 +154,7 @@ else if (isLoading)
         </div>
         <div class="optimized-side-column">
             <section class="optimized-card plan-summary-card">
-                @if (displayPlan && response != null)
+                @if (displayPlan && optimizedIntervals.Count > 0)
                 {
                     <div class="card-heading">
                         <h2>Plan overview</h2>
@@ -164,21 +164,21 @@ else if (isLoading)
                             <span>@(IsEditMode ? "Scheduled start time" : "Start time")</span>
                             <small>@((ScheduleForm.PlanName == string.Empty) ? ScheduleForm.DeviceName : ScheduleForm.PlanName) runs for @DisplayedDuration minutes</small>
                         </div>
-                        <strong>@response.StartTime.ToString("HH:mm")</strong>
+                        <strong>@TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(optimizedIntervals[0].StartTime, DateTimeKind.Utc),CopenhagenTimeZone).ToString("HH:mm")</strong>
                     </div>
                     <div class="summary-row">
                         <div>
                             <span>Cost</span>
                             <small>Estimated cost for @((ScheduleForm.PlanName == string.Empty) ? ScheduleForm.DeviceName : ScheduleForm.PlanName)</small>
                         </div>
-                        <strong class="summary-cost" >@response.EstimatedPrice kr.</strong>
+                        <strong class="summary-cost" >@optimizedIntervals.Sum(x => x.EstimatedPrice).ToString("0.00")</strong>
                     </div>
                     <div class="summary-row">
                         <div>
                             <span>CO2 Emission</span>
                             <small>Estimated CO2 emissions for @((ScheduleForm.PlanName == string.Empty) ? ScheduleForm.DeviceName : ScheduleForm.PlanName)</small>
                         </div>
-                        <strong class="summary-co2" >@response.EstimatedCo2Emissions %</strong>
+                        <strong class="summary-co2" >@optimizedIntervals.Sum(x => x.EstimatedCo2Emissions)</strong>
                     </div>
                 }
                 else
@@ -213,11 +213,18 @@ else if (isLoading)
     private string? userId;
     private PlanDTO? existingPlan;
     private static readonly TimeZoneInfo CopenhagenTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen");
-    private string DisplayedDuration => IsEditMode && existingPlan is not null
-        ? ((int)(existingPlan.endTime - existingPlan.startTime).TotalMinutes).ToString(CultureInfo.InvariantCulture)
-        : isInterruptible && response is not null
-            ? ((int)(response.EndTime - response.StartTime).TotalMinutes).ToString(CultureInfo.InvariantCulture)
-            : ScheduleForm.Preset?.duration?.ToString(CultureInfo.InvariantCulture) ?? "?";
+    private string DisplayedDuration =>
+        IsEditMode && existingPlan is not null
+            ? ((int)(existingPlan.endTime - existingPlan.startTime)
+                .TotalMinutes).ToString(CultureInfo.InvariantCulture)
+
+            : isInterruptible && optimizedIntervals.Count > 0
+                ? optimizedIntervals.Sum(x =>
+                    (int)(x.EndTime - x.StartTime).TotalMinutes)
+                    .ToString(CultureInfo.InvariantCulture)
+
+                : ScheduleForm.Preset?.duration?
+                    .ToString(CultureInfo.InvariantCulture) ?? "?";
 
     // Active schedules populate the price chart beside the form.
     private List<PlanDto>? activeSchedules;
@@ -235,7 +242,7 @@ else if (isLoading)
     private Dictionary<int, List<PresetDto>> presetsByDevice = new Dictionary<int, List<PresetDto>>();
     private string? selectedDeviceId;
     // Optimization result displayed in the plan overview.
-    private OptimizationResultDTO? response;
+    private List<OptimizationResultDTO> optimizedIntervals = new();
     private DateTime? requestedWindowStart;
     private DateTime? requestedWindowEnd;
     private List<int> Hours { get; set; } = new List<int>();
@@ -408,11 +415,15 @@ else if (isLoading)
         if (existingPlan is null)
             return;
 
-        response = new OptimizationResultDTO(
-            existingPlan.startTime,
-            existingPlan.endTime,
-            existingPlan.estimatedCost,
-            existingPlan.estimatedCo2Emissions);
+        optimizedIntervals = new List<OptimizationResultDTO>
+        {
+            new OptimizationResultDTO(
+                existingPlan.startTime,
+                existingPlan.endTime,
+                existingPlan.estimatedCost,
+                existingPlan.estimatedCo2Emissions)
+        };
+
         displayPlan = true;
     }
 
@@ -427,7 +438,7 @@ else if (isLoading)
         ScheduleForm = new ScheduleForm();
         filteredPresets = new List<PresetDto>();
         selectedDeviceId = string.Empty;
-        response = null;
+        optimizedIntervals.Clear();
         requestedWindowStart = null;
         requestedWindowEnd = null;
         displayPlan = false;
@@ -497,7 +508,7 @@ else if (isLoading)
             return;
         }
 
-        response = null;
+        optimizedIntervals.Clear();
         displayPlan = false;
         requestedWindowStart = null;
         requestedWindowEnd = null;
@@ -541,29 +552,40 @@ else if (isLoading)
 
         try
         {
-            HttpResponseMessage? result = await Http.PostAsJsonAsync("api/createPlan-controller/optimize", optimizationRequest);
+            using var result = await Http.PostAsJsonAsync(
+                "api/createPlan-controller/optimize",
+                optimizationRequest);
 
             if (!result.IsSuccessStatusCode)
             {
-                Console.WriteLine($"Optimization did not work {result.StatusCode}");
+                schedulingError = $"Optimization failed: {await result.Content.ReadAsStringAsync()}";
+                return;
             }
-            else
-            {
-                OptimizationResultDTO? raw = await result.Content.ReadFromJsonAsync<OptimizationResultDTO>();
-                response = raw is null ? null : raw with
-                {
-                    StartTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(raw.StartTime, DateTimeKind.Utc), CopenhagenTimeZone),
-                    EndTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(raw.EndTime, DateTimeKind.Utc), CopenhagenTimeZone)
-                };
-                
-                displayPlan = true;
 
-                Console.WriteLine("Optimization worked");
-            }    
+            optimizedIntervals =
+                await result.Content.ReadFromJsonAsync<List<OptimizationResultDTO>>()
+                ?? new List<OptimizationResultDTO>();
+
+            optimizedIntervals = optimizedIntervals
+                .OrderBy(x => x.StartTime)
+                .ToList();
+
+            if (optimizedIntervals.Count == 0)
+            {
+                schedulingError = "The optimizer returned no charging intervals.";
+                return;
+            }
+
+            displayPlan = true;
+
+            Logger.LogInformation(
+                "Optimization worked. Received {Count} intervals.",
+                optimizedIntervals.Count);
         }
         catch (Exception e)
         {
-            Console.WriteLine($"Error with opptimization: {e.Message}");
+            schedulingError = $"Error with optimization: {e.Message}";
+            Logger.LogError(e, "Optimization failed");
         }
 
         await Task.CompletedTask;
@@ -576,63 +598,128 @@ else if (isLoading)
         PlanUserDeviceDto? selectedDevice = userDevices
             .FirstOrDefault(d => d.id.ToString() == selectedDeviceId);
 
-        if (selectedDevice == null)
+        if (selectedDevice is null ||
+            optimizedIntervals.Count == 0 ||
+            requestedWindowStart is null ||
+            requestedWindowEnd is null)
         {
-            Console.WriteLine("No device selected");
+            schedulingError = "No optimized plans are available to save.";
             return;
         }
 
-        if (response is null || requestedWindowStart is null || requestedWindowEnd is null)
-        {
-            Console.WriteLine("Optimization result or requested window is missing");
-            return;
-        }
+        schedulingError = null;
 
+        int? nextPlanId = null;
+        int? firstPlanId = null;
 
-        PlanDTO? planToSave = new PlanDTO
-        {
-            userDeviceId = selectedDevice.id,
-            startTime = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(response.StartTime, DateTimeKind.Unspecified), CopenhagenTimeZone),
-            endTime = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(response.EndTime, DateTimeKind.Unspecified), CopenhagenTimeZone),
-            windowStartTime = requestedWindowStart.Value,
-            windowEndTime = requestedWindowEnd.Value,
-            nextPlanId = null,
-            estimatedCost = response.EstimatedPrice,
-            estimatedCo2Emissions = response.EstimatedCo2Emissions,
-            estimatedUnscheduledCost = response.EstimatedPrice + 1,
-            estimatedUnscheduledCo2Emissions = response.EstimatedCo2Emissions + 1,
-            planName = (ScheduleForm.PlanName == string.Empty) ? ScheduleForm.DeviceName : ScheduleForm.PlanName,
-            optimizationObjective = ScheduleForm.Priority,
-            presetId = ScheduleForm.Preset?.id,
-            chargeStopPercentage = isInterruptible ? ScheduleForm.ChargeStopPercentage : null,
-            batteryCapacityInKwh = selectedDevice.batteryCapacityInKwh
-        };
+        string planName = string.IsNullOrWhiteSpace(ScheduleForm.PlanName)
+            ? ScheduleForm.DeviceName
+            : ScheduleForm.PlanName.Trim();
 
         try
         {
-            HttpResponseMessage? result = await Http.PostAsJsonAsync("api/createPlan-controller/post-plan", planToSave);
-            if (result.IsSuccessStatusCode)
+            // Save the last interval first.
+            foreach (var interval in optimizedIntervals
+                .OrderByDescending(x => x.StartTime))
             {
-                PlanDTO? savedPlan = await result.Content.ReadFromJsonAsync<PlanDTO>();
-                if (savedPlan?.planId is int newPlanId)
-                    PlanState.SelectedPlanId = newPlanId;
+                var planToSave = new PlanDTO
+                {
+                    userDeviceId = selectedDevice.id,
 
-                Console.WriteLine("Plan saved");
-                ClearSchedule();
-                NavigationManager.NavigateTo("/optimized");
+                    // Optimizer returns UTC.
+                    startTime = DateTime.SpecifyKind(
+                        interval.StartTime, DateTimeKind.Utc),
 
+                    endTime = DateTime.SpecifyKind(
+                        interval.EndTime, DateTimeKind.Utc),
+
+                    windowStartTime = requestedWindowStart.Value,
+                    windowEndTime = requestedWindowEnd.Value,
+
+                    // Link to the next chronological charging interval.
+                    nextPlanId = nextPlanId,
+
+                    estimatedCost = interval.EstimatedPrice,
+                    estimatedCo2Emissions = interval.EstimatedCo2Emissions,
+
+                    // Temporary placeholder estimates.
+                    estimatedUnscheduledCost = interval.EstimatedPrice + 1,
+                    estimatedUnscheduledCo2Emissions =
+                        interval.EstimatedCo2Emissions + 1,
+
+                    planName = planName,
+                    optimizationObjective = ScheduleForm.Priority,
+
+                    presetId = ScheduleForm.Preset?.id,
+
+                    chargeStopPercentage = isInterruptible
+                        ? ScheduleForm.ChargeStopPercentage
+                        : null,
+
+                    batteryCapacityInKwh =
+                        selectedDevice.batteryCapacityInKwh
+                };
+
+                using var result = await Http.PostAsJsonAsync(
+                    "api/createPlan-controller/post-plan",
+                    planToSave);
+
+                if (!result.IsSuccessStatusCode)
+                {
+                    string error = await result.Content.ReadAsStringAsync();
+
+                    schedulingError =
+                        $"Failed to save a charging interval: {error}";
+
+                    return;
+                }
+
+                PlanDTO? savedPlan =
+                    await result.Content.ReadFromJsonAsync<PlanDTO>();
+
+                if (savedPlan?.planId is not int savedId || savedId <= 0)
+                {
+                    schedulingError =
+                        "The API did not return a valid saved plan ID.";
+
+                    return;
+                }
+
+                if (savedPlan.nextPlanId != nextPlanId)
+                {
+                    schedulingError =
+                        "The API did not preserve the NextPlanId link.";
+
+                    return;
+                }
+
+                // The next saved plan will point to this one.
+                nextPlanId = savedId;
+
+                // Because we're saving backwards, this ends up
+                // containing the ID of the first chronological plan.
+                firstPlanId = savedId;
             }
-            else
+
+            if (firstPlanId.HasValue)
             {
-                string? error = await result.Content.ReadAsStringAsync();
-                Console.WriteLine($"Failed to save plan: {result.StatusCode} - {error}");
+                PlanState.SelectedPlanId = firstPlanId.Value;
             }
+
+            Logger.LogInformation(
+                "Saved {Count} linked plans. First plan ID: {PlanId}",
+                optimizedIntervals.Count,
+                firstPlanId);
+
+            ClearSchedule();
+
+            NavigationManager.NavigateTo("/optimized");
         }
-        catch (Exception e)
+        catch (Exception ex)
         {
-            Console.WriteLine($"Error with saving plan: {e.Message}");
+            Logger.LogError(ex, "Failed to save optimized plans");
+            schedulingError = $"Error saving plans: {ex.Message}";
         }
-
     }
 
     private Task SubmitPlan() => IsEditMode ? UpdatePlanAsync() : addPlan();
