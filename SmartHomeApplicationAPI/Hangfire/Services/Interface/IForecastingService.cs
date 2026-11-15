@@ -1,6 +1,6 @@
 using Utilities.Models;
 
-namespace SmartHomeApplicationAPI.Service;
+namespace SmartHomeApplicationAPI.Hangfire.Services;
 
 public interface IForecastingService
 {
