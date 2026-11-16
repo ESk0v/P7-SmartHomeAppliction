@@ -1,12 +1,11 @@
 using Hangfire;
 using SmartHomeApplicationAPI.Hangfire.Services;
-using SmartHomeApplicationAPI.Service;
 
 namespace SmartHomeApplicationAPI.Hangfire;
 
 public static class Jobs
 {
-    public const string ElectricityPriceImport = "electricity-price-import";
+    public const string ElectricityPriceUpdate = "electricity-price-import";
     public const string Co2Import = "co2-import";
 
     private static readonly TimeZoneInfo Copenhagen =
@@ -14,31 +13,23 @@ public static class Jobs
 
     public static void Register()
     {
-        RecurringJob.AddOrUpdate<IElectricityPriceImportService>(
-            ElectricityPriceImport,
-            service => service.StartImportAsync(),
-            "*/5 13 * * *",
-            new RecurringJobOptions
-            {
-                TimeZone = Copenhagen
-            });
+        var options = new RecurringJobOptions
+        {
+            TimeZone = Copenhagen
+        };
 
+        // Electricity prices and forecasting: every 5 minutes from 13:00 to 13:55
+        RecurringJob.AddOrUpdate<IElectricityPriceUpdateService>(
+            ElectricityPriceUpdate,
+            service => service.UpdatePricesAsync(),
+            "*/5 13 * * *",
+            options);
+
+        // CO2: unchanged
         RecurringJob.AddOrUpdate<ICo2ImportService>(
             Co2Import,
             service => service.StartImportAsync(),
             "*/15 15-19 * * *",
-            new RecurringJobOptions
-            {
-                TimeZone = Copenhagen
-            });
-
-        RecurringJob.AddOrUpdate<IForecastingService>("daily-price-forecast", service => service.RunDailyForecastJobAsync(), "0 14 * * *");
-
-//        RecurringJob.AddOrUpdate<ICo2ImportService>(
-//            Co2ActualsImport,
-//            service => service.ImportActualsAsync(),
-//            "5 * * * *",
-//            options);
-        
+            options);
     }
 }
