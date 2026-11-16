@@ -3,11 +3,20 @@ using Xunit;
 using SmartHomeApplicationAPI.Repository;
 using SmartHomeApplicationAPI.Service;
 using Utilities.Models;
+using Microsoft.Extensions.Logging;
+using Moq;
 
 namespace SmartHomeApplicationAPI.Tests.Service;
 
 public class CreatePlanServiceTests
 {
+    private readonly Mock<ILogger<CreatePlanService>> _mockLogger;
+
+    public CreatePlanServiceTests()
+        {
+            _mockLogger = new Mock<ILogger<CreatePlanService>>();
+        }
+
     [Fact]
     public async Task GetPresetsAsync_WithValidDeviceId_ReturnsExpectedPresets()
     {
@@ -30,7 +39,7 @@ public class CreatePlanServiceTests
         mockRepo.Setup(repo => repo.GetPresetsAsync(deviceId))
             .Returns(Task.FromResult(expectedPresets));
 
-        var service = new CreatePlanService(mockRepo.Object);
+        var service = new CreatePlanService(mockRepo.Object, _mockLogger.Object);
 
         // Act
         var result = await service.GetPresetsAsync(deviceId);
@@ -65,7 +74,7 @@ public class CreatePlanServiceTests
         mockRepo.Setup(repo => repo.GetUserDevicesAsync(userId))
             .Returns(Task.FromResult(expectedUserDevices));
 
-        var service = new CreatePlanService(mockRepo.Object);
+        var service = new CreatePlanService(mockRepo.Object, _mockLogger.Object);
 
         // Act
         var result = await service.GetUserDevicesAsync(userId);
@@ -117,7 +126,7 @@ public class CreatePlanServiceTests
         mockRepo.Setup(repo => repo.PostPlanAsync(planDTO))
             .Returns(Task.FromResult(expectedPlan));
 
-        var service = new CreatePlanService(mockRepo.Object);
+        var service = new CreatePlanService(mockRepo.Object, _mockLogger.Object);
 
         // Act
         var result = await service.PostPlanAsync(planDTO);
