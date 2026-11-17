@@ -414,11 +414,6 @@ else if (isLoading)
         ScheduleForm.Start = (int)(localStart - midnight).TotalMinutes;
         ScheduleForm.End = (int)(localEnd - midnight).TotalMinutes;
 
-        Console.WriteLine(ScheduleForm.Start);
-        Console.WriteLine(ScheduleForm.End);
-
-
-
         if (localStart < now)
         {
             ScheduleForm.Start = (int)(now - midnight).TotalMinutes;
@@ -550,9 +545,6 @@ else if (isLoading)
 
         DateTime startTime = GetScheduledDateTime(ScheduleForm.Start);
         DateTime endTime = GetScheduledDateTime(ScheduleForm.End);
-
-        Console.WriteLine($"Start time: {startTime}");
-        Console.WriteLine($"End time: {endTime}");
 
         int timeWindow = (int)(endTime - startTime).TotalMinutes;
 
