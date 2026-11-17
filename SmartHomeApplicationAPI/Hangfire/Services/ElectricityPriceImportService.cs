@@ -1,6 +1,5 @@
 
 using System.Text.Json;
-using Hangfire;
 using SmartHomeApplicationAPI.DTOs.EnergiDataService;
 using SmartHomeApplicationAPI.Hangfire.Repository;
 using SmartHomeApplicationAPI.Infrastructure.Models;

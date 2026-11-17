@@ -64,6 +64,7 @@ public class CreatePlanRepository : ICreatePlanRepository
         {
             Name = planDTO.planName,
             UserDeviceId = planDTO.userDeviceId,
+            NextPlanId = planDTO.nextPlanId,
             PlanStartTime = planDTO.startTime.ToUniversalTime(),
             PlanEndTime = planDTO.endTime.ToUniversalTime(),
             WindowStartTime = (planDTO.windowStartTime ?? planDTO.startTime).ToUniversalTime(),
@@ -96,6 +97,7 @@ public class CreatePlanRepository : ICreatePlanRepository
         {
             planId = plan.Id,
             planName = plan.Name,
+            nextPlanId = plan.NextPlanId,
             startTime = plan.PlanStartTime,
             endTime = plan.PlanEndTime,
             windowStartTime = plan.WindowStartTime,
@@ -110,8 +112,7 @@ public class CreatePlanRepository : ICreatePlanRepository
             chargeStopPercentage = plan.ChargeStopPercentage,
             batteryCapacityInKwh = batteryCapacity
         };
-          
-    
+
     }
 
 #region Optimization

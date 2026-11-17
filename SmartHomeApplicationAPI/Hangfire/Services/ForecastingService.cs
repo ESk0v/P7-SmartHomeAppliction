@@ -1,8 +1,8 @@
-using SmartHomeApplicationAPI.Repository;
-using SmartHomeApplicationAPI.Service;
-using Utilities.Models;
 using System.Text.Json;
-namespace SmartHomeApplicationAPI.Service;
+using Utilities.Models;
+using SmartHomeApplicationAPI.Hangfire.Repository;
+
+namespace SmartHomeApplicationAPI.Hangfire.Services;
 
 public class ForecastingService : IForecastingService
 {
@@ -20,7 +20,7 @@ public class ForecastingService : IForecastingService
     {
         priceArea = priceArea.ToUpperInvariant();
 
-        var latestActualTime = await _repository.GetLatestActualPriceTimeAsync(priceArea) ?? DateTime.UtcNow;
+        var targetDate = DateTime.UtcNow.Date.AddDays(2);
 
         var url = $"/api/forecast?area={priceArea}&mode=spot_inkl";
         var response = await _httpClient.GetAsync(url);
@@ -40,6 +40,9 @@ public class ForecastingService : IForecastingService
                 string dateStr = day.GetProperty("date").GetString()!;
                 DateTime baseDate = DateTime.Parse(dateStr);
 
+                if (baseDate.Date != targetDate)
+                    continue;
+
                 if (!day.TryGetProperty("prices", out var pricesElement) || pricesElement.ValueKind != JsonValueKind.Array)
                     continue;
 
@@ -56,16 +59,13 @@ public class ForecastingService : IForecastingService
                         var quarterTime = DateTime.SpecifyKind(hourStart.AddMinutes(minute), DateTimeKind.Unspecified);
 
                         // Kun medtag tider der ligger efter de seneste rigtige priser i databasen
-                        if (quarterTime > latestActualTime)
+                        predictions.Add(new PredictedPricePoint
                         {
-                            predictions.Add(new PredictedPricePoint
-                            {
-                                Time = quarterTime,
-                                PricePerKwh = price,
-                                PriceArea = priceArea,
-                                IsPredicted = true
-                            });
-                        }
+                            Time = quarterTime,
+                            PricePerKwh = price,
+                            PriceArea = priceArea,
+                            IsPredicted = true
+                        });
                     }
                 }
             }
