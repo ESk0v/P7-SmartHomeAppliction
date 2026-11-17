@@ -31,7 +31,7 @@ else if (isLoading)
 <div class="row plan-form">
     <div class="col-sm-7">
         <EditForm Method="post" Model="ScheduleForm" OnValidSubmit="GenerateScheduling" FormName="AddSchedulingForm">
-            <div class="mb-4 boxes">
+            <div class="mb-4 boxes device-settings">
                 
                 <DataAnnotationsValidator />
                 <div class="inboxes">
@@ -66,12 +66,12 @@ else if (isLoading)
                         <ValidationMessage For="() => ScheduleForm.Preset" class="text-danger" />
                     </div>  
                 }
-                <div class="mb-3 mt-2">
+                <div class="mb-3 mt-2 plan-name-field">
                     <label for="planName" class="form-label form-label-input">Name the plan</label>
                     <InputText id="planName" class="form-control" @bind-Value="ScheduleForm.PlanName" />
                 </div>
             </div>
-            <div class="boxes">
+            <div class="boxes scheduling-settings">
                 <div class ="row">
                     <div class="choices mt-2">
                         <label class="form-label form-label-down">Scheduling window</label>
@@ -95,7 +95,7 @@ else if (isLoading)
                                 <input id="endMinute" class="charge-range" @bind="ScheduleForm.End"
                                     @bind:event="oninput" @bind:after="OnEndChanged" min="@MinMinutes" max="@MaxMinutes" step="15" type="range" />
                             
-                            </div><br />
+                            </div>
 
                             <span class="charge-slider-duration">Window: @Duration</span>
 
@@ -108,7 +108,7 @@ else if (isLoading)
                         </div>
                     </div>
                 </div> 
-                <div class ="row">
+                <div class="row priority-settings">
                     <div class="col-sm-6 choices mt-3">
                         <label class="form-label1">Choose an option for optimization</label>
                     </div>
@@ -134,7 +134,7 @@ else if (isLoading)
 
                     <ValidationMessage For="() => ScheduleForm.Priority" class="text-danger" />
                 </div>
-                <div class="mt-4 mb-2 d-flex justify-content-end">
+                <div class="mt-4 mb-2 d-flex justify-content-end generate-plan-button">
                     <button type="submit" class="btn btn-primary" disabled="@IsEditMode" title="@(IsEditMode ? "Plan regeneration will be available later" : null)">Generate Plan</button>
                 </div>
             </div>
@@ -149,44 +149,36 @@ else if (isLoading)
         </div>
         <div class="optimized-side-column">
             <section class="optimized-card plan-summary-card">
-                @if (displayPlan && optimizedIntervals.Count > 0)
-                {
-                    <div class="card-heading">
-                        <h2>Plan overview</h2>
-                    </div>
-                    <div class="summary-row">
-                        <div>
-                            <span>@(IsEditMode ? "Scheduled start time" : "Start time")</span>
-                            <small>@((ScheduleForm.PlanName == string.Empty) ? ScheduleForm.DeviceName : ScheduleForm.PlanName) runs for @DisplayedDuration minutes</small>
-                        </div>
-                        <strong>@TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(optimizedIntervals[0].StartTime, DateTimeKind.Utc),CopenhagenTimeZone).ToString("HH:mm")</strong>
-                    </div>
-                    <div class="summary-row">
-                        <div>
-                            <span>Cost</span>
-                            <small>Estimated cost for @((ScheduleForm.PlanName == string.Empty) ? ScheduleForm.DeviceName : ScheduleForm.PlanName)</small>
-                        </div>
-                        <strong class="summary-cost" >@optimizedIntervals.Sum(x => x.EstimatedPrice).ToString("0.00")</strong>
-                    </div>
-                    <div class="summary-row">
-                        <div>
-                            <span>CO2 Emission</span>
-                            <small>Estimated CO2 emissions for @((ScheduleForm.PlanName == string.Empty) ? ScheduleForm.DeviceName : ScheduleForm.PlanName)</small>
-                        </div>
-                        <strong class="summary-co2" >@optimizedIntervals.Sum(x => x.EstimatedCo2Emissions)</strong>
-                    </div>
+                @{
+                    bool hasPlan = displayPlan && optimizedIntervals.Count > 0;
+                    string overviewName = string.IsNullOrWhiteSpace(ScheduleForm.PlanName)
+                        ? ScheduleForm.DeviceName : ScheduleForm.PlanName;
                 }
-                else
-                {
-                   <div class="card-heading">
+                <div class="card-heading plan-summary-heading">
+                    <div>
                         <h2>Plan overview</h2>
+                        <p title="@overviewName">@(string.IsNullOrWhiteSpace(overviewName) ? "Generate a plan to see estimates" : overviewName)</p>
                     </div>
-                    <div class="summary-row">
-                        <div>
-                            <span>No plan generated yet.</span>
-                        </div>
+                </div>
+                <div class="summary-row">
+                    <div>
+                        <span>@(IsEditMode ? "Scheduled start time" : "Start time")</span>
+                        <small>@(hasPlan ? $"Duration: {DisplayedDuration} min" : "Duration: —")</small>
                     </div>
-                }
+                    <strong class="@(hasPlan ? null : "summary-placeholder")">@(hasPlan
+                        ? TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(optimizedIntervals[0].StartTime, DateTimeKind.Utc), CopenhagenTimeZone).ToString("HH:mm")
+                        : "—")</strong>
+                </div>
+                <div class="summary-row">
+                    <div><span>Estimated cost</span></div>
+                    <strong class="@(hasPlan ? "summary-cost" : "summary-placeholder")">@(hasPlan
+                        ? $"{optimizedIntervals.Sum(x => x.EstimatedPrice):0.00} kr" : "—")</strong>
+                </div>
+                <div class="summary-row">
+                    <div><span>Estimated CO<sub>2</sub></span></div>
+                    <strong class="@(hasPlan ? "summary-co2" : "summary-placeholder")">@(hasPlan
+                        ? $"{optimizedIntervals.Sum(x => x.EstimatedCo2Emissions):0.##} g CO₂" : "—")</strong>
+                </div>
                 <div class="mb-3 d-flex justify-content-end save-plan-button">
                     <button type="button" @onclick="SubmitPlan" class="btn btn-primary" disabled="@(IsEditMode ? !editLoaded : !displayPlan)">@(IsEditMode ? "Update Plan" : "Save Plan")</button>
                 </div>
@@ -926,9 +918,9 @@ else if (isLoading)
 
     .form-control:focus {
         background-color: #ffffff;
-        border-color: #7569e8;
+        border-color: #0a66c3;
         outline: none;
-        box-shadow: 0 0 0 2px rgba(117, 105, 232, 0.15);
+        box-shadow: 0 0 0 2px rgba(10, 102, 195, 0.15);
     }
 
     .boxes {
@@ -969,8 +961,8 @@ else if (isLoading)
     }
 
     .boxes .btn-primary {
-        background: #7569e8;
-        border: 1px solid #7569e8;
+        background: #0a66c3;
+        border: 1px solid #0a66c3;
         border-radius: 8px;
         padding: 10px 22px;
         font-size: 16px;
@@ -979,13 +971,13 @@ else if (isLoading)
     }
 
     .boxes .btn-primary:hover {
-        background-color: #5f54c9;
-        border-color: #5f54c9;
+        background-color: #084f98;
+        border-color: #084f98;
     }
 
     .optimized-side-column .btn-primary {
-        background: #7569e8;
-        border: 1px solid #7569e8;
+        background: #0a66c3;
+        border: 1px solid #0a66c3;
         border-radius: 8px;
         padding: 10px 22px;
         font-size: 16px;
@@ -994,8 +986,8 @@ else if (isLoading)
     }
 
     .optimized-side-column .btn-primary:hover {
-        background-color: #5f54c9;
-        border-color: #5f54c9;
+        background-color: #084f98;
+        border-color: #084f98;
     }
 
     .save-plan-button {
@@ -1046,6 +1038,10 @@ else if (isLoading)
         font-weight: 400;
     }
 
+    .priority-settings {
+        --bs-gutter-x: 0;
+    }
+
     .priority-toggle {
         position: relative;
         display: inline-flex;
@@ -1092,7 +1088,7 @@ else if (isLoading)
     }
 
     .priority-option:focus-visible {
-        outline: 2px solid #0d6efd;
+        outline: 2px solid #0a66c3;
         outline-offset: 2px;
     }
 
@@ -1159,10 +1155,31 @@ else if (isLoading)
         margin-top: -6px;
         border: 2px solid #fff;
         border-radius: 50%;
-        background: #374151;
-        box-shadow: 0 0 0 1px #374151;
+        background: #0a66c3;
+        box-shadow: 0 0 0 1px #0a66c3;
         appearance: none;
         -webkit-appearance: none;
+    }
+
+    .charge-range::-moz-range-track {
+        height: 4px;
+        background: #e5e7eb;
+        border-radius: 4px;
+    }
+
+    .charge-range::-moz-range-thumb {
+        width: 12px;
+        height: 12px;
+        border: 2px solid #fff;
+        border-radius: 50%;
+        background: #0a66c3;
+        box-shadow: 0 0 0 1px #0a66c3;
+    }
+
+    .charge-range:focus-visible {
+        outline: 2px solid #0a66c3;
+        outline-offset: 4px;
+        border-radius: 4px;
     }
 
     .optimized-card {
@@ -1178,6 +1195,31 @@ else if (isLoading)
         display: flex;
         flex: 0 0 auto;
         flex-direction: column;
+    }
+
+    .plan-form .plan-summary-heading > div {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .plan-form .plan-summary-heading p {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .plan-form .plan-summary-card .summary-row {
+        border: 0;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .plan-form .plan-summary-card .summary-row strong {
+        font-variant-numeric: tabular-nums;
+    }
+
+    .plan-form .summary-placeholder {
+        color: var(--smarthome-muted) !important;
     }
 
     .card-heading {
@@ -1244,7 +1286,7 @@ else if (isLoading)
     }
 
     .summary-cost {
-        color: #2853ef !important;
+        color: #0a66c3 !important;
     }
 
     .col-sm-5 {
@@ -1276,6 +1318,231 @@ else if (isLoading)
         display: flex;
         flex-direction: column;
         gap: 1.5rem;
+    }
+
+    @@media (min-width: 961px) {
+        .plan-form {
+            flex: 1;
+            height: 100%;
+            min-height: 0;
+            display: grid;
+            grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+            grid-template-rows: minmax(0, 1fr);
+            gap: 1.5rem;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        .plan-form > .col-sm-7,
+        .plan-form > .col-sm-5 {
+            width: auto;
+            min-width: 0;
+            min-height: 0;
+            padding: 0;
+        }
+
+        .plan-form > .col-sm-7 {
+            overflow-y: auto;
+            padding-right: 0.5rem;
+        }
+
+        .plan-form form {
+            display: flex;
+            flex-direction: column;
+            gap: clamp(0.65rem, 1.25vh, 1rem);
+        }
+
+        .plan-form > .col-sm-5 {
+            display: grid;
+            grid-template-rows: minmax(0, 1fr) auto;
+            gap: clamp(0.75rem, 1.5vh, 1.25rem);
+            overflow: hidden;
+        }
+
+        .plan-form .boxes {
+            padding: clamp(0.85rem, 1.5vh, 1.15rem);
+            margin-bottom: 0 !important;
+            font-family: inherit;
+            box-shadow: var(--smarthome-card-shadow);
+        }
+
+        .plan-form .inboxes {
+            padding: 0;
+        }
+
+        .plan-form .device-settings > .charge-settings {
+            margin: 0.5rem 0 0.75rem !important;
+        }
+
+        .plan-form .device-settings > .inboxes + .inboxes {
+            margin-top: 0.65rem;
+        }
+
+        .plan-form .plan-name-field {
+            margin: 0.75rem 0 0 !important;
+        }
+
+        .plan-form .scheduling-settings .row {
+            --bs-gutter-x: 0;
+        }
+
+        .plan-form .scheduling-settings .choices {
+            margin-top: 0 !important;
+        }
+
+        .plan-form .charge-settings {
+            padding: 0.75rem 1rem;
+        }
+
+        .plan-form .charge-slider-header {
+            margin-bottom: 0.5rem;
+        }
+
+        .plan-form .charge-slider + .charge-slider {
+            margin-top: 0.65rem !important;
+            padding-top: 0.65rem;
+        }
+
+        .plan-form form > .boxes > .inboxes {
+            padding: 0;
+        }
+
+        .plan-form .form-label-down {
+            text-indent: 0;
+        }
+
+        .plan-form .form-label-input {
+            text-indent: 0;
+        }
+
+        .plan-form .form-control {
+            width: 100%;
+            margin: 0;
+            min-height: 38px;
+            height: 38px;
+            background: #faf9f7;
+            border-color: var(--smarthome-border);
+        }
+
+        .plan-form .form-label,
+        .plan-form .form-label1 {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--smarthome-muted);
+            margin-bottom: 0.35rem;
+        }
+
+        .plan-form .choices span {
+            color: var(--smarthome-text);
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .plan-form .plan-picker-trigger {
+            min-height: 38px;
+            border: 1px solid var(--smarthome-border);
+            border-radius: 8px;
+            background: #faf9f7;
+        }
+
+        .plan-form .priority-settings {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: center;
+            gap: 0.75rem;
+            margin-top: 0.75rem;
+        }
+
+        .plan-form .priority-settings > .choices {
+            flex: 1;
+            width: auto;
+            min-width: 0;
+            padding: 0;
+        }
+
+        .plan-form .priority-settings .form-label1 {
+            margin: 0;
+        }
+
+        .plan-form .priority-toggle {
+            display: flex;
+            flex: 0 0 auto;
+            width: min(15rem, 60%);
+            margin: 0;
+        }
+
+        .plan-form .priority-thumb {
+            background: #deedfc;
+        }
+
+        .plan-form .priority-option.active {
+            color: #084f98;
+        }
+
+        .plan-form .priority-option {
+            min-width: 0;
+            padding-inline: 0.6rem;
+            min-height: 34px;
+            font-size: 0.85rem;
+        }
+
+        .plan-form .boxes .btn-primary,
+        .plan-form .optimized-side-column .btn-primary {
+            min-height: 36px;
+            padding: 0.45rem 0.85rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .plan-form .generate-plan-button {
+            margin: 0.75rem 0 0 !important;
+        }
+
+        .plan-form .priceoverview,
+        .plan-form .optimized-side-column {
+            flex: none;
+            height: 100%;
+            min-height: 0;
+            max-height: none;
+            overflow: hidden;
+        }
+
+        .plan-form .plan-summary-card {
+            height: auto;
+            min-height: 0;
+            box-shadow: var(--smarthome-card-shadow);
+        }
+
+        .plan-form .card-heading {
+            padding: 0.85rem 1rem;
+        }
+
+        .plan-form .summary-row {
+            flex: none;
+            padding: 0.65rem 1rem;
+            flex-wrap: wrap;
+            gap: 0.5rem 1rem;
+        }
+
+        .plan-form .summary-row span {
+            color: var(--smarthome-muted);
+        }
+
+        .plan-form .summary-row small {
+            color: #827c75;
+            line-height: 1.5;
+        }
+
+        .plan-form .save-plan-button {
+            position: static;
+            background: #fff;
+            padding: 0.75rem 1rem;
+            margin: 0 !important;
+        }
+
+        .plan-form .charge-settings p {
+            font-size: 1rem;
+        }
     }
 
     @@media (max-width: 640.98px), (max-width: 960px) and (max-height: 500px) and (pointer: coarse) {
@@ -1312,7 +1579,7 @@ else if (isLoading)
             display: flex;
             margin-top: 1rem;
             width: 100%;
-            height: 22px;
+            height: auto;
         }
 
         .plan-form .priority-option {
@@ -1380,6 +1647,8 @@ else if (isLoading)
     }
 
     .charge-slider-duration {
+        display: block;
+        margin-top: 0.5rem;
         font-size: 0.8rem;
         color: #6c757d;
     }

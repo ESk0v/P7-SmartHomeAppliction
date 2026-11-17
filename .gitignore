@@ -25,6 +25,8 @@ Forecasting/.venv
 .vscode/
 Forecasting/__pycache__/
 Forecasting/__pycache__
+Optimisation/__pycache__/
+Optimisation/__pycache__
 
 *.log
 
