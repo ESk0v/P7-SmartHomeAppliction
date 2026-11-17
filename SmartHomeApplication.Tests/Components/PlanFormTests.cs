@@ -120,11 +120,22 @@ public class PlanFormTests
     }
 
     [Theory]
-    [InlineData(1)]
-    [InlineData(7)]
-    public async Task EditSplitPlan_LoadsWholeChain_AndUpdatesItsBaselineWithoutTimeShift(int month)
+    [InlineData(1, DateTimeKind.Utc)]
+    [InlineData(7, DateTimeKind.Utc)]
+    [InlineData(1, DateTimeKind.Local)]
+    [InlineData(7, DateTimeKind.Local)]
+    [InlineData(1, DateTimeKind.Unspecified)]
+    [InlineData(7, DateTimeKind.Unspecified)]
+    public async Task EditSplitPlan_LoadsWholeChain_AndUpdatesItsBaselineWithoutTimeShift(int month, DateTimeKind timestampKind)
     {
         DateTime start = new(2026, month, 10, 23, 30, 0, DateTimeKind.Utc);
+        DateTime ApiTime(DateTime utc) => timestampKind switch
+        {
+            DateTimeKind.Unspecified => TimeZoneInfo.ConvertTimeFromUtc(utc,
+                TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen")),
+            DateTimeKind.Local => utc.ToLocalTime(),
+            _ => utc
+        };
         var plans = new Dictionary<int, PlanDTO>
         {
             [10] = ExistingPlan(10, 20, start.AddMinutes(15), start.AddMinutes(45)),
@@ -132,8 +143,10 @@ public class PlanFormTests
         };
         foreach (var plan in plans.Values)
         {
-            plan.windowStartTime = start;
-            plan.windowEndTime = start.AddHours(8);
+            plan.windowStartTime = ApiTime(start);
+            plan.windowEndTime = ApiTime(start.AddHours(8));
+            plan.startTime = ApiTime(plan.startTime);
+            plan.endTime = ApiTime(plan.endTime);
         }
         UnscheduledEstimateRequestDto? baseline = null;
         var updated = new List<PlanDTO>();
@@ -157,6 +170,10 @@ public class PlanFormTests
             var update = (await request.Content!.ReadFromJsonAsync<PlanDTO>())!;
             Assert.EndsWith($"update-plan/{update.planId}", request.RequestUri.AbsolutePath);
             updated.Add(update);
+            var stored = plans[update.planId!.Value];
+            stored.planName = update.planName;
+            stored.windowStartTime = ApiTime(update.windowStartTime!.Value);
+            stored.windowEndTime = ApiTime(update.windowEndTime!.Value);
             return Json(update);
         });
         var form = CreateForm(handler);
@@ -165,8 +182,11 @@ public class PlanFormTests
 
         await Invoke(form, "LoadExistingPlanAsync");
         Assert.Equal(2, Field<List<OptimizationResultDTO>>(form, "optimizedIntervals").Count);
+        Assert.Equal(start.AddMinutes(15), Field<List<OptimizationResultDTO>>(form, "optimizedIntervals")[0].StartTime);
+        Assert.Equal(DateTimeKind.Utc, Field<List<OptimizationResultDTO>>(form, "optimizedIntervals")[0].StartTime.Kind);
         var schedule = Field<ScheduleForm>(form, "ScheduleForm");
         Assert.Equal(month == 1 ? 0 : 1, schedule.StartHour);
+        var expectedTimes = (schedule.StartHour, schedule.StartMinute, schedule.EndHour, schedule.EndMinute);
         schedule.PlanName = " Renamed plan ";
         await Invoke(form, "UpdatePlanAsync");
 
@@ -186,6 +206,10 @@ public class PlanFormTests
         });
         Assert.Equal(10, Property<OptimizedPlanState>(form, "PlanState").SelectedPlanId);
         Assert.True(Property<OptimizedPlanState>(form, "PlanState").ReturnToSelectedPlan);
+
+        await Invoke(form, "LoadExistingPlanAsync");
+        var reopened = Field<ScheduleForm>(form, "ScheduleForm");
+        Assert.Equal(expectedTimes, (reopened.StartHour, reopened.StartMinute, reopened.EndHour, reopened.EndMinute));
     }
 
     private static PlanDTO ExistingPlan(int id, int? nextId, DateTime start, DateTime end) => new()

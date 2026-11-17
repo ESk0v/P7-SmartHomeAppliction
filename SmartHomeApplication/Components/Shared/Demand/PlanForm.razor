@@ -214,6 +214,11 @@ else if (isLoading)
     private PlanDTO? existingPlan;
     private List<PlanDTO> existingPlanIntervals = new();
     private static readonly TimeZoneInfo CopenhagenTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen");
+    // Plan timestamps without an offset are already Copenhagen clock times.
+    private static DateTime PlanTimeToUtc(DateTime time) => time.Kind == DateTimeKind.Unspecified
+        ? TimeZoneInfo.ConvertTimeToUtc(time, CopenhagenTimeZone)
+        : time.ToUniversalTime();
+
     private TimeSpan OptimizedDuration => TimeSpan.FromTicks(
         optimizedIntervals.Sum(interval => (interval.EndTime - interval.StartTime).Ticks));
     private string DisplayedDuration =>
@@ -408,9 +413,9 @@ else if (isLoading)
         ScheduleForm.Priority = existingPlan.optimizationObjective ?? "Cheapest";
 
         DateTime localStart = TimeZoneInfo.ConvertTimeFromUtc(
-            DateTime.SpecifyKind(existingPlan.windowStartTime.Value, DateTimeKind.Utc), CopenhagenTimeZone);
+            PlanTimeToUtc(existingPlan.windowStartTime.Value), CopenhagenTimeZone);
         DateTime localEnd = TimeZoneInfo.ConvertTimeFromUtc(
-            DateTime.SpecifyKind(existingPlan.windowEndTime.Value, DateTimeKind.Utc), CopenhagenTimeZone);
+            PlanTimeToUtc(existingPlan.windowEndTime.Value), CopenhagenTimeZone);
         ScheduleForm.StartHour = localStart.Hour;
         ScheduleForm.StartMinute = localStart.Minute;
         ScheduleForm.EndHour = localEnd.Hour;
@@ -439,8 +444,8 @@ else if (isLoading)
             return;
 
         optimizedIntervals = existingPlanIntervals.Select(interval => new OptimizationResultDTO(
-            interval.startTime,
-            interval.endTime,
+            PlanTimeToUtc(interval.startTime),
+            PlanTimeToUtc(interval.endTime),
             interval.estimatedCost,
             interval.estimatedCo2Emissions)).ToList();
 
@@ -870,7 +875,7 @@ else if (isLoading)
         }
 
         DateTime localOriginalStart = TimeZoneInfo.ConvertTimeFromUtc(
-            DateTime.SpecifyKind(existingPlan.windowStartTime!.Value, DateTimeKind.Utc), CopenhagenTimeZone);
+            PlanTimeToUtc(existingPlan.windowStartTime!.Value), CopenhagenTimeZone);
         DateTime localStart = DateTime.SpecifyKind(localOriginalStart.Date
             .AddHours(ScheduleForm.StartHour.Value)
             .AddMinutes(ScheduleForm.StartMinute.Value), DateTimeKind.Unspecified);
