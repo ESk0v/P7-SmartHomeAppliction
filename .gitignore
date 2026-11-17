@@ -38,3 +38,17 @@ CoverageReport/
 **/CoverageReport/
 lcov.info
 **/lcov.info
+
+# Python, all folders
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Evaluation: datasets (large, downloaded by Evaluation/prepare_data.py) and generated output
+Evaluation/data/
+Evaluation/scenarios/
+Evaluation/runs/
+Evaluation/results/
+
+# Claude working files
+Claude outputs/

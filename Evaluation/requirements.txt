@@ -1,0 +1,7 @@
+pulp==4.2.0
+highspy
+numpy
+pandas
+pydantic
+matplotlib
+pytest
