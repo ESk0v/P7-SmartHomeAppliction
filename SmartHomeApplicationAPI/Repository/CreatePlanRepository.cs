@@ -59,6 +59,7 @@ public class CreatePlanRepository : ICreatePlanRepository
 
     public async Task<PlanDTO> PostPlanAsync(PlanDTO planDTO)
     {
+
         var plan = new Plan
         {
             Name = planDTO.planName,
@@ -111,8 +112,7 @@ public class CreatePlanRepository : ICreatePlanRepository
             chargeStopPercentage = plan.ChargeStopPercentage,
             batteryCapacityInKwh = batteryCapacity
         };
-          
-    
+
     }
 
 #region Optimization

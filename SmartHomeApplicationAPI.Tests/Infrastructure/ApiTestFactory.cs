@@ -4,7 +4,9 @@ using System.Text;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using SmartHomeApplicationAPI.Hangfire.Services;
 
 namespace SmartHomeApplicationAPI.Tests.Infrastructure;
 
@@ -14,12 +16,14 @@ public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProg
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
-
-        builder.UseSetting(
-            "ConnectionStrings:SmartHome",
-            "Host=localhost;Port=5433;Database=SmartHomeTestDB;Username=testuser;Password=testpassword");
-
         builder.UseSetting("Hangfire:RunServer", "false");
+        
+        builder.ConfigureTestServices(services =>
+        {
+            services.AddHttpClient<IForecastingService, ForecastingService>()
+                .ConfigurePrimaryHttpMessageHandler(
+                    () => new MockHttpMessageHandler());
+        });
     }
 }
 
@@ -29,14 +33,25 @@ internal sealed class MockHttpMessageHandler : HttpMessageHandler
         HttpRequestMessage request,
         CancellationToken cancellationToken)
     {
+        if (request.RequestUri?.Query.Contains("area=EMP") == true)
+        {
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    """{"days": []}""",
+                    Encoding.UTF8,
+                    "application/json")
+            });
+        }
+
         var response = new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = new StringContent(
-                """
+                $$"""
                 {
                     "days": [
                         {
-                            "date": "2026-11-12",
+                            "date": "{{DateTime.UtcNow.Date.AddDays(2):yyyy-MM-dd}}",
                             "prices": [
                                 {
                                     "hour": 10,

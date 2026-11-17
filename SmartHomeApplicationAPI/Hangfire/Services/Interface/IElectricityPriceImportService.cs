@@ -2,9 +2,9 @@ using Hangfire;
 
 namespace SmartHomeApplicationAPI.Hangfire.Services;
 
-public interface IElectricityPriceUpdateService
+public interface IElectricityPriceImportService
 {
     [AutomaticRetry(Attempts = 0)]
     [DisableConcurrentExecution(timeoutInSeconds: 120)]
-    Task UpdatePricesAsync();
+    Task StartImportAsync();
 }

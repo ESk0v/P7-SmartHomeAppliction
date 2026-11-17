@@ -18,11 +18,6 @@ public class DeviceController : ControllerBase
     [HttpPut("update-userdevice")]
     public async Task<IActionResult> UpdateDevice([FromBody] UpdateUserDeviceDto dto)
     {
-        if (!ModelState.IsValid)
-        {
-            return ValidationProblem(ModelState);
-        }
-
         bool result;
         try
         {
@@ -63,10 +58,6 @@ public class DeviceController : ControllerBase
     [HttpPost("create-device")]
     public async Task<IActionResult> Create([FromBody] CreateDeviceDto dto)
     {
-        if (!ModelState.IsValid) { 
-            return ValidationProblem(ModelState);
-        }
-
         int deviceId;
         try
         {
@@ -82,10 +73,6 @@ public class DeviceController : ControllerBase
     [HttpPut("{userDeviceId:int}/preset")]
     public async Task<IActionResult> UpdatePreset(int userDeviceId, [FromBody] PresetDeviceDto dto)
     {
-        if (!ModelState.IsValid)
-        {
-            return ValidationProblem(ModelState);
-        }
 
         if (!await _service.UpdatePresetAsync(userDeviceId, dto))
         {
@@ -98,11 +85,6 @@ public class DeviceController : ControllerBase
     [HttpPost("{userDeviceId:int}/preset")]
     public async Task<IActionResult> CreatePreset(int userDeviceId, [FromBody] PresetDeviceDto dto)
     {
-        if (!ModelState.IsValid)
-        {
-            return ValidationProblem(ModelState);
-        }
-
         if (!await _service.CreatePresetAsync(userDeviceId, dto))
         {
             return NotFound();
