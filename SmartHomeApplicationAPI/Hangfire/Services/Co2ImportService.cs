@@ -2,7 +2,6 @@
 using System.Text.Json;
 using SmartHomeApplicationAPI.DTOs.EnergiDataService;
 using SmartHomeApplicationAPI.Hangfire.Repository;
-using SmartHomeApplicationAPI.Hangfire.Services;
 
 namespace SmartHomeApplicationAPI.Hangfire.Services;
 
