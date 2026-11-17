@@ -20,7 +20,7 @@ public class ElectricityPriceService : IElectricityPriceService
 
         return Result
             .GroupBy(r => new DateTime(r.Hour.Year, r.Hour.Month, r.Hour.Day, r.Hour.Hour, 0, 0))
-            .Select(g => new HourPriceDto(g.Key, g.Sum(r => r.Price) / g.Count()))
+            .Select(g => new HourPriceDto(g.Key, g.Sum(r => r.Price) / g.Count(), g.Any(r => r.IsPredicted)))
             .OrderBy(r => r.Hour)
             .ToList();
     }
