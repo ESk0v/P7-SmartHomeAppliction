@@ -64,7 +64,7 @@ public class CreatePlanRepository : ICreatePlanRepository
         {
             Name = planDTO.planName,
             UserDeviceId = planDTO.userDeviceId,
-            NextPlanId = planDTO.nextPlanId
+            NextPlanId = planDTO.nextPlanId,
             PlanStartTime = planDTO.startTime.ToUniversalTime(),
             PlanEndTime = planDTO.endTime.ToUniversalTime(),
             WindowStartTime = (planDTO.windowStartTime ?? planDTO.startTime).ToUniversalTime(),
