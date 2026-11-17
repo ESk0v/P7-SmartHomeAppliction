@@ -112,8 +112,7 @@ public class CreatePlanRepository : ICreatePlanRepository
             chargeStopPercentage = plan.ChargeStopPercentage,
             batteryCapacityInKwh = batteryCapacity
         };
-          
-    
+
     }
 
 #region Optimization
