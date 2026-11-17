@@ -414,6 +414,10 @@ else if (isLoading)
         ScheduleForm.Start = (int)(localStart - midnight).TotalMinutes;
         ScheduleForm.End = (int)(localEnd - midnight).TotalMinutes;
 
+        Console.WriteLine(ScheduleForm.Start);
+        Console.WriteLine(ScheduleForm.End);
+
+
 
         if (localStart < now)
         {
@@ -814,10 +818,11 @@ else if (isLoading)
         }
 
         DateTime localOriginalStart = existingPlan.windowStartTime!.Value;
-        DateTime baseTime = localOriginalStart.Date;
-        DateTime localStart = DateTime.SpecifyKind(localOriginalStart.Date
+        DateTime now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, CopenhagenTimeZone);
+
+        DateTime localStart = DateTime.SpecifyKind(now.Date
             .AddMinutes(ScheduleForm.Start), DateTimeKind.Unspecified);
-        DateTime localEnd = DateTime.SpecifyKind(localStart.Date
+        DateTime localEnd = DateTime.SpecifyKind(now.Date
             .AddMinutes(ScheduleForm.End), DateTimeKind.Unspecified);
 
 
