@@ -24,33 +24,40 @@ public class ForecastingRepository : IForecastingRepository
 
     public async Task<ForecastingResponseDto> PostPrices(ForecastingResponseDto respDto)
     {
-        // Tag imod ResponseDto, pak listen ad Predictions ud og tilføj den til database, er jeg ret sikker på
-            // Mapping gøres med Select() hvor hver PredictedPricePoint fra respDto pakke ud til 1 Electrity entry
-        var existingPredictions = await _db.Electricity
-            .Where(e => e.PriceArea == respDto.PriceArea && e.IsPredicted)
+        if (respDto.Predictions.Count == 0)
+            return respDto;
+
+        var targetDate = respDto.Predictions.First().Time.Date;
+
+        // Get existing timestamps for the target date and area
+        var existingTimes = await _db.Electricity
+            .AsNoTracking()
+            .Where(e =>
+                e.PriceArea == respDto.PriceArea &&
+                e.Time >= targetDate &&
+                e.Time < targetDate.AddDays(1))
+            .Select(e => e.Time)
             .ToListAsync();
 
-        if (existingPredictions.Count > 0)
-        {
-            _db.Electricity.RemoveRange(existingPredictions);
-        }
+        var existingTimeSet = existingTimes.ToHashSet();
 
-        if (respDto.Predictions.Count == 0)
+        // Insert only missing predictions
+        var prices = respDto.Predictions
+            .Where(p => !existingTimeSet.Contains(p.Time))
+            .Select(p => new Electricity
+            {
+                Time = DateTime.SpecifyKind(p.Time, DateTimeKind.Unspecified),
+                PricePerKwh = Math.Round((decimal)p.PricePerKwh, 5),
+                PriceArea = p.PriceArea.ToUpperInvariant(),
+                IsPredicted = true
+            })
+            .ToList();
+
+        if (prices.Count > 0)
         {
+            await _db.Electricity.AddRangeAsync(prices);
             await _db.SaveChangesAsync();
-            return respDto;
         }
-
-        var prices = respDto.Predictions.Select(p => new Electricity
-        {
-            Time = DateTime.SpecifyKind(p.Time, DateTimeKind.Unspecified),
-            PricePerKwh = Math.Round((decimal)p.PricePerKwh, 5),
-            PriceArea = p.PriceArea.ToUpperInvariant(),
-            IsPredicted = true
-        }).ToList();
-
-        await _db.Electricity.AddRangeAsync(prices);
-        await _db.SaveChangesAsync();
 
         return respDto;
     }
