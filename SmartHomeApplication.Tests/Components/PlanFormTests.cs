@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Reflection;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using SmartHomeApplication.Components.Shared.Demand;
 using SmartHomeApplication.State;
 using Utilities.Models;
@@ -120,15 +121,21 @@ public class PlanFormTests
     }
 
     [Theory]
-    [InlineData(1, DateTimeKind.Utc)]
-    [InlineData(7, DateTimeKind.Utc)]
-    [InlineData(1, DateTimeKind.Local)]
-    [InlineData(7, DateTimeKind.Local)]
-    [InlineData(1, DateTimeKind.Unspecified)]
-    [InlineData(7, DateTimeKind.Unspecified)]
-    public async Task EditSplitPlan_LoadsWholeChain_AndUpdatesItsBaselineWithoutTimeShift(int month, DateTimeKind timestampKind)
+    [InlineData(1, DateTimeKind.Utc, 0)]
+    [InlineData(7, DateTimeKind.Utc, 0)]
+    [InlineData(1, DateTimeKind.Local, 0)]
+    [InlineData(7, DateTimeKind.Local, 0)]
+    [InlineData(1, DateTimeKind.Unspecified, 0)]
+    [InlineData(7, DateTimeKind.Unspecified, 0)]
+    [InlineData(1, DateTimeKind.Utc, 1)]
+    [InlineData(7, DateTimeKind.Utc, 1)]
+    [InlineData(1, DateTimeKind.Unspecified, -1)]
+    [InlineData(7, DateTimeKind.Unspecified, -1)]
+    public async Task EditSplitPlan_LoadsWholeChain_AndUpdatesItsBaselineWithoutTimeShift(int month, DateTimeKind timestampKind, int dayOffset)
     {
-        DateTime start = new(2026, month, 10, 23, 30, 0, DateTimeKind.Utc);
+        // Older saved windows can have minutes that are not a multiple of 15.
+        int minute = month == 1 ? 30 : 37;
+        DateTime start = new(2026, month, 10, 23, minute, 0, DateTimeKind.Utc);
         DateTime ApiTime(DateTime utc) => timestampKind switch
         {
             DateTimeKind.Unspecified => TimeZoneInfo.ConvertTimeFromUtc(utc,
@@ -179,14 +186,22 @@ public class PlanFormTests
         var form = CreateForm(handler);
         Set(form, "editingPlanId", 10);
         Set(form, "userId", "test-user");
+        DateTime localStart = TimeZoneInfo.ConvertTimeFromUtc(start,
+            TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen"));
+        DateTime sliderDate = localStart.Date.AddDays(-dayOffset);
+        Set(form, "schedulingDate", sliderDate);
 
         await Invoke(form, "LoadExistingPlanAsync");
         Assert.Equal(2, Field<List<OptimizationResultDTO>>(form, "optimizedIntervals").Count);
         Assert.Equal(start.AddMinutes(15), Field<List<OptimizationResultDTO>>(form, "optimizedIntervals")[0].StartTime);
         Assert.Equal(DateTimeKind.Utc, Field<List<OptimizationResultDTO>>(form, "optimizedIntervals")[0].StartTime.Kind);
         var schedule = Field<ScheduleForm>(form, "ScheduleForm");
-        Assert.Equal(month == 1 ? 0 : 1, schedule.StartHour);
-        var expectedTimes = (schedule.StartHour, schedule.StartMinute, schedule.EndHour, schedule.EndMinute);
+        Assert.Equal((int)(localStart - sliderDate).TotalMinutes, schedule.Start);
+        Assert.Equal(schedule.Start + 8 * 60, schedule.End);
+        Assert.True(Field<int>(form, "MinMinutes") <= schedule.Start);
+        Assert.True(Field<int>(form, "MaxMinutes") >= schedule.End);
+        Assert.Equal(minute == 30 ? 15 : 1, Field<int>(form, "TimeStep"));
+        var expectedTimes = (schedule.Start, schedule.End);
         schedule.PlanName = " Renamed plan ";
         await Invoke(form, "UpdatePlanAsync");
 
@@ -209,7 +224,7 @@ public class PlanFormTests
 
         await Invoke(form, "LoadExistingPlanAsync");
         var reopened = Field<ScheduleForm>(form, "ScheduleForm");
-        Assert.Equal(expectedTimes, (reopened.StartHour, reopened.StartMinute, reopened.EndHour, reopened.EndMinute));
+        Assert.Equal(expectedTimes, (reopened.Start, reopened.End));
     }
 
     private static PlanDTO ExistingPlan(int id, int? nextId, DateTime start, DateTime end) => new()
@@ -225,6 +240,7 @@ public class PlanFormTests
         typeof(PlanForm).GetProperty("Http", flags)!.SetValue(form, new HttpClient(handler) { BaseAddress = new Uri("https://localhost/") });
         typeof(PlanForm).GetProperty("NavigationManager", flags)!.SetValue(form, new TestNavigationManager());
         typeof(PlanForm).GetProperty("Logger", flags)!.SetValue(form, NullLogger<PlanForm>.Instance);
+        typeof(PlanForm).GetProperty("NotificationService", flags)!.SetValue(form, Mock.Of<INotificationService>());
         typeof(PlanForm).GetProperty("PlanState", flags)!.SetValue(form, new OptimizedPlanState());
         Set(form, "userDevices", new List<PlanUserDeviceDto> { new(1, 1, "Test device", "", "", "Interruptible", "", 80m) });
         Set(form, "selectedDeviceId", "1");
