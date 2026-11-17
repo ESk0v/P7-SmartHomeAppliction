@@ -21,9 +21,6 @@
         </div>
 
         <div class="header-actions dashboard-header-actions">
-            <SecondaryButton>
-                Re-optimize
-            </SecondaryButton>
             <PrimaryButton OnClick="GoToMakePlan">
                 New plan
             </PrimaryButton>
@@ -57,7 +54,7 @@
                 <Schedules activeSchedule="schedule" />
             }
         }
-    </div>    
+    </div>
 </div>
 
 @code {
@@ -66,6 +63,7 @@
 
     private List<PlanDto>? activeSchedules;
     private List<PlanDto>? displaySchedules;  
+
     
     private void GoToMakePlan() => NavigationManager.NavigateTo("/new-plan");
 
@@ -102,7 +100,7 @@
         var result = new List<PlanDto>();
 
         foreach (var plan in normalPlans)
-        {
+        {  
             PlanDto current = plan;
             PlanDto lastPlan = plan;
 
@@ -236,6 +234,58 @@
 
     .dashboard-header-actions .header-button-primary {
         min-width: 6rem;
+    }
+
+    @@media (min-width: 961px) {
+        .dashboard {
+            flex: 1;
+            min-height: 0;
+            height: 100%;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            grid-template-rows: auto minmax(0, 1fr) auto;
+            padding: 0;
+            gap: 0.75rem;
+        }
+
+        .dashboard .statistics {
+            flex: none;
+            gap: 1rem;
+        }
+
+        .dashboard .priceoverview {
+            flex: none;
+            height: 100%;
+            min-height: 0;
+        }
+
+        .dashboard .devices {
+            flex: none;
+            display: flex;
+            gap: 1.25rem;
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding: 0 0 0.5rem;
+        }
+
+        .dashboard .devices > .schedules-card {
+            flex: 0 0 calc((100% - 2.5rem) / 3);
+            min-width: 0;
+        }
+
+        .dashboard .devices:has(> .schedules-card:nth-of-type(4)) > .schedules-card {
+            flex-basis: calc((100% - 3.75rem) / 3.25);
+        }
+    }
+
+    @@media (min-width: 961px) and (max-width: 1199px) {
+        .dashboard .devices > .schedules-card {
+            flex-basis: calc((100% - 1.25rem) / 2);
+        }
+
+        .dashboard .devices:has(> .schedules-card:nth-of-type(3)) > .schedules-card {
+            flex-basis: calc((100% - 2.5rem) / 2.25);
+        }
     }
 
     @@media (max-width: 640.98px), (max-width: 960px) and (max-height: 500px) and (pointer: coarse) {

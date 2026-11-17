@@ -16,6 +16,7 @@
 .DS_Store
 SmartHomeApplicationAPI/appsettings.Development.json
 SmartHomeApplicationAPI/appsettings.json
+SmartHomeApplicationAPI/appsettings.Testing.json
 
 # python
 .venv/
@@ -24,6 +25,8 @@ Forecasting/.venv
 .vscode/
 Forecasting/__pycache__/
 Forecasting/__pycache__
+Optimisation/__pycache__/
+Optimisation/__pycache__
 
 *.log
 
