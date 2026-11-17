@@ -1,7 +1,7 @@
 
 <div class="plan-picker @CssClass" tabindex="0" @onfocusout="@((e) => onFocusOut(e))">
-    <button type="button" class="plan-picker-trigger" @onclick="() => open = !open">
-        <span>
+    <button id="@Id" type="button" class="plan-picker-trigger" @onclick="() => open = !open">
+        <span class="@(Options.Any(option => option.Value == Value) ? null : "plan-picker-placeholder")">
             @(Options.FirstOrDefault(x => x.Value == Value).Text ?? Placeholder)
         </span>
         <span class="plan-picker-chevron @(open ? "plan-picker-chevron-open" : "")"></span>
@@ -13,6 +13,7 @@
             @foreach (var option in Options)
             {
                 <button type="button"
+                        data-value="@option.Value"
                         class="plan-picker-option @(option.Value == Value ? "plan-picker-option-selected" : "")"
                         @onclick="async () => { await ValueChanged.InvokeAsync(option.Value); open = false; }">
                     @option.Text
@@ -32,6 +33,7 @@
     [Parameter] public EventCallback<string?> ValueChanged { get; set; }
     [Parameter] public string Placeholder { get; set; } = "Select";
     [Parameter] public string CssClass { get; set; } = "";
+    [Parameter] public string? Id { get; set; }
 
     private bool open;
 
@@ -69,12 +71,12 @@
 
     .plan-picker-trigger:hover,
     .plan-picker-trigger:focus-visible {
-        background: #f8f7ff;
+        background: #f5f9fd;
         outline: none;
     }
 
     .plan-picker-icon {
-        color: #7569e8;
+        color: #0a66c3;
         display: inline-flex;
         flex-shrink: 0;
         height: 1.4rem;
@@ -97,7 +99,7 @@
     }
 
     .plan-picker-chevron-open {
-        border-color: #7569e8;
+        border-color: #0a66c3;
         transform: rotate(225deg) translateY(-0.05rem);
     }
 
@@ -134,16 +136,16 @@
 
     .plan-picker-option:hover,
     .plan-picker-option:focus-visible {
-        background: #f0efff;
+        background: #edf5fd;
         outline: none;
     }
 
     .plan-picker-option-selected {
-        background: #ebeaff;
+        background: #deedfc;
     }
 
     .plan-picker-check {
-        color: #7569e8;
+        color: #0a66c3;
         font-size: 1.2rem;
         font-weight: 600;
         margin-left: auto;
@@ -152,7 +154,7 @@
     .plan-picker-trigger {
         min-width: 0;
         width: 100%;
-        background-color: #f2f1f7;
+        background-color: #f0f5fa;
 
     }
 

@@ -222,6 +222,34 @@
         display: block;
     }
 
+    @@media (min-width: 961px) {
+        .app-navigation .nav-scrollable {
+            height: calc(100dvh - 4.5rem);
+        }
+
+        .app-navigation .nav-item .nav-link {
+            border-radius: 8px;
+            transition: background-color 150ms ease;
+        }
+
+        .app-navigation .nav-footer {
+            padding-bottom: 1.25rem;
+        }
+
+        .app-navigation .nav-footer .btn {
+            width: 100%;
+            padding: 0.65rem 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            font-size: 0.875rem;
+        }
+
+        .app-navigation .nav-footer .btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+    }
+
     @@media (max-width: 640.98px), (max-width: 960px) and (max-height: 500px) and (pointer: coarse) {
         .app-navigation .top-row .container-fluid {
             min-width: 0;
