@@ -5,3 +5,77 @@
         @Body
     </div>
 </div>
+
+<style>
+    @@media (min-width: 961px) {
+        .empty-layout {
+            background: #f7f6f4;
+            height: 100dvh;
+            overflow: hidden;
+        }
+
+        .empty-layout > .content {
+            display: grid;
+            align-items: center;
+            height: 100%;
+            min-height: 0;
+            overflow: hidden;
+            grid-template-rows: minmax(0, 1fr);
+            padding: 3rem 1.5rem !important;
+        }
+
+        .empty-layout .row {
+            height: 100%;
+            min-height: 0;
+            align-items: center;
+            margin: 0;
+        }
+
+        .empty-layout .row > div {
+            max-height: 100%;
+            overflow-y: auto;
+            width: 100%;
+            max-width: 30rem;
+            margin-inline: auto;
+            padding: 2.5rem !important;
+            background: #fff;
+            border: 1px solid var(--smarthome-border) !important;
+            border-radius: 1rem;
+            box-shadow: 0 8px 28px rgba(43, 35, 25, 0.06);
+        }
+
+        .empty-layout h3 {
+            font-size: 1.4rem;
+            font-weight: 650;
+            letter-spacing: -0.025em;
+            color: var(--smarthome-text);
+            margin-bottom: 1rem;
+        }
+
+        .empty-layout label {
+            display: block;
+            margin-bottom: 0.45rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--smarthome-muted);
+        }
+
+        .empty-layout .form-control {
+            min-height: 46px;
+            background: #faf9f7;
+            border-color: var(--smarthome-border);
+            border-radius: 8px;
+        }
+
+        .empty-layout .btn {
+            min-height: 46px;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+
+        .empty-layout a {
+            font-size: 0.875rem;
+            text-underline-offset: 3px;
+        }
+    }
+</style>
