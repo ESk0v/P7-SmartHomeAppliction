@@ -866,6 +866,7 @@ else if (isLoading)
                 return;
             }
 
+            NotificationService.SuccessNotification($"Updated plan"); 
             Logger.LogInformation(
                 "Updated plan {PlanId}: server returned window {WindowStartTime}–{WindowEndTime}",
                 savedPlan.planId, savedPlan.windowStartTime, savedPlan.windowEndTime);
