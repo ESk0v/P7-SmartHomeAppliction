@@ -3,11 +3,13 @@
 @inject AuthenticationStateProvider AuthProvider
 @inject OptimizedPlanState PlanState
 @inject ILogger<PlanForm> Logger
+@inject INotificationService NotificationService
 
-@using global::Shared.Dashboard
 @using System.Globalization
 @using System.Security.Claims
+@using Hangfire.Dashboard
 @using Utilities.Models
+@using global::Shared.Dashboard
 
 @if (loadError is not null)
 {
@@ -33,7 +35,7 @@ else if (isLoading)
                 
                 <DataAnnotationsValidator />
                 <div class="inboxes">
-                    <label for="deviceName" class="form-label form-label-down">Device Name</label>
+                    <label for="deviceName" class="form-label form-label-down">Device</label>
                     <ButtonSelectDevice Options="@(userDevices.Select(d => (d.id.ToString(), d.deviceNickname, d.icon, d.color)))"
                         @bind-Value="selectedDeviceId" @bind-Value:after="OnDeviceSelected" Placeholder="Select device" />
                     <ValidationMessage For="() => ScheduleForm.DeviceName" class="text-danger" />
@@ -41,14 +43,13 @@ else if (isLoading)
                 
                 @if (isInterruptible)
                 {
-                    <div class="charge-settings mt-4 mb-4">
-                        <p>Battery capacity: @(SelectedDevice?.batteryCapacityInKwh is decimal capacity ? $"{capacity:0.###} kWh" : "Unknown")</p>
+                    <div class="charge-settings mt-2 mb-4">
                         <div class="charge-slider">
                             <div class="charge-slider-header">
                                 <label for="chargeStop">Charge to</label>
                                 <span>@ScheduleForm.ChargeStopPercentage%</span>
                             </div>
-                            <InputNumber id="chargeStop" class="charge-range" @bind-Value="ScheduleForm.ChargeStopPercentage"
+                            <input id="chargeStop" class="charge-range" @bind="ScheduleForm.ChargeStopPercentage" @bind:event="oninput"
                                         min="5" max="100" step="5" type="range" />
                         </div>
                     </div>
@@ -72,37 +73,32 @@ else if (isLoading)
             </div>
             <div class="boxes">
                 <div class ="row">
-                    <div class="mb-4 col-sm-6 inboxes">
-                        <div>
-                            <div class="choices mb-4">
-                                <span>Scheduling window</span>
-                            </div>
-                            <div>
-                                <label class="form-label1">Start  <i class="bi bi-clock"/></label>
-                                <div class="d-flex gap-2 align-items-center">
-                                    <ButtonSelect Options="HourOptions" @bind-Value="StartHourText" 
-                                        CssClass="time-picker" Placeholder="" />
-                                    <span>:</span>
-
-                                    <ButtonSelect Options="MinuteOptions" @bind-Value="StartMinuteText"
-                                        CssClass="time-picker" Placeholder="" />
+                    <div class="choices mt-2">
+                        <label class="form-label form-label-down">Scheduling window</label>
+                    </div>
+                    <div class="inboxes">
+                        <div class="charge-settings">
+                            <div class="charge-slider">
+                                <div class="charge-slider-header">
+                                    <label for="startTime">Start  <i class="bi bi-clock"/></label>
+                                    <span>@Format(ScheduleForm.Start)</span>
                                 </div>
-                                <ValidationMessage For="() => ScheduleForm.StartHour" class="text-danger" />
-                                <ValidationMessage For="() => ScheduleForm.StartMinute" class="text-danger" />
+                                <input id="startMinute" class="charge-range" @bind="ScheduleForm.Start" 
+                                    @bind:event="oninput" @bind:after="OnStartChanged" min="@MinMinutes" max="@MaxMinutes" step="15" type="range" />
                             </div>
-                            <div class="mt-4">
-                                <label class="form-label1">End  <i class="bi bi-clock"/></label>
-                                <div class="d-flex gap-2 align-items-center">
-                                    <ButtonSelect Options="HourOptions" @bind-Value="EndHourText" 
-                                        CssClass="time-picker" Placeholder="" />
-                                    <span>:</span>
-
-                                    <ButtonSelect Options="MinuteOptions" @bind-Value="EndMinuteText"
-                                        CssClass="time-picker" Placeholder="" />
+                        
+                            <div class="charge-slider mt-3">
+                                <div class="charge-slider-header">
+                                    <label for="startTime">End  <i class="bi bi-clock"/></label>
+                                    <span>@Format(ScheduleForm.End)</span>
                                 </div>
-                            </div>
-                            <ValidationMessage For="() => ScheduleForm.EndHour" class="text-danger" />
-                            <ValidationMessage For="() => ScheduleForm.EndMinute" class="text-danger" />
+                                <input id="endMinute" class="charge-range" @bind="ScheduleForm.End"
+                                    @bind:event="oninput" @bind:after="OnEndChanged" min="@MinMinutes" max="@MaxMinutes" step="15" type="range" />
+                            
+                            </div><br />
+
+                            <span class="charge-slider-duration">Window: @Duration</span>
+
                             @if (!string.IsNullOrEmpty(schedulingError))
                             {
                                 <div class="alert alert-danger mt-5" roles="alert">
@@ -110,37 +106,36 @@ else if (isLoading)
                                 </div>
                             }
                         </div>
-                    </div> 
-                    <div class="mb-4 col-sm-6 inboxes">
-                        <div class="mb-6 choices">
-                            <span>Priority</span><br />
-                            <label class="form-label1">Choose an option for optimization</label>
-                        </div>
-            
-                        <div class="priority-toggle @(ScheduleForm.Priority == "Greenest" ? "is-right" : "is-left")"
-                            role="radiogroup" aria-labelledby="priority-label">
-                            <span class="priority-thumb" aria-hidden="true"></span>
-
-                            <button type="button" role="radio"
-                                    class="priority-option @(ScheduleForm.Priority == "Cheapest" ? "active" : "")"
-                                    aria-checked="@(ScheduleForm.Priority == "Cheapest")"
-                                    @onclick='() => SetPriority("Cheapest")'>
-                                Cheapest
-                            </button>
-
-                            <button type="button" role="radio"
-                                    class="priority-option @(ScheduleForm.Priority == "Greenest" ? "active" : "")"
-                                    aria-checked="@(ScheduleForm.Priority == "Greenest")"
-                                    @onclick='() => SetPriority("Greenest")'>
-                                Greenest
-                            </button>
-                        </div>
-
-                        <ValidationMessage For="() => ScheduleForm.Priority" class="text-danger" />
                     </div>
-                    <div class="mb-3 d-flex justify-content-end">
-                        <button type="submit" class="btn btn-primary" disabled="@IsEditMode" title="@(IsEditMode ? "Plan regeneration will be available later" : null)">Generate Plan</button>
+                </div> 
+                <div class ="row">
+                    <div class="col-sm-6 choices mt-3">
+                        <label class="form-label1">Choose an option for optimization</label>
                     </div>
+        
+                    <div class="col-sm-6 priority-toggle @(ScheduleForm.Priority == "Greenest" ? "is-right" : "is-left")"
+                        role="radiogroup" aria-labelledby="priority-label">
+                        <span class="priority-thumb" aria-hidden="true"></span>
+
+                        <button type="button" role="radio"
+                                class="priority-option @(ScheduleForm.Priority == "Cheapest" ? "active" : "")"
+                                aria-checked="@(ScheduleForm.Priority == "Cheapest")"
+                                @onclick='() => SetPriority("Cheapest")'>
+                            Cheapest
+                        </button>
+
+                        <button type="button" role="radio"
+                                class="priority-option @(ScheduleForm.Priority == "Greenest" ? "active" : "")"
+                                aria-checked="@(ScheduleForm.Priority == "Greenest")"
+                                @onclick='() => SetPriority("Greenest")'>
+                            Greenest
+                        </button>
+                    </div>
+
+                    <ValidationMessage For="() => ScheduleForm.Priority" class="text-danger" />
+                </div>
+                <div class="mt-4 mb-2 d-flex justify-content-end">
+                    <button type="submit" class="btn btn-primary" disabled="@IsEditMode" title="@(IsEditMode ? "Plan regeneration will be available later" : null)">Generate Plan</button>
                 </div>
             </div>
         </EditForm>
@@ -245,41 +240,53 @@ else if (isLoading)
     private List<OptimizationResultDTO> optimizedIntervals = new();
     private DateTime? requestedWindowStart;
     private DateTime? requestedWindowEnd;
-    private List<int> Hours { get; set; } = new List<int>();
-    private int [] Minutes = {00, 15, 30, 45};
-    private IEnumerable<(string Value, string Text)> HourOptions =>
-    Hours.Select(h => (h.ToString(), h.ToString("D2")));
-    private IEnumerable<(string Value, string Text)> MinuteOptions =>
-    Minutes.Select(m => (m.ToString(), m.ToString("D2")));
     private string? schedulingError;
+    private int MaxMinutes = 0;
+    private int MinMinutes = 0;
+    private static string Format(int minutes)
+    {
+        var day = "";
 
-    // Convert the hour and minute picker values to and from strings.
-    private string? StartHourText
-    {
-        get => ScheduleForm.StartHour?.ToString();
-        set => ScheduleForm.StartHour =
-            int.TryParse(value, out int hour) ? hour : null;
+        if (minutes < 1440)
+        {
+            day = "Today";
+        }
+        else if (minutes < 2880)
+        {
+            day = "Tomorrow";
+        }
+        else
+        {
+            DateTime now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, CopenhagenTimeZone);
+            DateTime inTwoDays = now.AddDays(2);
+            day = inTwoDays.DayOfWeek.ToString();
+        }
+        var inDay = minutes % 1440;
+        return $"{day} {inDay / 60:00}:{inDay % 60:00}";
     }
 
-    private string? StartMinuteText
+    private void OnStartChanged()
     {
-        get => ScheduleForm.StartMinute?.ToString();
-        set => ScheduleForm.StartMinute =
-            int.TryParse(value, out int minute) ? minute : null;
-    }
-    private string? EndHourText
-    {
-        get => ScheduleForm.EndHour?.ToString();
-        set => ScheduleForm.EndHour =
-            int.TryParse(value, out int hour) ? hour : null;
+        ScheduleForm.Start = Math.Min(ScheduleForm.Start, MaxMinutes - 15);
+        if (ScheduleForm.End <= ScheduleForm.Start)
+            ScheduleForm.End = ScheduleForm.Start + 15;
     }
 
-    private string? EndMinuteText
+    private void OnEndChanged()
     {
-        get => ScheduleForm.EndMinute?.ToString();
-        set => ScheduleForm.EndMinute =
-            int.TryParse(value, out int minute) ? minute : null;
+        ScheduleForm.End = Math.Max(ScheduleForm.End, 15);
+        if (ScheduleForm.Start >= ScheduleForm.End)
+            ScheduleForm.Start = ScheduleForm.End - 15;
     }
+    private string Duration
+    {
+        get
+        {
+            var diff = ScheduleForm.End - ScheduleForm.Start;
+            return $"{diff / 60}h {diff % 60}m";
+        }
+    }
+
     private bool isInterruptible = false;
     private bool isNonInterruptible = false;
     private bool displayPlan = false;
@@ -321,10 +328,23 @@ else if (isLoading)
                 presetsByDevice[userDevice.id] = presets;
             }
 
-            int currentHour = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, CopenhagenTimeZone).Hour + 1;
-            Hours = Enumerable.Range(0, 24)
-                .Select(i => (currentHour + i) % 24)
-                .ToList();
+            DateTime now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, CopenhagenTimeZone);
+            DateTime then = now.Date;
+            int addMinutes = ((int)(now - then).TotalMinutes) % 15;
+            if (addMinutes == 0)
+            {
+                MinMinutes = (int)(now - then).TotalMinutes;
+                MaxMinutes = (int)(now - then).TotalMinutes + 2160;
+            } 
+            else
+            {
+                MinMinutes = (int)(now - then).TotalMinutes + (15-addMinutes);
+                MaxMinutes = (int)(now - then).TotalMinutes + 2160 + (15-addMinutes);
+
+            } 
+
+            ScheduleForm.Start = MinMinutes;
+            ScheduleForm.End = MaxMinutes;
 
             if (IsEditMode)
                 await LoadExistingPlanAsync();
@@ -388,12 +408,25 @@ else if (isLoading)
 
         DateTime localStart = existingPlan.windowStartTime.Value;
         DateTime localEnd = existingPlan.windowEndTime.Value;
-        ScheduleForm.StartHour = localStart.Hour;
-        ScheduleForm.StartMinute = localStart.Minute;
-        ScheduleForm.EndHour = localEnd.Hour;
-        ScheduleForm.EndMinute = localEnd.Minute;
-        Minutes = Minutes.Concat(new[] { localStart.Minute, localEnd.Minute })
-            .Distinct().OrderBy(minute => minute).ToArray();
+        DateTime now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, CopenhagenTimeZone);
+        DateTime midnight = now.Date;
+
+        ScheduleForm.Start = (int)(localStart - midnight).TotalMinutes;
+        ScheduleForm.End = (int)(localEnd - midnight).TotalMinutes;
+
+
+        if (localStart < now)
+        {
+            ScheduleForm.Start = (int)(now - midnight).TotalMinutes;
+
+            int remainder = ((int)(now - midnight).TotalMinutes) % 15;
+
+            if (remainder != 0)
+            {
+                ScheduleForm.Start = (int)(now - midnight).TotalMinutes + (15 - remainder);
+            }
+
+        }
 
         if (isInterruptible)
         {
@@ -418,8 +451,8 @@ else if (isLoading)
         optimizedIntervals = new List<OptimizationResultDTO>
         {
             new OptimizationResultDTO(
-                existingPlan.startTime,
-                existingPlan.endTime,
+                TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(existingPlan.startTime, DateTimeKind.Unspecified), CopenhagenTimeZone),
+                TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(existingPlan.endTime, DateTimeKind.Unspecified), CopenhagenTimeZone),
                 existingPlan.estimatedCost,
                 existingPlan.estimatedCo2Emissions)
         };
@@ -459,10 +492,10 @@ else if (isLoading)
         isInterruptible = selectedDevice?.category == "Interruptible";
 
         isNonInterruptible = selectedDevice is not null && !isInterruptible;
-        
+
         selectedPresetId = null;
         ScheduleForm.Preset = isInterruptible ? filteredPresets.FirstOrDefault() : new PresetDto();
-        ScheduleForm.ChargeStopPercentage = null;
+        ScheduleForm.ChargeStopPercentage = isInterruptible ? 50 : null;
     }
 
     // Store the preset selected from the filtered list.
@@ -478,15 +511,11 @@ else if (isLoading)
     }
 
     // Resolve a selected clock time to today or tomorrow in Copenhagen.
-    private DateTime GetScheduledDateTime(int hour, int minute)
+    private DateTime GetScheduledDateTime(int minute)
     {
         DateTime now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, CopenhagenTimeZone);
-        DateTime scheduledTime = now.Date.AddHours(hour).AddMinutes(minute);
+        DateTime scheduledTime = now.Date.AddMinutes(minute);
 
-        if (scheduledTime < now)
-        {
-            scheduledTime = scheduledTime.AddDays(1);
-        }
         return scheduledTime;
     }
     // Request an optimized plan and show its result in the overview.
@@ -498,13 +527,15 @@ else if (isLoading)
         schedulingError = null;
         if (isNonInterruptible && (ScheduleForm.Preset?.id ?? 0) <= 0)
         {
-            schedulingError = "Select a device preset before generating a plan.";
+            NotificationService.ErrorNotification($"Select a device preset before generating a plan.");    
+            // schedulingError = "Select a device preset before generating a plan.";
             return;
         }
 
         if (isInterruptible && ScheduleForm.ChargeStopPercentage is null)
         {
-            schedulingError = "Select a charge percentage before generating a plan.";
+            NotificationService.ErrorNotification($"Select a charge percentage before generating a plan.");    
+            // schedulingError = "Select a charge percentage before generating a plan.";
             return;
         }
 
@@ -512,19 +543,19 @@ else if (isLoading)
         displayPlan = false;
         requestedWindowStart = null;
         requestedWindowEnd = null;
-        DateTime startTime = GetScheduledDateTime(ScheduleForm.StartHour!.Value, ScheduleForm.StartMinute!.Value);
-        DateTime endTime = GetScheduledDateTime(ScheduleForm.EndHour!.Value, ScheduleForm.EndMinute!.Value);
 
-        if (endTime <= startTime)
-        {
-            endTime = endTime.AddDays(1);
-        }
+        DateTime startTime = GetScheduledDateTime(ScheduleForm.Start);
+        DateTime endTime = GetScheduledDateTime(ScheduleForm.End);
+
+        Console.WriteLine($"Start time: {startTime}");
+        Console.WriteLine($"End time: {endTime}");
 
         int timeWindow = (int)(endTime - startTime).TotalMinutes;
 
         if (ScheduleForm.Preset != null && ScheduleForm.Preset.duration > timeWindow)
         {
-            schedulingError = $"The selected program requires {ScheduleForm.Preset.duration} minutes.";
+            NotificationService.ErrorNotification($"The selected program requires {ScheduleForm.Preset.duration} minutes.");    
+            // schedulingError = $"The selected program requires {ScheduleForm.Preset.duration} minutes.";
             return;
         }
 
@@ -532,10 +563,13 @@ else if (isLoading)
         {
             requestedWindowStart = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(startTime, DateTimeKind.Unspecified), CopenhagenTimeZone);
             requestedWindowEnd = TimeZoneInfo.ConvertTimeToUtc(DateTime.SpecifyKind(endTime, DateTimeKind.Unspecified), CopenhagenTimeZone);
+            Console.WriteLine($"Start time: {requestedWindowStart}");
+            Console.WriteLine($"End time: {requestedWindowEnd}");
         }
         catch (ArgumentException)
         {
-            schedulingError = "The selected time does not exist on this date. Choose another time.";
+            NotificationService.ErrorNotification($"The selected time does not exist on this date. Choose another time.");    
+            // schedulingError = "The selected time does not exist on this date. Choose another time.";
             return;
         }
 
@@ -558,7 +592,8 @@ else if (isLoading)
 
             if (!result.IsSuccessStatusCode)
             {
-                schedulingError = $"Optimization failed: {await result.Content.ReadAsStringAsync()}";
+                NotificationService.ErrorNotification($"Optimization failed: {await result.Content.ReadAsStringAsync()}");    
+                // schedulingError = $"Optimization failed: {await result.Content.ReadAsStringAsync()}";
                 return;
             }
 
@@ -572,11 +607,20 @@ else if (isLoading)
 
             if (optimizedIntervals.Count == 0)
             {
-                schedulingError = "The optimizer returned no charging intervals.";
+                NotificationService.ErrorNotification($"The optimizer returned no charging intervals.");    
+                // schedulingError = "The optimizer returned no charging intervals.";
                 return;
             }
 
             displayPlan = true;
+
+            string planName = string.IsNullOrWhiteSpace(ScheduleForm.PlanName)
+            ? ScheduleForm.DeviceName
+            : ScheduleForm.PlanName.Trim();
+
+            NotificationService.SuccessNotification($"An optimized schedule for \"{planName}\" was succesfully created.");
+
+
 
             Logger.LogInformation(
                 "Optimization worked. Received {Count} intervals.",
@@ -584,12 +628,14 @@ else if (isLoading)
         }
         catch (Exception e)
         {
-            schedulingError = $"Error with optimization: {e.Message}";
+            NotificationService.ErrorNotification($"Error with optimization: {e.Message}");    
+            // schedulingError = $"Error with optimization: {e.Message}";
             Logger.LogError(e, "Optimization failed");
         }
 
         await Task.CompletedTask;
         return ;
+
     }
 
     // Save the generated plan and its form values through the API.
@@ -603,7 +649,8 @@ else if (isLoading)
             requestedWindowStart is null ||
             requestedWindowEnd is null)
         {
-            schedulingError = "No optimized plans are available to save.";
+            NotificationService.ErrorNotification($"No optimized plans are available to save.");    
+            // schedulingError = "No optimized plans are available to save.";
             return;
         }
 
@@ -667,9 +714,10 @@ else if (isLoading)
                 if (!result.IsSuccessStatusCode)
                 {
                     string error = await result.Content.ReadAsStringAsync();
+                    NotificationService.ErrorNotification($"Error with adding the plan: {error}");    
 
-                    schedulingError =
-                        $"Failed to save a charging interval: {error}";
+                    // schedulingError =
+                    //     $"Failed to save a charging interval: {error}";
 
                     return;
                 }
@@ -679,16 +727,19 @@ else if (isLoading)
 
                 if (savedPlan?.planId is not int savedId || savedId <= 0)
                 {
-                    schedulingError =
-                        "The API did not return a valid saved plan ID.";
+                    NotificationService.ErrorNotification($"The API did not return a valid saved plan ID");    
+                    // schedulingError =
+                    //     "The API did not return a valid saved plan ID.";
 
                     return;
                 }
 
                 if (savedPlan.nextPlanId != nextPlanId)
                 {
-                    schedulingError =
-                        "The API did not preserve the NextPlanId link.";
+                    NotificationService.ErrorNotification($"The API did not preserve the NextPlanId link.");    
+
+                    // schedulingError =
+                    //     "The API did not preserve the NextPlanId link.";
 
                     return;
                 }
@@ -717,12 +768,13 @@ else if (isLoading)
         }
         catch (Exception ex)
         {
+            NotificationService.ErrorNotification($"Error with saving optimized plan: {ex.Message}");    
             Logger.LogError(ex, "Failed to save optimized plans");
-            schedulingError = $"Error saving plans: {ex.Message}";
+            // schedulingError = $"Error saving plans: {ex.Message}";
         }
     }
-
     private Task SubmitPlan() => IsEditMode ? UpdatePlanAsync() : addPlan();
+
 
     private async Task UpdatePlanAsync()
     {
@@ -730,23 +782,24 @@ else if (isLoading)
             return;
 
         schedulingError = null;
-        if (!int.TryParse(selectedDeviceId, out int deviceId) ||
-            ScheduleForm.StartHour is null || ScheduleForm.StartMinute is null ||
-            ScheduleForm.EndHour is null || ScheduleForm.EndMinute is null)
+        if (!int.TryParse(selectedDeviceId, out int deviceId))
         {
-            schedulingError = "Select a device and scheduling window.";
+            NotificationService.ErrorNotification($"Select a device and scheduling window.");    
+            // schedulingError = "Select a device and scheduling window.";
             return;
         }
 
         if (isNonInterruptible && (ScheduleForm.Preset?.id ?? 0) <= 0)
         {
-            schedulingError = "Select a device preset before updating.";
+            NotificationService.ErrorNotification($"Select a device preset before updating.");    
+            // schedulingError = "Select a device preset before updating.";
             return;
         }
 
         if (isInterruptible && ScheduleForm.ChargeStopPercentage is null)
         {
-            schedulingError = "Select a charge percentage before updating.";
+            NotificationService.ErrorNotification($"Select a charge percentage before updating.");    
+            // schedulingError = "Select a charge percentage before updating.";
             return;
         }
 
@@ -755,23 +808,29 @@ else if (isLoading)
             : ScheduleForm.PlanName.Trim();
         if (planName.Length > 100)
         {
-            schedulingError = "The plan name cannot exceed 100 characters.";
+            NotificationService.ErrorNotification($"The plan name cannot exceed 100 characters.");    
+            // schedulingError = "The plan name cannot exceed 100 characters.";
             return;
         }
 
         DateTime localOriginalStart = existingPlan.windowStartTime!.Value;
+        DateTime baseTime = localOriginalStart.Date;
         DateTime localStart = DateTime.SpecifyKind(localOriginalStart.Date
-            .AddHours(ScheduleForm.StartHour.Value)
-            .AddMinutes(ScheduleForm.StartMinute.Value), DateTimeKind.Unspecified);
+            .AddMinutes(ScheduleForm.Start), DateTimeKind.Unspecified);
         DateTime localEnd = DateTime.SpecifyKind(localStart.Date
-            .AddHours(ScheduleForm.EndHour.Value)
-            .AddMinutes(ScheduleForm.EndMinute.Value), DateTimeKind.Unspecified);
-        if (localEnd <= localStart)
-            localEnd = localEnd.AddDays(1);
+            .AddMinutes(ScheduleForm.End), DateTimeKind.Unspecified);
+
+
+        if (ScheduleForm.Preset != null && (localEnd - localStart).TotalMinutes < ScheduleForm.Preset.duration)
+        {
+            NotificationService.ErrorNotification($"The scheduling window is not large enough for the duration of the plan.");    
+            return;
+        }
 
         if (CopenhagenTimeZone.IsInvalidTime(localStart) || CopenhagenTimeZone.IsInvalidTime(localEnd))
         {
-            schedulingError = "The selected time does not exist on this date. Choose another time.";
+            NotificationService.ErrorNotification($"The selected time does not exist on this date. Choose another time.");    
+            // schedulingError = "The selected time does not exist on this date. Choose another time.";
             return;
         }
 
@@ -803,14 +862,16 @@ else if (isLoading)
             using HttpResponseMessage result = await Http.SendAsync(request);
             if (!result.IsSuccessStatusCode)
             {
-                schedulingError = $"The plan could not be updated: {await result.Content.ReadAsStringAsync()}";
+                NotificationService.ErrorNotification($"The plan could not be updated: {await result.Content.ReadAsStringAsync()}");    
+                // schedulingError = $"The plan could not be updated: {await result.Content.ReadAsStringAsync()}";
                 return;
             }
 
             PlanDTO? savedPlan = await result.Content.ReadFromJsonAsync<PlanDTO>();
             if (savedPlan?.planId != editingPlanId)
             {
-                schedulingError = "The server returned a different plan after the update. Please reload before editing again.";
+                NotificationService.ErrorNotification($"The server returned a different plan after the update. Please reload before editing again.");    
+                // schedulingError = "The server returned a different plan after the update. Please reload before editing again.";
                 Logger.LogWarning("Updated plan ID mismatch: requested {PlanId}, received {ReturnedPlanId}",
                     editingPlanId, savedPlan?.planId);
                 return;
@@ -825,23 +886,25 @@ else if (isLoading)
         }
         catch (Exception exception)
         {
-            schedulingError = $"The plan could not be updated: {exception.Message}";
+            NotificationService.ErrorNotification($"The plan could not be updated: {exception.Message}");    
+            // schedulingError = $"The plan could not be updated: {exception.Message}";
         }
     }
+    
+    
 }
 
 <style>
+    
     .form-label-down {
         text-indent: 4px;
 
     }
     .form-label1 {
-        color: #98938d;
-        font-size: 0.9rem;
+        font-size: 1.1rem;
     }
 
     .choices span {
-        color: #98938d;
         font-size: 1.2rem;
     }
 
@@ -869,9 +932,8 @@ else if (isLoading)
     }
 
     .boxes {
-        padding: 24px 40px;
-        margin-bottom: 24px;
-        font-family: Arial, sans-serif;
+        padding: 10px 30px;
+        margin-bottom: 12px;
         background: #fff;
         border: 1px solid #e5e2dc;
         border-radius: 0.9rem;
@@ -981,8 +1043,7 @@ else if (isLoading)
     }
 
     .form-label {
-        font-weight: 100;
-        color: #98938d;
+        font-weight: 400;
     }
 
     .priority-toggle {
@@ -991,7 +1052,8 @@ else if (isLoading)
         padding: 4px;
         background: #f1f3f5;
         border-radius: 14px;
-        margin-top: 26px;
+        margin-top: 4px;
+        max-height: 66px;
     }
 
     .priority-thumb {
@@ -1047,7 +1109,7 @@ else if (isLoading)
     }
 
     .charge-slider + .charge-slider {
-        margin-top: 24px;
+        margin-top: 12px;
         padding-top: 20px;
         border-top: 1px solid #f0f0f0;
     }
@@ -1250,6 +1312,7 @@ else if (isLoading)
             display: flex;
             margin-top: 1rem;
             width: 100%;
+            height: 22px;
         }
 
         .plan-form .priority-option {
@@ -1306,5 +1369,18 @@ else if (isLoading)
             width: 100%;
         }
 
+    }
+
+    .charge-slider-ticks {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.75rem;
+        color: #6c757d;
+        margin-top: 0.25rem;
+    }
+
+    .charge-slider-duration {
+        font-size: 0.8rem;
+        color: #6c757d;
     }
 </style>
