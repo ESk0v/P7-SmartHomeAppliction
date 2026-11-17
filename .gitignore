@@ -38,3 +38,6 @@ CoverageReport/
 **/CoverageReport/
 lcov.info
 **/lcov.info
+
+#optimization
+Optimisation/
