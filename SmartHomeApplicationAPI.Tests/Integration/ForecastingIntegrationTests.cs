@@ -33,20 +33,21 @@ public class ForecastingIntegrationTests : IClassFixture<CustomWebApplicationFac
         // Arrange
         using var scope = _factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<SmartHomeDbContext>();
-        await CleanPredictionsAsync(dbContext);
-        
-        // Act
         var forecastingService = scope.ServiceProvider.GetRequiredService<IForecastingService>();
-        var forecast = await forecastingService.GenerateForecastForAreaAsync("DK1", 4);
+        await CleanPredictionsAsync(dbContext);
 
         var targetDate = ForecastDate;
         var startTime = targetDate.AddHours(10);
         var endTime = targetDate.AddHours(10).AddMinutes(45);
+        
+        // Act
+        var forecast = await forecastingService.GenerateForecastForAreaAsync("DK1", 4);
+
+        // Assert
         var savedPrices = await dbContext.Electricity
             .Where(e => e.IsPredicted && e.Time <= endTime && e.Time >= startTime)
             .ToListAsync();
-
-        // Assert
+        
         Assert.NotNull(forecast);
         Assert.Equal("DK1", forecast!.PriceArea);
         Assert.Equal(4, forecast.Predictions.Count);
@@ -59,6 +60,7 @@ public class ForecastingIntegrationTests : IClassFixture<CustomWebApplicationFac
         // Arrange
         using var scope = _factory.Services.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<SmartHomeDbContext>();
+        var forecastingService = scope.ServiceProvider.GetRequiredService<IForecastingService>();
         await CleanPredictionsAsync(dbContext);
 
         dbContext.Electricity.Add(new Electricity
@@ -71,7 +73,6 @@ public class ForecastingIntegrationTests : IClassFixture<CustomWebApplicationFac
         await dbContext.SaveChangesAsync();
 
         // Act
-        var forecastingService = scope.ServiceProvider.GetRequiredService<IForecastingService>();
         var forecast = await forecastingService.GenerateForecastForAreaAsync("EMP", 4);
 
         // Assert
