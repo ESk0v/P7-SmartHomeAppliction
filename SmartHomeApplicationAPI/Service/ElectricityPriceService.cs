@@ -22,7 +22,8 @@ public class ElectricityPriceService : IElectricityPriceService
             .GroupBy(r => new DateTime(r.Hour.Year, r.Hour.Month, r.Hour.Day, r.Hour.Hour, 0, 0))
             .Select(g => new HourPriceDto(
                 g.Key,
-                g.Average(r => r.Price)))
+                g.Average(r => r.Price),
+                g.Any(r => r.IsPredicted)))
             .OrderBy(r => r.Hour)
             .ToList();
     }
