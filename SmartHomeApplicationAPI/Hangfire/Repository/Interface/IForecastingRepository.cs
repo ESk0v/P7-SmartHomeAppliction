@@ -1,6 +1,6 @@
 using Utilities.Models;
 
-namespace SmartHomeApplicationAPI.Repository;
+namespace SmartHomeApplicationAPI.Hangfire.Repository;
 
 public interface IForecastingRepository
 {
