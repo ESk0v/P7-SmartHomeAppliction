@@ -393,23 +393,11 @@
         gap: 0.5rem;
     }
 
-    @@media (max-width: 640.98px) {
-        .header {
-            align-items: flex-start;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-
-        .header-actions {
-            width: 100%;
-        }
-    }
-
     .appliance-layout {
-    display: grid;
-    grid-template-columns: 340px 1fr;
-    gap: 1.5rem;
-    align-items: start;
+        display: grid;
+        grid-template-columns: 340px 1fr;
+        gap: 1.5rem;
+        align-items: start;
     }
 
     .device-list {
@@ -423,25 +411,25 @@
 
     .device-item.active {
         background: #e9e8fb;
-        box-shadow: inset -3px 0 0 #7b6ee6;   
+        box-shadow: inset -3px 0 0 #7b6ee6;
     }
 
     .device-icon {
-    width: 44px; height: 44px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1.25rem;
-    flex-shrink: 0;
+        width: 44px; height: 44px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.25rem;
+        flex-shrink: 0;
     }
 
     .device-name { font-weight: 600; }
 
-    .device-detail {    
+    .device-detail {
         background: #fff;
         border-radius: 1rem;
         border: 1px solid #e5e5e5;
         padding: 2rem;
     }
-    
+
     .icon-picker { display: flex; flex-wrap: wrap; gap: .5rem; }
 
     .icon-option {
@@ -464,56 +452,107 @@
     @@media (max-width: 991.98px) {
         .appliance-layout { grid-template-columns: 1fr; }
     }
-    
-.device-item {
-    display: flex;
-    align-items: stretch;
-    border-bottom: 1px solid #eee;
-}
 
-.device-main {
-    flex: 1;
-    display: flex;
-    gap: 1rem;
-    align-items: center;
-    padding: 1rem;
-    background: none;
-    border: 0;
-    text-align: left;
-}
+    .device-item {
+        display: flex;
+        align-items: stretch;
+        border-bottom: 1px solid #eee;
+    }
 
-.device-expand {
-    display: flex;
-    align-items: center;
-    gap: .4rem;
-    padding: 0 1rem;
-    background: none;
-    border: 0;
-    color: #888;
-}
-.device-expand:hover { color: #7b6ee6; }
+    .device-main {
+        flex: 1;
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        padding: 1rem;
+        background: none;
+        border: 0;
+        text-align: left;
+    }
 
-.preset-count {
-    font-size: .75rem;
-    background: #ececf2;
-    border-radius: 999px;
-    padding: .1rem .5rem;
-}
+    .device-expand {
+        display: flex;
+        align-items: center;
+        gap: .4rem;
+        padding: 0 1rem;
+        background: none;
+        border: 0;
+        color: #888;
+    }
+    .device-expand:hover { color: #7b6ee6; }
 
-.preset-list { background: #fafafd; border-bottom: 1px solid #eee; }
+    .preset-count {
+        font-size: .75rem;
+        background: #ececf2;
+        border-radius: 999px;
+        padding: .1rem .5rem;
+    }
 
-.preset-item, .preset-add {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-    padding: .55rem 1rem .55rem 4.25rem;
-    background: none;
-    border: 0;
-    text-align: left;
-    font-size: .9rem;
-}
-.preset-item:hover, .preset-add:hover { background: #f1f0fb; }
-.preset-item.active { background: #e9e8fb; }
-.preset-add { color: #7b6ee6; justify-content: flex-start; gap: .25rem; }
+    .preset-list { background: #fafafd; border-bottom: 1px solid #eee; }
+
+    .preset-item, .preset-add {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        padding: .55rem 1rem .55rem 4.25rem;
+        background: none;
+        border: 0;
+        text-align: left;
+        font-size: .9rem;
+    }
+    .preset-item:hover, .preset-add:hover { background: #f1f0fb; }
+    .preset-item.active { background: #e9e8fb; }
+    .preset-add { color: #7b6ee6; justify-content: flex-start; gap: .25rem; }
+
+    @@media (max-width: 640.98px), (max-width: 960px) and (max-height: 500px) and (pointer: coarse) {
+        .appliance-layout {
+            grid-template-columns: minmax(0, 1fr);
+            gap: 1rem;
+        }
+
+        .appliance-layout .device-list,
+        .appliance-layout .device-detail,
+        .appliance-layout .device-main {
+            min-width: 0;
+        }
+
+        .appliance-layout .device-detail {
+            padding: 1rem;
+            overflow-wrap: anywhere;
+        }
+
+        .appliance-layout .device-main {
+            gap: 0.5rem;
+            padding: 0.75rem;
+        }
+
+        .appliance-layout .device-name {
+            min-width: 0;
+            overflow-wrap: anywhere;
+        }
+
+        .appliance-layout .device-expand {
+            min-width: 44px;
+            padding: 0 0.75rem;
+        }
+
+        .appliance-layout .preset-item,
+        .appliance-layout .preset-add {
+            min-height: 44px;
+            padding-left: 1rem;
+            overflow-wrap: anywhere;
+        }
+
+        .appliance-layout .device-detail .mt-4 {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .appliance-layout .device-detail .mt-4 > .btn {
+            flex: 1 1 auto;
+        }
+
+    }
 </style>
