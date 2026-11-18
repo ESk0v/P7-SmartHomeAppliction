@@ -15,7 +15,6 @@ public class ForecastingService : IForecastingService
         _httpClient = httpClient;
     }
 
-    // Method implemtentation here
     public async Task<ForecastingResponseDto> GenerateForecastForAreaAsync(string priceArea, int stepsAhead = 96)
     {
         priceArea = priceArea.ToUpperInvariant();

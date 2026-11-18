@@ -8,6 +8,7 @@ using SmartHomeApplicationAPI.Hangfire.Services;
 
 namespace SmartHomeApplicationAPI.Tests.Integration;
 
+// IClassFixture makes sure to only create one instance of the CustomWeb
 public class ForecastingIntegrationTests : IClassFixture<CustomWebApplicationFactory<Program>>
 {
     private readonly CustomWebApplicationFactory<Program> _factory;
@@ -28,7 +29,7 @@ public class ForecastingIntegrationTests : IClassFixture<CustomWebApplicationFac
     }
 
     [Fact]
-    public async Task Post_ForecastedPrices_ReturnsOk()
+    public async Task GenerateForecastForAreaAsync_WhenValidData_SavesPredictionsToDatabase()
     {
         // Arrange
         using var scope = _factory.Services.CreateScope();

@@ -84,9 +84,8 @@ namespace SmartHomeApplicationAPI.Tests.Controller
                 PasswordConfirm = "password123",
                 DisplayName = "LasseTest"
             };
-            var user = new User { DisplayName = request.Username };
 
-            _mockUserManager.Setup(u => u.CreateAsync(It.IsAny<User>(), request.Password)).ReturnsAsync(IdentityResult.Failed(new IdentityError { Description = "bad" }));
+            _mockUserManager.Setup(u => u.CreateAsync(It.IsAny<User>(), request.Password)).ReturnsAsync(IdentityResult.Failed());
 
             // Act
             var result = await _controller.Register(request, CancellationToken.None);
