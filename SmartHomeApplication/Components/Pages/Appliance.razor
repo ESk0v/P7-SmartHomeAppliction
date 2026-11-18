@@ -37,7 +37,11 @@
 
     <div class="device-group">
         <div class="device-item @(selected?.Id == device.Id ? "active" : "")">
-            <button type="button" class="device-main" aria-pressed="@(selected?.Id == device.Id ? "true" : "false")" @onclick="() => Select(device)">
+            <button type="button" class="device-main" aria-pressed="@(selected?.Id == device.Id ? "true" : "false")"
+                    aria-label="@(device.Category != "Interruptible" ? $"{device.Nickname}, {device.Presets.Count} presets" : null)"
+                    aria-expanded="@(device.Category != "Interruptible" ? (isExpanded ? "true" : "false") : null)"
+                    aria-controls="@(isExpanded && device.Category != "Interruptible" ? $"presets-{device.Id}" : null)"
+                    @onclick="() => SelectDevice(device)">
                 <div class="device-icon" style="color: @device.Color;">
                     <i aria-hidden="true" class="bi @ScheduleIcons.Get(device.Icon)"></i>
                 </div>
@@ -46,11 +50,10 @@
 
             @if (device.Category != "Interruptible")
             {
-                <button type="button" class="device-expand" aria-label="@($"{device.Presets.Count} presets for {device.Nickname}")" aria-expanded="@(isExpanded ? "true" : "false")" aria-controls="@($"presets-{device.Id}")"
-                        @onclick="() => ToggleExpand(device.Id)">
+                <div class="device-expand" aria-hidden="true">
                     <span class="preset-count">@device.Presets.Count</span>
                     <i aria-hidden="true" class="bi @(isExpanded ? "bi-chevron-up" : "bi-chevron-down")"></i>
-                </button>
+                </div>
             }
         </div>
 
@@ -206,17 +209,11 @@
     {
         userdevices = (await DeviceService.GetUserDevicesAsync()).ToList();
         if (userdevices.Count > 0) {
-            Select(userdevices.First());
+            SelectDevice(userdevices.First());
         }       
     }
 
     private HashSet<int> expandedIds = new();
-
-    private void ToggleExpand(int deviceId)
-    {
-        if (!expandedIds.Remove(deviceId))
-            expandedIds.Add(deviceId);
-    }
 
     private void OpenPreset(UserDeviceDto device, PresetDeviceDto preset)
     {
@@ -245,6 +242,17 @@
             BatteryCapacityInKwh = device.BatteryCapacityInKwh,
             ConsumptionInKwh = device.ConsumptionInKwh,
         };  
+    }
+
+    private void SelectDevice(UserDeviceDto device)
+    {
+        bool wasExpanded = expandedIds.Contains(device.Id);
+        expandedIds.Clear();
+
+        if (device.Category != "Interruptible" && !wasExpanded)
+            expandedIds.Add(device.Id);
+
+        Select(device);
     }
 
     private void EditPreset(PresetDeviceDto preset)
