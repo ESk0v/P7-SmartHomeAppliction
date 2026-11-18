@@ -7,7 +7,7 @@ namespace SmartHomeApplicationAPI.DTOs.Optimization
     {
         public DateTime StartTime { get; set; }
 
-        public List<double> Prices { get; set; } = [];          // c_t, DKK/kWh
+        public List<double> Prices { get; set; } = [];          // c_t, DKK/kWh (Cheapest) or kg CO2/kWh (Greenest)
 
         public List<double> BaseLoad { get; set; } = [];        // P_base_t, kW
 

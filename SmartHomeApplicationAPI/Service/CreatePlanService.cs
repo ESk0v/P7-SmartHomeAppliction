@@ -65,7 +65,33 @@ public class CreatePlanService : ICreatePlanService
 
         var end = request.EndWindow.ToUniversalTime();
 
-        var prices = await _repository.GetElectricityPricesAsync(request.Area, start, end);
+        // One day of history before start, so missing CO2 can be filled from the day before
+        var slots = await _repository.GetEnergySlotsAsync(request.Area, start.AddDays(-1), end);
+        var historyCount = slots.Count(s => s.Time < start);
+
+        var co2WithHistory = slots.Select(s => s.Co2GramsPerKwh).ToList();
+        var missingCo2 = co2WithHistory.Skip(historyCount).Count(g => g is null);
+        Co2Fill.SeasonalNaive(slots.Select(s => s.Time).ToList(), co2WithHistory);
+
+        var prices = slots.Skip(historyCount).Select(s => s.Price).ToList();     // DKK/kWh
+        var horizonCo2 = co2WithHistory.Skip(historyCount).ToList();             // g/kWh
+        var unknownCo2 = horizonCo2.Count(g => g is null);
+
+        _logger.LogInformation(
+            "CO2: {Filled} of {Total} quarter-hours estimated (seasonal naive)",
+            missingCo2 - unknownCo2, prices.Count);
+
+        if (unknownCo2 > 0)
+        {
+            if (request.Priority == "Greenest")
+                throw new ValidationException("No CO2 data is available for this period.");
+
+            _logger.LogWarning(
+                "CO2: {Unknown} of {Total} quarter-hours have no CO2 value; they count as 0 g",
+                unknownCo2, prices.Count);
+        }
+
+        var co2 = horizonCo2.Select(g => g ?? 0).ToList();
 
         var devicePresets = await _repository.GetDevicesWithPresetsAsync(request.UserDeviceId);
         var userDeviceIds = devicePresets.Select(x => x.Device.id).Distinct().ToList();
@@ -159,7 +185,9 @@ public class CreatePlanService : ICreatePlanService
         var solverReq = new SolverReqDTO
         {
             StartTime = start,
-            Prices = prices,
+            Prices = request.Priority == "Greenest"
+                ? co2.Select(g => g / 1000.0).ToList()                              // kg/kWh, keeps the EV penalty dominant
+                : prices,
             BaseLoad = Enumerable.Repeat(0.5, prices.Count).ToList(),
             FuseLimit = 15.0,
             Loads = loads
@@ -213,11 +241,23 @@ public class CreatePlanService : ICreatePlanService
         {
             var item = app.Value;
 
+            // Price and CO2 from the scheduled profile (kWh per step); the solver's cost is in the objective's unit
+            var startStep = item.GetProperty("start_step").GetInt32();
+            var appProfile = requestedLoad?.PowerProfile ?? [];
+            decimal appCost = 0m;
+            decimal appCo2 = 0m;
+
+            for (int i = 0; i < appProfile.Count && startStep + i < prices.Count; i++)
+            {
+                appCost += (decimal)appProfile[i] * (decimal)prices[startStep + i];
+                appCo2 += (decimal)appProfile[i] * (decimal)co2[startStep + i];
+            }
+
             results.Add(new OptimizationResultDTO(
                 item.GetProperty("start_time").GetDateTime().ToUniversalTime(),
                 item.GetProperty("end_time").GetDateTime().ToUniversalTime(),
-                Math.Round(item.GetProperty("cost").GetDecimal(), 2),
-                20m
+                Math.Round(appCost, 2),
+                Math.Round(appCo2)
             ));
 
             return results;
@@ -255,6 +295,7 @@ public class CreatePlanService : ICreatePlanService
                 int to = t;
 
                 decimal intervalCost = 0m;
+                decimal intervalCo2 = 0m;
 
                 for (int i = from; i < to; i++)
                 {
@@ -262,13 +303,17 @@ public class CreatePlanService : ICreatePlanService
                         (decimal)powers[i] *
                         0.25m *
                         (decimal)prices[i];
+                    intervalCo2 +=
+                        (decimal)powers[i] *
+                        0.25m *
+                        (decimal)co2[i];
                 }
 
                 results.Add(new OptimizationResultDTO(
                     start.AddMinutes(from * 15),
                     start.AddMinutes(to * 15),
                     Math.Round(intervalCost, 2),
-                    20m
+                    Math.Round(intervalCo2)
                 ));
 
                 chargingStart = null;

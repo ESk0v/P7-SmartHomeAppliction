@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SmartHomeApplicationAPI.Infrastructure;
 using SmartHomeApplicationAPI.Infrastructure.Models;
+using SmartHomeApplicationAPI.DTOs.Optimization;
 using Utilities.Models;
 
 namespace SmartHomeApplicationAPI.Repository;
@@ -116,7 +117,7 @@ public class CreatePlanRepository : ICreatePlanRepository
     }
 
 #region Optimization
-    public async Task<List<double>> GetElectricityPricesAsync(string area, DateTime from, DateTime to)
+    public async Task<List<EnergySlot>> GetEnergySlotsAsync(string area, DateTime from, DateTime to)
     {
         // "time" is timestamp WITHOUT time zone, and Npgsql rejects parameters with Kind=Utc for that type
         var fromUnspecified = DateTime.SpecifyKind(from, DateTimeKind.Unspecified);
@@ -126,7 +127,10 @@ public class CreatePlanRepository : ICreatePlanRepository
             .AsNoTracking()
             .Where(p => p.PriceArea == area && p.Time >= fromUnspecified && p.Time < toUnspecified)
             .OrderBy(p => p.Time)
-            .Select(p => (double)p.PricePerKwh)
+            .Select(p => new EnergySlot(
+                p.Time,
+                (double)p.PricePerKwh,
+                (double?)p.Co2EmissionGramsPerKwh))
             .ToListAsync();
     }
 
