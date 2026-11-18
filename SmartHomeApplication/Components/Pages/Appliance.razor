@@ -210,7 +210,7 @@
     {
         userdevices = (await DeviceService.GetUserDevicesAsync()).ToList();
         if (userdevices.Count > 0) {
-            Select(userdevices.First());
+            SelectDevice(userdevices.First());
         }       
     }
 
