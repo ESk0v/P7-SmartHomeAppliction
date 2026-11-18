@@ -1,0 +1,20 @@
+@inject IJSRuntime JS
+
+<button type="button" class="chart-data-button" @onclick="Open">View chart data<span class="visually-hidden">: @Title</span></button>
+<dialog @ref="dialog" class="data-dialog" aria-labelledby="@titleId">
+    <div class="data-dialog-heading">
+        <h2 id="@titleId">@Title</h2>
+        <button type="button" class="btn btn-outline-secondary" autofocus @onclick="Close">Close</button>
+    </div>
+    @ChildContent
+</dialog>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = "Chart data";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    private readonly string titleId = $"chart-data-{Guid.NewGuid():N}";
+    private ElementReference dialog;
+    private async Task Open() => await JS.InvokeVoidAsync("smartHomeAccessibility.openDialog", dialog);
+    private async Task Close() => await JS.InvokeVoidAsync("smartHomeAccessibility.closeDialog", dialog);
+}
+

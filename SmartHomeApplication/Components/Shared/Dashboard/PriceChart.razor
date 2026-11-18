@@ -5,11 +5,36 @@
 @using System.Globalization
 
 @namespace Shared.Dashboard
-<div class="chart-card" style="@ZeroLineStyle">
+<section class="chart-card" style="@ZeroLineStyle" aria-label="Price forecast and schedule">
     <div class="chart-content">
         <div class="chart-header">
-            <span class="chart-title">Price forecast and schedule</span>
-            <div class="legend-container">
+            <div class="chart-title-group">
+                <h2 class="chart-title">Price forecast and schedule</h2>
+                <DataDialog Title="Price forecast and schedule">
+                    <p>Hourly electricity prices in kr/kWh. The chart displays up to 7 kr/kWh; exact values, including negative and higher prices, are listed here.</p>
+                    <table class="table">
+                        <caption>Prices and schedules for the displayed hours</caption>
+                        <thead><tr><th scope="col">Date and time</th><th scope="col">Price (kr/kWh)</th><th scope="col">Source</th><th scope="col">Schedules</th></tr></thead>
+                        <tbody>
+                            @foreach (HourPriceDto price in prices)
+                            {
+                                <tr><th scope="row">@price.Hour.ToString("ddd d MMM yyyy HH:mm")</th><td>@price.Price.ToString("0.####")</td><td>@(price.IsPredicted ? "Predicted" : "Published")</td><td>@string.Join(", ", GetSchedulesForHour(price.Hour).Select(plan => plan.planName).Distinct())</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                    <table class="table">
+                        <caption>All schedule blocks, including linked intervals</caption>
+                        <thead><tr><th scope="col">Plan</th><th scope="col">Device</th><th scope="col">Start</th><th scope="col">End</th></tr></thead>
+                        <tbody>
+                            @foreach (PlanDto plan in activeSchedules.OrderBy(plan => plan.startTime))
+                            {
+                                <tr><th scope="row">@plan.planName</th><td>@plan.deviceName</td><td>@plan.startTime.ToString("d MMM yyyy HH:mm")</td><td>@plan.endTime.ToString("d MMM yyyy HH:mm")</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </DataDialog>
+            </div>
+            <div class="legend-container" @onkeydown="@(e => { if (e.Key == "Escape") isLegendExpanded = false; })">
                 <div class="legend">
                     @if (prices.Any(p => p.IsPredicted))
                     {
@@ -27,7 +52,7 @@
                     }
                     @if (HiddenLegendCount > 0)
                     {
-                        <button type="button" class="legend-more" @onclick="ToggleLegend">
+                        <button type="button" class="legend-more" aria-expanded="@(isLegendExpanded ? "true" : "false")" @onclick="ToggleLegend">
                             @(isLegendExpanded ? "Close plans" : $"+ {HiddenLegendCount} more")
                         </button>
                     }
@@ -47,11 +72,23 @@
             </div>
         </div>
 
-        <div class="chart-uppersection">
+        @if (error is not null)
+        {
+            <p role="alert">Electricity prices could not be loaded. Please reload to try again.</p>
+        }
+        else if (isLoading)
+        {
+            <p role="status">Loading electricity prices…</p>
+        }
+        else if (prices.Count == 0)
+        {
+            <p role="status">No electricity prices are available.</p>
+        }
+        <div class="chart-uppersection" data-chart role="group" aria-label="Hourly prices. Use arrow keys to move between hours.">
             @foreach (HourPriceDto p in prices)
             {
-                <div class="price-column">
-                    <div class="price-tooltip">
+                <div class="price-column" data-chart-point role="img" tabindex="@(p == prices[0] ? 0 : -1)" aria-label="@PriceDescription(p)">
+                    <div class="price-tooltip" aria-hidden="true">
                         @{
                             List<PlanDto> overlappingSchedules = GetSchedulesForHour(p.Hour);
                         }
@@ -95,12 +132,12 @@
 
         <div class="chart-card-divider"></div>
 
-        <div class="chart-lowersection">
+        <div class="chart-lowersection" tabindex="0" role="region" aria-label="Schedule timeline">
             @foreach (PlanRow row in rows)
             {
                 <div class="plan-row">
                     <span class="plan-name" title="@row.Head.planName">@row.Head.planName</span>
-                    <div class="plan-track">
+                    <div class="plan-track" aria-hidden="true">
                         @foreach (PlanDto seg in row.Segments)
                         {
                             <div class="plan-fill" style="@FillStyle(seg)"></div>
@@ -113,7 +150,7 @@
             }
         </div>
     </div>
-</div>
+</section>
 
 @code {
     [Parameter] public List<PlanDto> activeSchedules { get; set; } = new List<PlanDto>();
@@ -127,7 +164,15 @@
         $"--price-zero:{MaxPrice / (MaxPrice - MinPrice) * 100:0.##}%");
     private string GridLineStyle(decimal price) => string.Create(CultureInfo.InvariantCulture,
         $"top:{(MaxPrice - price) / (MaxPrice - MinPrice) * 100:0.##}%");
+    private bool isLoading = true;
     private string? error;
+    private string PriceDescription(HourPriceDto price)
+    {
+        string source = price.IsPredicted ? "Predicted price" : "Published price";
+        string clipped = price.Price > MaxPrice ? ", above chart maximum" : price.Price < MinPrice ? ", below chart minimum" : "";
+        string schedules = string.Join(", ", GetSchedulesForHour(price.Hour).Select(plan => plan.planName).Distinct());
+        return $"{price.Hour:ddd d MMM yyyy HH:mm}, {price.Price:0.####} kr/kWh, {source}{clipped}{(schedules.Length > 0 ? $", schedules: {schedules}" : "")}";
+    }
 
     private record PlanRow(PlanDto Head, List<PlanDto> Segments);
     private List<PlanRow> rows = new List<PlanRow>();
@@ -163,6 +208,7 @@
             error = $"{ex.GetType().Name}: {ex.Message} (base address: {Http.BaseAddress})";
             Logger.LogError(ex, "Failed to load electricity prices");
         }
+        finally { isLoading = false; }
     }
 
 protected override void OnParametersSet()
@@ -305,7 +351,12 @@ protected override void OnParametersSet()
         min-width: 0;
     }
 
+    .chart-title-group { min-width: 0; }
+
     .chart-title {
+        font-size: inherit;
+        font-weight: inherit;
+        margin: 0;
         flex: 0 1 auto;
         min-width: 0;
         white-space: nowrap;
@@ -535,7 +586,7 @@ protected override void OnParametersSet()
         top: 0;
         right: calc(100% + 0.5rem);
         transform: translateY(-50%);
-        color: #9b9b9b;
+        color: #6b6761;
         font-size: 0.65rem;
         line-height: 1;
     }
@@ -586,6 +637,9 @@ protected override void OnParametersSet()
     }
 
     .price-tooltip {
+        display: none;
+        width: max-content;
+        max-width: calc(100vw - 2rem);
         position: absolute;
         bottom: 100%;
         left: 50%;
@@ -597,7 +651,7 @@ protected override void OnParametersSet()
         border-radius: 6px;
 
         font-size: 12px;
-        white-space: nowrap;
+        white-space: normal;
 
         opacity: 0;
         visibility: hidden;
@@ -618,7 +672,8 @@ protected override void OnParametersSet()
         width: 7px;
     }
 
-    .price-column:hover .price-tooltip {
+    .price-column:not(.tooltip-dismissed):is(:hover, :focus) .price-tooltip {
+        display: block;
         opacity: 1;
         visibility: visible;
     }

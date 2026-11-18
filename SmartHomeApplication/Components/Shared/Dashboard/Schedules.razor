@@ -9,7 +9,7 @@
 <div class="schedules-card">
     <div class="schedule-top">
         <div class="schedule-title">
-            <span class="schedule-icon" style="color: @activeSchedule.colorCode"><i class="bi @ScheduleIcons.Get(activeSchedule.icon)"></i></span>
+            <span aria-hidden="true" class="schedule-icon" style="color: @activeSchedule.colorCode"><i aria-hidden="true" class="bi @ScheduleIcons.Get(activeSchedule.icon)"></i></span>
             <span class="schedule-name">@activeSchedule.planName</span>
         </div>
 
@@ -19,7 +19,7 @@
     </div>
 
     <div class="schedule-bottom">
-        <div class="schedule-progress">
+        <div class="schedule-progress" role="progressbar" aria-label="@($"{activeSchedule.planName} progress")" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@Percent.ToString("0", CultureInfo.InvariantCulture)">
             <div class="schedule-progress-fill" style="@FillStyle()"></div>
         </div>
         <span class="schedule-percent">@Percent.ToString("0", CultureInfo.InvariantCulture)%</span>
@@ -33,8 +33,8 @@
     {
         get
         {
-            var total = (activeSchedule.endTime - activeSchedule.startTime).TotalSeconds;
-            var elapsed = (DateTime.Now - activeSchedule.startTime).TotalSeconds;
+            double total = (activeSchedule.endTime - activeSchedule.startTime).TotalSeconds;
+            double elapsed = (DateTime.Now - activeSchedule.startTime).TotalSeconds;
 
             return total > 0 ? Math.Clamp(elapsed / total * 100, 0, 100) : 0;
         }
@@ -52,7 +52,7 @@
     {
         get
         {
-            var now = DateTime.Now;
+            DateTime now = DateTime.Now;
 
             if (now < activeSchedule.startTime) return ScheduleState.Queued;
             return ScheduleState.Running;

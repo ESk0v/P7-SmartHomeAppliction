@@ -1,20 +1,24 @@
 @inject INotificationService NotificationService
 @implements IDisposable
 
+<div class="visually-hidden" role="status" aria-atomic="true">@(_isVisible && _level != ToastLevel.Error && _level != ToastLevel.Warning ? $"{_heading}: {_message}" : null)</div>
+<div class="visually-hidden" role="alert" aria-atomic="true">@(_isVisible && (_level == ToastLevel.Error || _level == ToastLevel.Warning) ? $"{_heading}: {_message}" : null)</div>
 <div class="custom-toast @(_isVisible ? "custom-toast-visible" : "") @(_backgroundCssClass)">
-    <div class="custom-toast-icon">
+    <div class="custom-toast-icon" aria-hidden="true">
         <i class="fa fa-@_iconCssClass" aria-hidden="true"></i>
     </div>
-    <div class="custom-toast-body">
-        <h6 class="inline-heading">@_heading</h6>
+    <div class="custom-toast-body" aria-hidden="true">
+        <strong class="inline-heading">@_heading</strong>
         <p class="inline-message">@_message</p>
     </div>
+    <button type="button" class="toast-dismiss" aria-label="Dismiss notification" @onclick="NotificationService.DismissNotification">×</button>
 </div>
 
 @code {
     private string? _heading;
     private string? _message;
     private bool _isVisible;
+    private ToastLevel _level;
     private string? _backgroundCssClass;
     private string? _iconCssClass;
     
@@ -26,6 +30,7 @@
     
     private void ShowToast(string message, ToastLevel level)
     {
+        _level = level;
         BuildToastSettings(level, message);
         _isVisible = true;
         InvokeAsync(StateHasChanged);
@@ -58,6 +63,9 @@
     }
 }
 <style>
+    .toast-dismiss { align-self: flex-start; background: transparent; border: 0; color: #292724; font-size: 1.4rem; min-width: 28px; min-height: 28px; padding: 0; }
+    .custom-toast .custom-toast-body { min-width: 0; overflow-wrap: anywhere; }
+
     .custom-toast {
         display: none;
         position: fixed;
@@ -104,10 +112,10 @@
     .text-warning { border-left: 6px solid #ffc107; }
     .text-info    { border-left: 6px solid #17a2b8; }
 
-    .text-success .custom-toast-icon, .text-success .inline-heading { color: #28a745; }
+    .text-success .custom-toast-icon, .text-success .inline-heading { color: #1a7832; }
     .text-danger  .custom-toast-icon, .text-danger  .inline-heading { color: #dc3545; }
-    .text-warning .custom-toast-icon, .text-warning .inline-heading { color: #b8860b; }
-    .text-info    .custom-toast-icon, .text-info    .inline-heading { color: #17a2b8; }
+    .text-warning .custom-toast-icon, .text-warning .inline-heading { color: #805e08; }
+    .text-info    .custom-toast-icon, .text-info    .inline-heading { color: #0b7181; }
 
     @@media (max-width: 640.98px), (max-width: 960px) and (max-height: 500px) and (pointer: coarse) {
         .custom-toast {

@@ -8,7 +8,7 @@
 
 @namespace Shared.Dashboard
 
-<div class="statistics-card">
+<div class="statistics-card" aria-busy="@(Data is null ? "true" : "false")">
     <p class="statistics-title">@Title</p>
 
     @if (Data is not null)
@@ -16,6 +16,7 @@
         <p class="statistics-value">@Data.Value</p>
         <p class="statistics-description @(Data.Description?.Contains("↓") == true ? "savings-positive" : "")">@(Data.Description ?? "\u00A0")</p>
     }
+    else { <span class="visually-hidden">Loading statistic…</span> }
 </div>
 
 @code {
@@ -152,7 +153,7 @@
 
     .statistics-title {
         margin: 0;
-        color: #999;
+        color: var(--smarthome-muted);
         font-size: 0.85rem;
         font-weight: 500;
     }
@@ -167,7 +168,7 @@
     .statistics-description {
         margin: 0;
         min-height: 1.2em;
-        color: #888;
+        color: var(--smarthome-muted);
         font-size: 0.8rem;
     }
 

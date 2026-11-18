@@ -1,14 +1,15 @@
-﻿<div class="app-navigation">
+﻿<div class="app-navigation" @onkeydown="HandleNavigationKey">
     <div class="top-row ps-3 navbar navbar-dark">
         <div class="container-fluid">
             <a class="navbar-brand" href="">SmartHomeApplication</a>
         </div>
     </div>
 
-    <input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+    <button type="button" class="navbar-toggler" @ref="menuToggle" aria-label="Navigation menu"
+            aria-expanded="@(navOpen ? "true" : "false")" aria-controls="main-navigation" @onclick="() => navOpen = !navOpen"></button>
 
-    <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-        <nav class="nav flex-column">
+    <div id="main-navigation" class="nav-scrollable @(navOpen ? "nav-open" : null)" @onclick="() => navOpen = false">
+        <nav class="nav flex-column" aria-label="Main navigation">
             <!-- OUT COMMENTED FOR NOW. SHOULD BE DELETED LATER ARE THE OLD NAVMENU ENTRIES
             <div class="nav-item px-3">
                 <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
@@ -77,6 +78,17 @@
     </div>
 </div>
 
+@code {
+    private bool navOpen;
+    private ElementReference menuToggle;
+    private async Task HandleNavigationKey(KeyboardEventArgs e)
+    {
+        if (e.Key != "Escape" || !navOpen) return;
+        navOpen = false;
+        await menuToggle.FocusAsync();
+    }
+}
+
 <style>
     .app-navigation .navbar-toggler {
         display: none;
@@ -92,7 +104,7 @@
         background: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.55%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") no-repeat center/1.75rem rgba(255, 255, 255, 0.1);
     }
 
-    .app-navigation .navbar-toggler:checked {
+    .app-navigation .navbar-toggler[aria-expanded="true"] {
         background-color: rgba(255, 255, 255, 0.5);
     }
 
@@ -218,7 +230,7 @@
         text-decoration: underline;
     }
 
-    .app-navigation .navbar-toggler:checked ~ .nav-scrollable {
+    .app-navigation .nav-scrollable.nav-open {
         display: block;
     }
 

@@ -8,6 +8,7 @@ public interface INotificationService
     const string ServerErrorMsg = "Server error occurred";
     const string WarningMsg = "Warning";
 
+    void DismissNotification();
     void ShowNotification(string message, ToastLevel level, int CloseAfter = 8000);
     void SuccessNotification(string? message = SuccessMsg);
     void ErrorNotification(string? message = ServerErrorMsg);

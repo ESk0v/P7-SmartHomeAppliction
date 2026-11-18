@@ -6,7 +6,7 @@ public class NotificationService : INotificationService, IDisposable
     public event Action? OnHide;
 
     private System.Timers.Timer? _countdowntimer;
-    private const int DefaultCloseTimer = 8000;
+    private const int DefaultCloseTimer = 5000;
 
     public void SuccessNotification(string? message = INotificationService.SuccessMsg)
     => ShowNotification(message ?? INotificationService.SuccessMsg, ToastLevel.Success);
@@ -22,8 +22,17 @@ public class NotificationService : INotificationService, IDisposable
 
     public void ShowNotification(string message, ToastLevel Level, int closeTimer = DefaultCloseTimer)
     {
+        _countdowntimer?.Stop();
         OnShow?.Invoke(message, Level);
-        StartCountdown(closeTimer);
+        // Errors and warnings stay available until the user dismisses them.
+        if (Level is not ToastLevel.Error and not ToastLevel.Warning)
+            StartCountdown(closeTimer);
+    }
+
+    public void DismissNotification()
+    {
+        _countdowntimer?.Stop();
+        OnHide?.Invoke();
     }
 
     private void StartCountdown(int timer)

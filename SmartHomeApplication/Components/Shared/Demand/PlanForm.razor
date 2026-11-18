@@ -7,7 +7,6 @@
 
 @using System.Globalization
 @using System.Security.Claims
-@using Hangfire.Dashboard
 @using Utilities.Models
 @using global::Shared.Dashboard
 
@@ -23,7 +22,7 @@
 }
 else if (isLoading)
 {
-    <p>Loading plan details...</p>
+    <p role="status">Loading plan details...</p>
 }
 
 @if (!isLoading && loadError is null)
@@ -34,11 +33,12 @@ else if (isLoading)
             <div class="mb-4 boxes device-settings">
                 
                 <DataAnnotationsValidator />
+                <FormErrors FieldIds='@(new Dictionary<string, string> { [nameof(ScheduleForm.DeviceName)] = "deviceName", [nameof(ScheduleForm.Preset)] = "devicePreset", [nameof(ScheduleForm.PlanName)] = "planName", [nameof(ScheduleForm.Priority)] = "priority-cheapest", [nameof(ScheduleForm.Start)] = "startMinute", [nameof(ScheduleForm.End)] = "endMinute" })' />
                 <div class="inboxes">
                     <label for="deviceName" class="form-label form-label-down">Device</label>
-                    <ButtonSelectDevice Options="@(userDevices.Select(d => (d.id.ToString(), d.deviceNickname, d.icon, d.color)))"
+                    <ButtonSelectDevice Id="deviceName" Label="Device" FieldName="DeviceName" DescribedBy="deviceName-error" Options="@(userDevices.Select(d => (d.id.ToString(), d.deviceNickname, d.icon, d.color)))"
                         @bind-Value="selectedDeviceId" @bind-Value:after="OnDeviceSelected" Placeholder="Select device" />
-                    <ValidationMessage For="() => ScheduleForm.DeviceName" class="text-danger" />
+                    <ValidationMessage For="() => ScheduleForm.DeviceName" class="text-danger" id="deviceName-error" />
                 </div>
 
                 @if (isInterruptible)
@@ -46,11 +46,11 @@ else if (isLoading)
                     <div class="charge-settings mt-2 mb-4">
                         <div class="charge-slider">
                             <div class="charge-slider-header">
-                                <label for="chargeStop">Charge to</label>
-                                <span>@ScheduleForm.ChargeStopPercentage%</span>
+                                <label id="chargeStop-label" for="chargeStop">Charge to</label>
+                                <span id="chargeStop-value">@ScheduleForm.ChargeStopPercentage%</span>
                             </div>
                             <input id="chargeStop" class="charge-range" @bind="ScheduleForm.ChargeStopPercentage" @bind:event="oninput"
-                                        min="5" max="100" step="5" type="range" />
+                                        aria-labelledby="chargeStop-label chargeStop-value" aria-valuetext="@($"{ScheduleForm.ChargeStopPercentage} percent")" min="5" max="100" step="5" type="range" />
                         </div>
                     </div>
                 }
@@ -59,49 +59,50 @@ else if (isLoading)
                 {
                     <div class="inboxes">
                         <label for="devicePreset" class="form-label form-label-down">Device Preset</label>
-                        <ButtonSelect Options="@(filteredPresets.Select(p => (Value: p.id.ToString(), Text: p.presetName)))"
+                        <ButtonSelect Id="devicePreset" Label="Preset" FieldName="Preset" DescribedBy="devicePreset-error" Options="@(filteredPresets.Select(p => (Value: p.id.ToString(), Text: p.presetName)))"
                             @bind-Value="selectedPresetId"
                             @bind-Value:after="UpdateSelectedPreset"
                             Placeholder="Select preset" />
-                        <ValidationMessage For="() => ScheduleForm.Preset" class="text-danger" />
+                        <ValidationMessage For="() => ScheduleForm.Preset" class="text-danger" id="devicePreset-error" />
                     </div>
                 }
                 <div class="mb-3 mt-2 plan-name-field">
                     <label for="planName" class="form-label form-label-input">Name the plan</label>
-                    <InputText id="planName" class="form-control" @bind-Value="ScheduleForm.PlanName" />
+                    <InputText maxlength="100" id="planName" aria-describedby="planName-error" class="form-control" @bind-Value="ScheduleForm.PlanName" />
+                    <ValidationMessage For="() => ScheduleForm.PlanName" id="planName-error" class="text-danger" />
                 </div>
             </div>
-            <div class="boxes scheduling-settings">
+            <div class="boxes scheduling-settings" role="group" aria-labelledby="scheduling-label">
                 <div class ="row">
                     <div class="choices mt-2">
-                        <label class="form-label form-label-down">Scheduling window</label>
+                        <span id="scheduling-label" class="form-label form-label-down">Scheduling window</span>
                     </div>
                     <div class="inboxes">
                         <div class="charge-settings">
                             <div class="charge-slider">
                                 <div class="charge-slider-header">
-                                    <label for="startMinute">Start  <i class="bi bi-clock"/></label>
-                                    <span>@Format(ScheduleForm.Start)</span>
+                                    <label id="startMinute-label" for="startMinute">Start  <i class="bi bi-clock" aria-hidden="true"/></label>
+                                    <span id="startMinute-value">@Format(ScheduleForm.Start)</span>
                                 </div>
                                 <input id="startMinute" class="charge-range" @bind="ScheduleForm.Start"
-                                    @bind:event="oninput" @bind:after="OnStartChanged" min="@MinMinutes" max="@MaxMinutes" step="@TimeStep" type="range" />
+                                    @bind:event="oninput" @bind:after="OnStartChanged" aria-labelledby="startMinute-label startMinute-value" aria-valuetext="@Format(ScheduleForm.Start)" aria-describedby="window-duration scheduling-error" min="@MinMinutes" max="@MaxMinutes" step="@TimeStep" type="range" />
                             </div>
 
                             <div class="charge-slider mt-3">
                                 <div class="charge-slider-header">
-                                    <label for="endMinute">End  <i class="bi bi-clock"/></label>
-                                    <span>@Format(ScheduleForm.End)</span>
+                                    <label id="endMinute-label" for="endMinute">End  <i class="bi bi-clock" aria-hidden="true"/></label>
+                                    <span id="endMinute-value">@Format(ScheduleForm.End)</span>
                                 </div>
                                 <input id="endMinute" class="charge-range" @bind="ScheduleForm.End"
-                                    @bind:event="oninput" @bind:after="OnEndChanged" min="@MinMinutes" max="@MaxMinutes" step="@TimeStep" type="range" />
+                                    @bind:event="oninput" @bind:after="OnEndChanged" aria-labelledby="endMinute-label endMinute-value" aria-valuetext="@Format(ScheduleForm.End)" aria-describedby="window-duration scheduling-error" min="@MinMinutes" max="@MaxMinutes" step="@TimeStep" type="range" />
 
                             </div>
 
-                            <span class="charge-slider-duration">Window: @Duration</span>
+                            <span id="window-duration" class="charge-slider-duration">Window: @Duration</span>
 
                             @if (!string.IsNullOrEmpty(schedulingError))
                             {
-                                <div class="alert alert-danger mt-5" roles="alert">
+                                <div id="scheduling-error" class="alert alert-danger mt-2" role="alert">
                                     @schedulingError
                                 </div>
                             }
@@ -110,7 +111,7 @@ else if (isLoading)
                 </div> 
                 <div class="row priority-settings">
                     <div class="col-sm-6 choices mt-3">
-                        <label class="form-label1">Choose an option for optimization</label>
+                        <span id="priority-label" class="form-label1">Choose an option for optimization</span>
                     </div>
 
                     <div class="col-sm-6 priority-toggle @(ScheduleForm.Priority == "Greenest" ? "is-right" : "is-left")"
@@ -119,23 +120,28 @@ else if (isLoading)
 
                         <button type="button" role="radio"
                                 class="priority-option @(ScheduleForm.Priority == "Cheapest" ? "active" : "")"
-                                aria-checked="@(ScheduleForm.Priority == "Cheapest")"
+                                id="priority-cheapest" aria-describedby="priority-cheapest-error"
+                                tabindex="@(ScheduleForm.Priority == "Cheapest" ? 0 : -1)"
+                                aria-checked="@(ScheduleForm.Priority == "Cheapest" ? "true" : "false")"
                                 @onclick='() => SetPriority("Cheapest")'>
                             Cheapest
                         </button>
 
                         <button type="button" role="radio"
                                 class="priority-option @(ScheduleForm.Priority == "Greenest" ? "active" : "")"
-                                aria-checked="@(ScheduleForm.Priority == "Greenest")"
+                                id="priority-greenest" aria-describedby="priority-cheapest-error"
+                                tabindex="@(ScheduleForm.Priority == "Greenest" ? 0 : -1)"
+                                aria-checked="@(ScheduleForm.Priority == "Greenest" ? "true" : "false")"
                                 @onclick='() => SetPriority("Greenest")'>
                             Greenest
                         </button>
                     </div>
 
-                    <ValidationMessage For="() => ScheduleForm.Priority" class="text-danger" />
+                    <ValidationMessage For="() => ScheduleForm.Priority" class="text-danger" id="priority-cheapest-error" />
                 </div>
                 <div class="mt-4 mb-2 d-flex justify-content-end generate-plan-button">
-                    <button type="submit" class="btn btn-primary" disabled="@IsEditMode" title="@(IsEditMode ? "Plan regeneration will be available later" : null)">Generate Plan</button>
+                    <button type="submit" class="btn btn-primary" disabled="@IsEditMode" aria-describedby="@(IsEditMode ? "regeneration-hint" : null)">Generate Plan</button>
+                    @if (IsEditMode) { <span id="regeneration-hint" class="visually-hidden">Plan regeneration will be available later.</span> }
                 </div>
             </div>
         </EditForm>
@@ -144,11 +150,11 @@ else if (isLoading)
         <div class="priceoverview">
             @if (activeSchedules is not null)
             {
-                <PriceChart activeSchedules="activeSchedules" MaxDisplayedPrices="36"/>
+                <PriceChart activeSchedules="ChartSchedules" MaxDisplayedPrices="36"/>
             }
         </div>
         <div class="optimized-side-column">
-            <section class="optimized-card plan-summary-card">
+            <section class="optimized-card plan-summary-card" aria-label="Plan overview" aria-live="polite" aria-atomic="true">
                 @{
                     bool hasPlan = displayPlan && optimizedIntervals.Count > 0;
                     string overviewName = string.IsNullOrWhiteSpace(ScheduleForm.PlanName)
@@ -179,7 +185,11 @@ else if (isLoading)
                     <strong class="@(hasPlan ? "summary-co2" : "summary-placeholder")">@(hasPlan
                         ? $"{optimizedIntervals.Sum(x => x.EstimatedCo2Emissions):0.##} g CO₂" : "—")</strong>
                 </div>
-                <div class="mb-3 d-flex justify-content-end save-plan-button">
+                <div class="mb-3 d-flex justify-content-end gap-2 save-plan-button">
+                    @if (!IsEditMode)
+                    {
+                        <button type="button" class="btn btn-outline-secondary" @onclick="CancelGeneratedPlan" disabled="@(!displayPlan)">Cancel</button>
+                    }
                     <button type="button" @onclick="SubmitPlan" class="btn btn-primary" disabled="@(IsEditMode ? !editLoaded : !displayPlan)">@(IsEditMode ? "Update Plan" : "Save Plan")</button>
                 </div>
 
@@ -201,6 +211,7 @@ else if (isLoading)
     private PlanDTO? existingPlan;
     private List<PlanDTO> existingPlanIntervals = new();
     private static readonly TimeZoneInfo CopenhagenTimeZone = TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen");
+    
     // Plan timestamps without an offset are already Copenhagen clock times.
     private static DateTime PlanTimeToUtc(DateTime time) => time.Kind == DateTimeKind.Unspecified
         ? TimeZoneInfo.ConvertTimeToUtc(time, CopenhagenTimeZone)
@@ -222,19 +233,26 @@ else if (isLoading)
 
     // Active schedules populate the price chart beside the form.
     private List<PlanDto>? activeSchedules;
+    private List<PlanDto> previewSchedules = new List<PlanDto>();
+    private List<PlanDto> ChartSchedules => previewSchedules.Concat(activeSchedules ?? new List<PlanDto>()).ToList();
     private string area = "DK1";
+    
     // Collects the values sent to the optimization API.
     private ScheduleForm ScheduleForm = new ScheduleForm();
+    
     // Presets available for the selected device.
     private List<PresetDto> filteredPresets = new List<PresetDto>();
     private string? selectedPresetId;
+    
     // Devices registered by the current user.
     private List<PlanUserDeviceDto> userDevices = new List<PlanUserDeviceDto>();
     private PlanUserDeviceDto? SelectedDevice => userDevices
         .FirstOrDefault(device => device.id.ToString(CultureInfo.InvariantCulture) == selectedDeviceId);
+    
     // Presets indexed by device so the picker can filter them.
     private Dictionary<int, List<PresetDto>> presetsByDevice = new Dictionary<int, List<PresetDto>>();
     private string? selectedDeviceId;
+    
     // Optimization result displayed in the plan overview.
     private List<OptimizationResultDTO> optimizedIntervals = new();
     private DateTime? requestedWindowStart;
@@ -274,7 +292,7 @@ else if (isLoading)
     {
         get
         {
-            var diff = ScheduleForm.End - ScheduleForm.Start;
+            int diff = ScheduleForm.End - ScheduleForm.Start;
             return $"{diff / 60}h {diff % 60}m";
         }
     }
@@ -389,16 +407,17 @@ else if (isLoading)
         }
 
         existingPlanIntervals = new List<PlanDTO> { existingPlan };
-        HashSet<int> visited = new() { editingPlanId };
+        HashSet<int> visited = new HashSet<int>() { editingPlanId };
         while (existingPlanIntervals[^1].nextPlanId is int nextId)
         {
             if (!visited.Add(nextId))
                 throw new InvalidOperationException("The selected plan contains a circular interval link.");
 
-            using var intervalRequest = new HttpRequestMessage(HttpMethod.Get,
+            using HttpRequestMessage? intervalRequest = new HttpRequestMessage(HttpMethod.Get,
                 $"api/plan-controller/get-plan/{nextId}");
             intervalRequest.Headers.Add("UserId", userId);
-            using var intervalResponse = await Http.SendAsync(intervalRequest);
+            
+            using HttpResponseMessage? intervalResponse = await Http.SendAsync(intervalRequest);
             intervalResponse.EnsureSuccessStatusCode();
             PlanDTO? interval = await intervalResponse.Content.ReadFromJsonAsync<PlanDTO>();
             if (interval?.planId != nextId || interval.userDeviceId != existingPlan.userDeviceId)
@@ -465,8 +484,19 @@ else if (isLoading)
 
     }
 
+    private void CancelGeneratedPlan()
+    {
+        optimizedIntervals.Clear();
+        previewSchedules.Clear();
+        requestedWindowStart = null;
+        requestedWindowEnd = null;
+        displayPlan = false;
+        schedulingError = null;
+    }
+
     private void ClearSchedule()
     {
+        previewSchedules.Clear();
         ScheduleForm = new ScheduleForm();
         filteredPresets = new List<PresetDto>();
         selectedDeviceId = string.Empty;
@@ -537,6 +567,7 @@ else if (isLoading)
         displayPlan = false;
         requestedWindowStart = null;
         requestedWindowEnd = null;
+        previewSchedules.Clear();
 
         DateTime startTime = GetScheduledDateTime(ScheduleForm.Start);
         DateTime endTime = GetScheduledDateTime(ScheduleForm.End);
@@ -568,10 +599,11 @@ else if (isLoading)
         }
 
 
+        PlanUserDeviceDto selectedDevice = SelectedDevice!;
         OptimizationRequestDTO? optimizationRequest = new OptimizationRequestDTO
         {
             Area = area,
-            UserDeviceId = SelectedDevice!.id,
+            UserDeviceId = selectedDevice.id,
             DevicePresetId = ScheduleForm.Preset?.id ?? 0,
             StartWindow = requestedWindowStart.Value,   // UTC, already computed above
             EndWindow = requestedWindowEnd.Value,
@@ -580,7 +612,7 @@ else if (isLoading)
 
         try
         {
-            using var result = await Http.PostAsJsonAsync(
+            using HttpResponseMessage? result = await Http.PostAsJsonAsync(
                 "api/createPlan-controller/optimize",
                 optimizationRequest);
 
@@ -612,6 +644,8 @@ else if (isLoading)
             ? ScheduleForm.DeviceName
             : ScheduleForm.PlanName.Trim();
 
+            ShowGeneratedPlanPreview(selectedDevice, planName);
+
             NotificationService.SuccessNotification($"An optimized schedule for \"{planName}\" was succesfully created.");
 
 
@@ -630,6 +664,30 @@ else if (isLoading)
         await Task.CompletedTask;
         return ;
 
+    }
+
+    private static DateTime ChartTime(DateTime utc) => TimeZoneInfo.ConvertTimeFromUtc(
+        DateTime.SpecifyKind(utc, DateTimeKind.Utc), CopenhagenTimeZone);
+
+    private void ShowGeneratedPlanPreview(PlanUserDeviceDto device, string planName)
+    {
+        // Negative IDs keep unsaved intervals separate from database plans and link them into one track.
+        previewSchedules = optimizedIntervals.Select((OptimizationResultDTO interval, int index) => new PlanDto(
+            planId: -(index + 1),
+            nextPlanId: index + 1 < optimizedIntervals.Count ? -(index + 2) : null,
+            planName: $"{planName} (Preview)",
+            icon: device.icon, colorCode: device.color,
+            deviceName: device.deviceNickname, deviceCategory: device.category,
+            optimizationObjective: ScheduleForm.Priority,
+            chargeStopPercentage: ScheduleForm.ChargeStopPercentage,
+            presetDurationInMinutes: ScheduleForm.Preset?.duration,
+            startTime: ChartTime(interval.StartTime), endTime: ChartTime(interval.EndTime),
+            windowStartTime: ChartTime(requestedWindowStart!.Value),
+            windowEndTime: ChartTime(requestedWindowEnd!.Value),
+            estimatedCost: interval.EstimatedPrice,
+            estimatedCo2Emissions: interval.EstimatedCo2Emissions,
+            estimatedUnscheduledPrice: 0m, estimatedUnscheduledCo2Emissions: 0m,
+            batteryCapacityInKwh: device.batteryCapacityInKwh)).ToList();
     }
 
     // Save the generated plan and its form values through the API.
@@ -668,12 +726,12 @@ else if (isLoading)
             }
 
             // Save the last interval first.
-            var intervalsToSave = optimizedIntervals.OrderByDescending(x => x.StartTime).ToList();
-            var intervalEstimates = DistributeUnscheduledEstimate(unscheduledEstimate, intervalsToSave);
+            List<OptimizationResultDTO>? intervalsToSave = optimizedIntervals.OrderByDescending(x => x.StartTime).ToList();
+            List<UnscheduledEstimateDto>? intervalEstimates = DistributeUnscheduledEstimate(unscheduledEstimate, intervalsToSave);
             for (int index = 0; index < intervalsToSave.Count; index++)
             {
-                var interval = intervalsToSave[index];
-                var planToSave = new PlanDTO
+                OptimizationResultDTO? interval = intervalsToSave[index];
+                PlanDTO? planToSave = new PlanDTO
                 {
                     userDeviceId = selectedDevice.id,
 
@@ -709,7 +767,7 @@ else if (isLoading)
                         selectedDevice.batteryCapacityInKwh
                 };
 
-                using var result = await Http.PostAsJsonAsync(
+                using HttpResponseMessage? result = await Http.PostAsJsonAsync(
                     "api/createPlan-controller/post-plan",
                     planToSave);
 
@@ -841,7 +899,7 @@ else if (isLoading)
         decimal totalTicks = intervals.Sum(interval => (interval.EndTime - interval.StartTime).Ticks);
         decimal remainingPrice = estimate.EstimatedPrice;
         decimal remainingCo2 = estimate.EstimatedCo2Emissions;
-        var result = new List<UnscheduledEstimateDto>();
+        List<UnscheduledEstimateDto>? result = new List<UnscheduledEstimateDto>();
 
         for (int index = 0; index < intervals.Count; index++)
         {
@@ -928,11 +986,11 @@ else if (isLoading)
                 return;
             }
 
-            var intervalEstimates = DistributeUnscheduledEstimate(unscheduledEstimate, optimizedIntervals);
+            List<UnscheduledEstimateDto>? intervalEstimates = DistributeUnscheduledEstimate(unscheduledEstimate, optimizedIntervals);
             for (int index = 0; index < existingPlanIntervals.Count; index++)
             {
                 int intervalId = existingPlanIntervals[index].planId!.Value;
-                var update = new PlanDTO
+                PlanDTO? update = new PlanDTO
                 {
                     planId = intervalId,
                     userDeviceId = deviceId,
@@ -947,7 +1005,7 @@ else if (isLoading)
                     estimatedUnscheduledCo2Emissions = intervalEstimates[index].EstimatedCo2Emissions
                 };
 
-                using var request = new HttpRequestMessage(HttpMethod.Put,
+                using HttpRequestMessage? request = new HttpRequestMessage(HttpMethod.Put,
                     $"api/plan-controller/update-plan/{intervalId}")
                 {
                     Content = JsonContent.Create(update)
@@ -1050,7 +1108,7 @@ else if (isLoading)
     }
 
     .boxes p span:first-child {
-        color: #9e9895;
+        color: var(--smarthome-muted);
     }
 
     .boxes p span:last-child {
@@ -1114,7 +1172,7 @@ else if (isLoading)
     }
 
     .heading p {
-        color: #999;
+        color: var(--smarthome-muted);
         font-size: 0.70rem;
         line-height: 0.75;
         margin: 0;
@@ -1177,7 +1235,7 @@ else if (isLoading)
         background: transparent;
         border-radius: 10px;
         font-weight: 500;
-        color: #6c757d;
+        color: var(--smarthome-muted);
         cursor: pointer;
         transition: color 0.2s ease;
     }
@@ -1342,7 +1400,7 @@ else if (isLoading)
 
     .card-heading p,
     .card-heading small {
-        color: #9a9691;
+        color: var(--smarthome-muted);
         font-size: 0.78rem;
         margin: 0.35rem 0 0;
     }
@@ -1365,12 +1423,12 @@ else if (isLoading)
     }
 
     .summary-row span {
-        color: #98938d;
+        color: var(--smarthome-muted);
         font-size: 0.82rem;
     }
 
     .summary-row small {
-        color: #b0aaa3;
+        color: var(--smarthome-muted);
         font-size: 0.74rem;
     }
 
@@ -1381,7 +1439,7 @@ else if (isLoading)
     }
 
     .summary-co2 {
-        color: #159447 !important;
+        color: #127438 !important;
     }
 
     .summary-cost {
@@ -1586,7 +1644,7 @@ else if (isLoading)
         }
 
         .plan-form .boxes .btn-primary,
-        .plan-form .optimized-side-column .btn-primary {
+        .plan-form .optimized-side-column .btn {
             min-height: 36px;
             padding: 0.45rem 0.85rem;
             font-size: 0.85rem;
@@ -1628,7 +1686,7 @@ else if (isLoading)
         }
 
         .plan-form .summary-row small {
-            color: #827c75;
+            color: var(--smarthome-muted);
             line-height: 1.5;
         }
 
@@ -1741,7 +1799,7 @@ else if (isLoading)
         display: flex;
         justify-content: space-between;
         font-size: 0.75rem;
-        color: #6c757d;
+        color: var(--smarthome-muted);
         margin-top: 0.25rem;
     }
 
@@ -1749,6 +1807,6 @@ else if (isLoading)
         display: block;
         margin-top: 0.5rem;
         font-size: 0.8rem;
-        color: #6c757d;
+        color: var(--smarthome-muted);
     }
 </style>

@@ -227,6 +227,61 @@ public class PlanFormTests
         Assert.Equal(expectedTimes, (reopened.Start, reopened.End));
     }
 
+    [Theory]
+    [InlineData(1, 1)]
+    [InlineData(7, 2)]
+    public async Task GeneratePlan_PreviewsLinkedIntervalsInLocalTime_WithoutSaving(int month, int utcOffset)
+    {
+        var start = new DateTime(2026, month, 10, 12, 0, 0, DateTimeKind.Utc);
+        int calls = 0;
+        using var handler = new StubHandler(request =>
+        {
+            calls++;
+            Assert.EndsWith("/optimize", request.RequestUri!.AbsolutePath);
+            return Task.FromResult(calls == 1
+                ? Json(new[]
+                {
+                    new OptimizationResultDTO(start.AddHours(2), start.AddHours(3), 2m, 20m),
+                    new OptimizationResultDTO(start, start.AddHours(1), 1m, 10m)
+                })
+                : new HttpResponseMessage(HttpStatusCode.BadRequest));
+        });
+        var form = CreateForm(handler);
+        Set(form, "schedulingDate", start.Date);
+        var schedule = Field<ScheduleForm>(form, "ScheduleForm");
+        schedule.Start = 9 * 60;
+        schedule.End = 21 * 60;
+        var device = new PlanUserDeviceDto(1, 1, "Test device", "Car", "#0a66c3", "Interruptible", "EV", 80m);
+        Set(form, "userDevices", new List<PlanUserDeviceDto> { device });
+        var saved = new PlanDto(123, null, "Saved plan", "", "#111111", "Saved device", "Non-Interruptible",
+            "Cheapest", null, 60, start, start.AddHours(1), start, start.AddHours(4), 1m, 10m, 0m, 0m, null);
+        Set(form, "activeSchedules", new List<PlanDto> { saved });
+
+        await Invoke(form, "GenerateScheduling");
+
+        var chart = Property<List<PlanDto>>(form, "ChartSchedules");
+        Assert.Equal(1, calls);
+        Assert.Equal(3, chart.Count);
+        Assert.Same(saved, chart[2]);
+        Assert.Equal(start.AddHours(utcOffset), chart[0].startTime);
+        Assert.Equal(start.AddHours(3 + utcOffset), chart[1].endTime);
+        Assert.Equal(chart[1].planId, chart[0].nextPlanId);
+        Assert.Null(chart[1].nextPlanId);
+        Assert.All(chart.Take(2), interval =>
+        {
+            Assert.True(interval.planId < 0);
+            Assert.Equal("Test plan (Preview)", interval.planName);
+            Assert.Equal(device.color, interval.colorCode);
+        });
+        Assert.Equal(start, Field<List<OptimizationResultDTO>>(form, "optimizedIntervals")[0].StartTime);
+        Assert.Equal(0, Property<OptimizedPlanState>(form, "PlanState").SelectedPlanId);
+
+        // A failed regeneration must remove the previous preview while retaining saved schedules.
+        await Invoke(form, "GenerateScheduling");
+        Assert.Equal(2, calls);
+        Assert.Same(saved, Assert.Single(Property<List<PlanDto>>(form, "ChartSchedules")));
+    }
+
     private static PlanDTO ExistingPlan(int id, int? nextId, DateTime start, DateTime end) => new()
     {
         planId = id, nextPlanId = nextId, userDeviceId = 1, planName = "Test plan",
