@@ -25,25 +25,20 @@ namespace SmartHomeApplicationAPI.DTOs.Optimization
 
         public string? Name { get; set; }
 
+        // --- Appliance and EV ---
+        public int? ReadyStep { get; set; }                         // appliance: earliest start (t_ready); EV: plug-in (t_plug)
+
+        public int? DeadlineStep { get; set; }                      // appliance: latest end (t_deadline); EV: departure (t_dep)
+
         // --- Appliance only ---
         // Set ReadyStep and DeadlineStep to plan the appliance,
         // or FixedStart if the user already has a start time.
         [MinLength(1)]
         public List<double>? PowerProfile { get; set; }             // KwH / 4
 
-        public int? ReadyStep { get; set; }                         // t_ready - Start_window
-
-        public int? DeadlineStep { get; set; }                      // t_deadline - End_window
-
         public int? FixedStart { get; set; }                        // tau - end_window > currenttime
 
         // --- EV only ---
-        //[Range(0, int.MaxValue)]
-        //public int? PlugInStep { get; set; }                      // t_plug, 0 if plugged in
-
-        //[Range(0, int.MaxValue)]
-        //public int? DepartureStep { get; set; }                   // t_dep, can be after step 96
-
         [Range(0.0, double.MaxValue)]
         public double? InitialEnergy { get; set; }                  // E_init, kWh (Random tal vi vælger)
 
