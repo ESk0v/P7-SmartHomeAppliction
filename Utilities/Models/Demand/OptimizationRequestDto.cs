@@ -14,5 +14,7 @@ public class OptimizationRequestDTO
 
     public DateTime EndWindow { get; set; }
 
+    public int? ChargeStopPercentage { get; set; }      // EV only: charge goal in % of the battery
+
     public string Priority { get; set; } = string.Empty;
 }

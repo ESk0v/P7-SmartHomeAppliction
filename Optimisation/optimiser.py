@@ -55,7 +55,7 @@ def solve(req: SolverReq) -> dict:
             prob += lpSum(s[i].values()) == 1
             P_app[i] = {t: lpSum(p_at(p, t - tau) * s[i][tau] for tau in S) for t in T}
 
-    # ---- EVs (plugged in from step 0, leaves at the end of the horizon)
+    # ---- EVs (can charge from ReadyStep = plug-in to DeadlineStep = departure; default: the whole horizon)
     P_ev, E, u = {}, {}, {}
     for j, ev in enumerate(evs):
         needed = (ev.initial_energy, ev.energy_goal, ev.max_energy, ev.max_charging_power)
@@ -65,11 +65,18 @@ def solve(req: SolverReq) -> dict:
         E[j] = {t: prob.add_variable(f"E_{j}_{t}", 0) for t in range(N + 1)}
         u[j] = prob.add_variable(f"u_{j}", 0)
 
+        plug = max(0, ev.ready_step or 0)
+        dep = N if ev.deadline_step is None else ev.deadline_step
+        t_end = max(0, min(dep, N))
+
         prob += E[j][0] == ev.initial_energy
         for t in T:
             prob += E[j][t + 1] == E[j][t] + ETA * P_ev[j][t] * DT
             prob += E[j][t + 1] <= ev.max_energy
-        prob += E[j][N] + u[j] >= ev.energy_goal
+            if t < plug or t >= t_end:
+                prob += P_ev[j][t] == 0             # not plugged in
+        if dep <= N:
+            prob += E[j][t_end] + u[j] >= ev.energy_goal   # goal only if departure is inside the horizon
 
     # ---- grid, objective, fuse
     P_grid = {
