@@ -2,6 +2,7 @@
 using Xunit;
 using SmartHomeApplicationAPI.Repository;
 using SmartHomeApplicationAPI.Service;
+using SmartHomeApplicationAPI.Infrastructure.Models;
 using Utilities.Models;
 
 namespace SmartHomeApplicationAPI.Tests.Service;
@@ -46,4 +47,15 @@ public class PlanServiceTests
     //     Assert.Same(expectedPlans, result);
     // }
 
+    [Fact]
+    public async Task DeletePlanAsync_PlanNotFound_DeletesNothing()
+    {
+        var repo = new Mock<IPlanRepository>();
+        repo.Setup(r => r.GetPlanChainAsync("user", 1)).ReturnsAsync(new List<Plan>());
+
+        bool deleted = await new PlanService(repo.Object).DeletePlanAsync("user", 1);
+
+        Assert.False(deleted);
+        repo.Verify(r => r.DeletePlanChainAsync(It.IsAny<List<Plan>>()), Times.Never);
+    }
 }

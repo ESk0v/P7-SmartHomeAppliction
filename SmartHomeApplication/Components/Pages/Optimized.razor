@@ -12,6 +12,7 @@
 @inject NavigationManager NavigationManager
 @inject AuthenticationStateProvider AuthProvider
 @inject ILogger<Optimized> Logger
+@inject INotificationService NotificationService
 
 <PageTitle>Optimized plans</PageTitle>
 
@@ -54,6 +55,9 @@
         </div>
 
         <div class="header-actions">
+            <button type="button" class="optimized-action optimized-action-secondary" @onclick="DeletePlan" disabled="@(selectedPlan is null || isDeleting)">
+                @(confirmDelete ? "Confirm delete" : "Delete")
+            </button>
             <button type="button" class="optimized-action optimized-action-primary" @onclick="EditPlan" disabled="@(selectedPlan is null)">
                 Adjust
             </button>
@@ -193,6 +197,8 @@
 
     private bool isPlanPickerOpen;
     private bool isLoading = true;
+    private bool confirmDelete;
+    private bool isDeleting;
     private string? loadError;
     private List<PlanDto> allSchedules = new List<PlanDto>();
     private Dictionary<int, PlanDto> plansById = new Dictionary<int, PlanDto>();
@@ -276,6 +282,53 @@
         selectedPlanId = planId;
         BuildSelectedSchedules();
         isPlanPickerOpen = false;
+        confirmDelete = false;
+    }
+
+    // The first click asks for confirmation; the second deletes the plan and all its intervals.
+    private async Task DeletePlan()
+    {
+        if (selectedPlan is null)
+            return;
+
+        if (!confirmDelete)
+        {
+            confirmDelete = true;
+            return;
+        }
+
+        confirmDelete = false;
+        isDeleting = true;
+        int planId = selectedPlan.planId;
+
+        try
+        {
+            AuthenticationState state = await AuthProvider.GetAuthenticationStateAsync();
+            string? userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            using var request = new HttpRequestMessage(HttpMethod.Delete, $"api/plan-controller/delete-plan/{planId}");
+            request.Headers.Add("UserId", userId);
+            using HttpResponseMessage response = await Http.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+            {
+                NotificationService.ErrorNotification("The plan could not be deleted.");
+                return;
+            }
+
+            HashSet<int> deletedIds = selectedSchedules.Select(schedule => schedule.planId).ToHashSet();
+            allSchedules.RemoveAll(schedule => deletedIds.Contains(schedule.planId));
+            BuildPlansFromSchedules();
+            NotificationService.SuccessNotification("The plan was deleted.");
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Failed to delete plan {PlanId}", planId);
+            NotificationService.ErrorNotification("The plan could not be deleted.");
+        }
+        finally
+        {
+            isDeleting = false;
+        }
     }
 
     private void EditPlan()
@@ -338,6 +391,7 @@
 
         if (allSchedules.Count == 0)
         {
+            plans.Clear();
             selectedPlanId = 0;
             selectedSchedules.Clear();
             return;

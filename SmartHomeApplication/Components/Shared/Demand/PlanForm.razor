@@ -135,7 +135,7 @@ else if (isLoading)
                     <ValidationMessage For="() => ScheduleForm.Priority" class="text-danger" />
                 </div>
                 <div class="mt-4 mb-2 d-flex justify-content-end generate-plan-button">
-                    <button type="submit" class="btn btn-primary" disabled="@IsEditMode" title="@(IsEditMode ? "Plan regeneration will be available later" : null)">Generate Plan</button>
+                    <button type="submit" class="btn btn-primary">Generate Plan</button>
                 </div>
             </div>
         </EditForm>
@@ -195,6 +195,9 @@ else if (isLoading)
     [Parameter] public EventCallback<string> OnPlanNameLoaded { get; set; }
     private int editingPlanId;
     private bool editLoaded;
+    // The form inputs the generated plan was made from; null when no plan was generated
+    private string? generatedFor;
+    private string CurrentInputs => $"{ScheduleForm.Start}|{ScheduleForm.End}|{ScheduleForm.Preset?.id}|{ScheduleForm.ChargeStopPercentage}";
     private bool isLoading = true;
     private string? loadError;
     private string? userId;
@@ -515,9 +518,6 @@ else if (isLoading)
     // Request an optimized plan and show its result in the overview.
     private async Task GenerateScheduling()
     {
-        if (IsEditMode)
-            return;
-
         schedulingError = null;
         if (isNonInterruptible && (ScheduleForm.Preset?.id ?? 0) <= 0)
         {
@@ -533,8 +533,10 @@ else if (isLoading)
             return;
         }
 
-        optimizedIntervals.Clear();
-        displayPlan = false;
+        // In edit mode the existing plan stays visible until a new plan is generated
+        if (IsEditMode) ShowExistingPlanPreview();
+        else { optimizedIntervals.Clear(); displayPlan = false; }
+        generatedFor = null;
         requestedWindowStart = null;
         requestedWindowEnd = null;
 
@@ -585,6 +587,12 @@ else if (isLoading)
                 "api/createPlan-controller/optimize",
                 optimizationRequest);
 
+            if (result.StatusCode == System.Net.HttpStatusCode.UnprocessableEntity)
+            {
+                NotificationService.WarningNotification(await result.Content.ReadAsStringAsync());
+                return;
+            }
+
             if (!result.IsSuccessStatusCode)
             {
                 NotificationService.ErrorNotification($"Optimization failed: {await result.Content.ReadAsStringAsync()}");
@@ -608,6 +616,7 @@ else if (isLoading)
             }
 
             displayPlan = true;
+            generatedFor = CurrentInputs;
 
             string planName = string.IsNullOrWhiteSpace(ScheduleForm.PlanName)
             ? ScheduleForm.DeviceName
@@ -755,6 +764,19 @@ else if (isLoading)
                 firstPlanId = savedId;
             }
 
+            // In edit mode the new plan replaces the existing one.
+            if (IsEditMode)
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Delete,
+                    $"api/plan-controller/delete-plan/{editingPlanId}");
+                request.Headers.Add("UserId", userId);
+                using HttpResponseMessage deleted = await Http.SendAsync(request);
+                if (!deleted.IsSuccessStatusCode)
+                    NotificationService.ErrorNotification("The new plan was saved, but the old plan could not be deleted. Delete it on the Optimized page.");
+
+                PlanState.ReturnToSelectedPlan = true;
+            }
+
             if (firstPlanId.HasValue)
             {
                 PlanState.SelectedPlanId = firstPlanId.Value;
@@ -859,7 +881,16 @@ else if (isLoading)
         return result;
     }
 
-    private Task SubmitPlan() => IsEditMode ? UpdatePlanAsync() : addPlan();
+    // In edit mode a generated plan replaces the existing one; otherwise the existing plan's intervals are kept.
+    private Task SubmitPlan()
+    {
+        if (!IsEditMode || generatedFor == CurrentInputs)
+            return addPlan();
+
+        // Inputs changed after generating: show the existing intervals again and keep them
+        ShowExistingPlanPreview();
+        return UpdatePlanAsync();
+    }
 
 
     private async Task UpdatePlanAsync()

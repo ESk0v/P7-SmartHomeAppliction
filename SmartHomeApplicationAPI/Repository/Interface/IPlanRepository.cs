@@ -1,3 +1,4 @@
+using SmartHomeApplicationAPI.Infrastructure.Models;
 using Utilities.Models;
 
 namespace SmartHomeApplicationAPI.Repository;
@@ -13,4 +14,8 @@ public interface IPlanRepository
     Task<bool> PresetBelongsToDeviceAsync(int presetId, int deviceId);
 
     Task<PlanDTO?> UpdatePlanAsync(string userId, int planId, PlanDTO update);
+
+    Task<List<Plan>> GetPlanChainAsync(string userId, int planId);
+
+    Task DeletePlanChainAsync(List<Plan> chain);
 }

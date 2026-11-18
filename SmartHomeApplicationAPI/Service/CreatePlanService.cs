@@ -1,3 +1,4 @@
+using FluentValidation;
 using Utilities.Models;
 using SmartHomeApplicationAPI.Repository;
 using SmartHomeApplicationAPI.DTOs.Optimization;
@@ -80,6 +81,7 @@ public class CreatePlanService : ICreatePlanService
         }
 
         var loads = new List<SolverLoadDTO>();
+        SolverLoadDTO? requestedLoad = null;
 
         foreach (var group in devicePresets.GroupBy(x => x.Device.id))
         {
@@ -144,6 +146,9 @@ public class CreatePlanService : ICreatePlanService
                 }
             }
 
+            if (isRequested)
+                requestedLoad = load;
+
             loads.Add(load);
         }
 
@@ -164,12 +169,30 @@ public class CreatePlanService : ICreatePlanService
             System.Text.Json.JsonSerializer.Serialize(solverReq));
         #endregion
 
+        // A program whose own power is above what the fuse allows can never be planned
+        if (requestedLoad?.PowerProfile is { Count: > 0 } profile)
+        {
+            var programKw = profile.Max() / 0.25;                                     // kWh per step -> kW
+            var availableKw = solverReq.FuseLimit - solverReq.BaseLoad.DefaultIfEmpty(0).Max();
+            if (programKw > availableKw)
+                throw new ValidationException(
+                    $"The selected program uses {programKw:0.#} kW, but only {availableKw:0.#} kW is available " +
+                    $"under the fuse limit of {solverReq.FuseLimit} kW. Choose another preset.");
+        }
+
         var response = await _http.PostAsJsonAsync("/run", solverReq, _solverJson);
         var body = await response.Content.ReadAsStringAsync();
 
         if (!response.IsSuccessStatusCode)
         {
             _logger.LogError("Optimisation failed ({Status}): {Body}", (int)response.StatusCode, body);
+
+            // Infeasible: the load does not fit under the fuse limit together with the base load and other plans
+            if (response.StatusCode == System.Net.HttpStatusCode.UnprocessableEntity && body.Contains("Infeasible"))
+                throw new ValidationException(
+                    $"The plan cannot be created, as it would exceed the fuse limit of {solverReq.FuseLimit} kW " +
+                    "together with your other plans. Choose a longer time window or another time.");
+
             throw new InvalidOperationException($"Optimisation failed: {body}");
         }
 

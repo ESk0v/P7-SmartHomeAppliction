@@ -111,6 +111,36 @@ public class PlanRepository : IPlanRepository
         return await ToPlanDtoAsync(plan);
     }
 
+    // The plan and every row linked after it through NextPlanId.
+    // Empty if the plan is not the user's or is not the first row of a plan.
+    public async Task<List<Plan>> GetPlanChainAsync(string userId, int planId)
+    {
+        var chain = new List<Plan>();
+        if (await _db.Plan.AnyAsync(p => p.NextPlanId == planId))
+            return chain;
+
+        int? id = planId;
+        while (id is int current)
+        {
+            Plan? plan = await _db.Plan
+                .FirstOrDefaultAsync(p => p.Id == current && p.UserDevice.UserId == userId);
+            if (plan is null || chain.Contains(plan))
+                break;
+
+            chain.Add(plan);
+            id = plan.NextPlanId;
+        }
+
+        return chain;
+    }
+
+    // The whole chain is removed in one SaveChanges, so EF deletes each row before the row it points to
+    public async Task DeletePlanChainAsync(List<Plan> chain)
+    {
+        _db.Plan.RemoveRange(chain);
+        await _db.SaveChangesAsync();
+    }
+
     private async Task<PlanDTO> ToPlanDtoAsync(Plan plan)
     {
         decimal? batteryCapacity = await _db.Preset

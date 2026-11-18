@@ -37,6 +37,17 @@ public class PlanService : IPlanService
         return await _repository.UpdatePlanAsync(userId, planId, update);
     }
 
+    // Deletes the plan and all its linked intervals
+    public async Task<bool> DeletePlanAsync(string userId, int planId)
+    {
+        var chain = await _repository.GetPlanChainAsync(userId, planId);
+        if (chain.Count == 0)
+            return false;
+
+        await _repository.DeletePlanChainAsync(chain);
+        return true;
+    }
+
     private static InlineValidator<PlanDTO> CreateUpdateValidator(
         PlanUserDeviceDto? device, bool presetBelongsToDevice)
     {

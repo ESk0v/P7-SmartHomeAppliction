@@ -56,4 +56,14 @@ public class PlanController : ControllerBase
             return BadRequest(string.Join(" ", exception.Errors.Select(error => error.ErrorMessage)));
         }
     }
+
+    [HttpDelete("delete-plan/{planId:int}")]
+    public async Task<IActionResult> DeletePlan(
+        int planId, [FromHeader(Name = "UserId")] string userId)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+            return Unauthorized();
+
+        return await _service.DeletePlanAsync(userId, planId) ? NoContent() : NotFound();
+    }
 }
