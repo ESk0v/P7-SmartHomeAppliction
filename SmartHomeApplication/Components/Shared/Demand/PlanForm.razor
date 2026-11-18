@@ -607,6 +607,7 @@ else if (isLoading)
             DevicePresetId = ScheduleForm.Preset?.id ?? 0,
             StartWindow = requestedWindowStart.Value,   // UTC, already computed above
             EndWindow = requestedWindowEnd.Value,
+            ChargeStopPercentage = isInterruptible ? ScheduleForm.ChargeStopPercentage : null,
             Priority = ScheduleForm.Priority
         };
 

@@ -57,8 +57,9 @@ public class CreatePlanService : ICreatePlanService
     {
         #region Data Retrival
         var now = DateTime.UtcNow;
+        var quarter = TimeSpan.FromMinutes(15).Ticks;
         var start = new DateTime(
-            now.Ticks - now.Ticks % TimeSpan.FromMinutes(15).Ticks,
+            (now.Ticks + quarter - 1) / quarter * quarter,
             DateTimeKind.Utc);
 
         var end = request.EndWindow.ToUniversalTime();
@@ -68,11 +69,8 @@ public class CreatePlanService : ICreatePlanService
         var devicePresets = await _repository.GetDevicesWithPresetsAsync(request.UserDeviceId);
         var userDeviceIds = devicePresets.Select(x => x.Device.id).Distinct().ToList();
 
-        var plans = await _repository.GetActivePlansAsync(userDeviceIds, start);
+        var plans = await _repository.GetActivePlansAsync(userDeviceIds, now);
 
-        // Step index from step 0. Clamped to 0 so a window that starts before "now" begins at step 0
-        // Quarters from step 0 (now rounded down to the quarter). Negative = before step 0
-        // Example: now 10:40 -> step 0 = 10:30, 10:45 = 1, 11:00 = 2, 10:00 = -2
         int Step(DateTime t)
         {
             var utc = t.Kind == DateTimeKind.Local
@@ -116,9 +114,16 @@ public class CreatePlanService : ICreatePlanService
                 load.MaxChargingPower = (double)preset.ConsumptionInKwh;          // P_ev_max, kW
                 load.InitialEnergy = 0.2 * (load.MaxEnergy ?? 0);                 // hardcoded 20%
 
-                // Goal from the existing plan's stop percentage, otherwise hardcoded 100%
-                var stopPercentage = (double)(plan?.ChargeStopPercentage ?? 100);
+                // Goal: the requested percentage for a new plan, the saved one for an existing plan, otherwise 100%
+                var stopPercentage = (double)((isRequested ? request.ChargeStopPercentage : plan?.ChargeStopPercentage) ?? 100);
                 load.EnergyGoal = stopPercentage / 100.0 * (load.MaxEnergy ?? 0); // E_goal, kWh
+
+                // Window: the solver reads plug-in from ReadyStep and departure from DeadlineStep.
+                // Departure is capped at the last known price; beyond it the solver sets no goal and plans no charging.
+                var windowStart = isRequested ? request.StartWindow : plan!.WindowStartTime;
+                var windowEnd = isRequested ? request.EndWindow : plan!.WindowEndTime;
+                load.ReadyStep = Math.Max(0, Step(windowStart));                  // t_plug
+                load.DeadlineStep = Math.Min(Step(windowEnd), prices.Count);       // t_dep
             }
             else
             {

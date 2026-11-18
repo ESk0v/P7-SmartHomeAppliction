@@ -12,10 +12,12 @@ class SolverLoad(_Base):
     type: str                                   # "appliance" | "ev"
     name: str | None = None
 
+    # appliance and EV
+    ready_step: int | None = None               # appliance: earliest start; EV: plug-in (default 0)
+    deadline_step: int | None = None            # appliance: latest end; EV: departure (default: end of horizon)
+
     # appliance
     power_profile: list[float] | None = None    # kWh per 15-min step
-    ready_step: int | None = None
-    deadline_step: int | None = None
     fixed_start: int | None = None
 
     # ev
