@@ -18,6 +18,21 @@
         </div>
     </div>
 
+    <p class="schedule-details">
+        @activeSchedule.deviceName
+        @if (string.Equals(activeSchedule.deviceCategory, "Interruptible", StringComparison.OrdinalIgnoreCase))
+        {
+            @if (activeSchedule.chargeStopPercentage is int target)
+            {
+                <span> · Target @target%</span>
+            }
+        }
+        else if (activeSchedule.presetDurationInMinutes is int duration)
+        {
+            <span> · @duration min cycle</span>
+        }
+    </p>
+
     <div class="schedule-bottom">
         <div class="schedule-progress" role="progressbar" aria-label="@($"{activeSchedule.planName} progress")" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@Percent.ToString("0", CultureInfo.InvariantCulture)">
             <div class="schedule-progress-fill" style="@FillStyle()"></div>
@@ -89,6 +104,13 @@
         display: flex;
         flex-direction: column;
         justify-content: space-between;
+    }
+
+    .schedule-details {
+        margin: 0;
+        color: var(--smarthome-muted);
+        font-size: 0.8125rem;
+        overflow-wrap: anywhere;
     }
 
     .schedule-progress {
@@ -166,7 +188,7 @@
             min-width: 0;
             min-height: 136px;
             padding: 1.25rem;
-            gap: 1.5rem;
+            gap: 0.5rem;
             box-shadow: var(--smarthome-card-shadow);
         }
 
@@ -219,7 +241,7 @@
         .schedules-card {
             min-height: 112px;
             padding: 1rem;
-            gap: 1rem;
+            gap: 0.5rem;
         }
     }
 
