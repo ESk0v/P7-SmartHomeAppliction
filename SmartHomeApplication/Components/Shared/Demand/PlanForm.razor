@@ -140,8 +140,7 @@ else if (isLoading)
                     <ValidationMessage For="() => ScheduleForm.Priority" class="text-danger" id="priority-cheapest-error" />
                 </div>
                 <div class="mt-4 mb-2 d-flex justify-content-end generate-plan-button">
-                    <button type="submit" class="btn btn-primary" disabled="@IsEditMode" aria-describedby="@(IsEditMode ? "regeneration-hint" : null)">Generate Plan</button>
-                    @if (IsEditMode) { <span id="regeneration-hint" class="visually-hidden">Plan regeneration will be available later.</span> }
+                    <button type="submit" class="btn btn-primary" disabled="@isGenerating">Generate Plan</button>
                 </div>
             </div>
         </EditForm>
@@ -190,7 +189,7 @@ else if (isLoading)
                     {
                         <button type="button" class="btn btn-outline-secondary" @onclick="CancelGeneratedPlan" disabled="@(!displayPlan)">Cancel</button>
                     }
-                    <button type="button" @onclick="SubmitPlan" class="btn btn-primary" disabled="@(IsEditMode ? !editLoaded : !displayPlan)">@(IsEditMode ? "Update Plan" : "Save Plan")</button>
+                    <button type="button" @onclick="SubmitPlan" class="btn btn-primary" disabled="@(isGenerating || (IsEditMode ? !editLoaded : !displayPlan))">@(IsEditMode ? "Update Plan" : "Save Plan")</button>
                 </div>
 
             </section>
@@ -205,6 +204,10 @@ else if (isLoading)
     [Parameter] public EventCallback<string> OnPlanNameLoaded { get; set; }
     private int editingPlanId;
     private bool editLoaded;
+    private bool isGenerating;
+    // The form inputs the generated plan was made from; null when no plan was generated
+    private string? generatedFor;
+    private string CurrentInputs => $"{selectedDeviceId}|{schedulingDate:O}|{ScheduleForm.Start}|{ScheduleForm.End}|{ScheduleForm.Preset?.id}|{ScheduleForm.ChargeStopPercentage}|{ScheduleForm.Priority}|{area}";
     private bool isLoading = true;
     private string? loadError;
     private string? userId;
@@ -234,7 +237,19 @@ else if (isLoading)
     // Active schedules populate the price chart beside the form.
     private List<PlanDto>? activeSchedules;
     private List<PlanDto> previewSchedules = new List<PlanDto>();
-    private List<PlanDto> ChartSchedules => previewSchedules.Concat(activeSchedules ?? new List<PlanDto>()).ToList();
+    private List<PlanDto> ChartSchedules
+    {
+        get
+        {
+            IEnumerable<PlanDto> schedules = activeSchedules ?? new List<PlanDto>();
+            if (IsEditMode && previewSchedules.Count > 0)
+            {
+                var replacedIds = existingPlanIntervals.Select(interval => interval.planId).ToHashSet();
+                schedules = schedules.Where(plan => !replacedIds.Contains(plan.planId));
+            }
+            return previewSchedules.Concat(schedules).ToList();
+        }
+    }
     private string area = "DK1";
     
     // Collects the values sent to the optimization API.
@@ -469,6 +484,9 @@ else if (isLoading)
         if (existingPlan is null)
             return;
 
+        generatedFor = null;
+        previewSchedules.Clear();
+
         optimizedIntervals = existingPlanIntervals.Select(interval => new OptimizationResultDTO(
             PlanTimeToUtc(interval.startTime),
             PlanTimeToUtc(interval.endTime),
@@ -486,6 +504,7 @@ else if (isLoading)
 
     private void CancelGeneratedPlan()
     {
+        generatedFor = null;
         optimizedIntervals.Clear();
         previewSchedules.Clear();
         requestedWindowStart = null;
@@ -496,6 +515,7 @@ else if (isLoading)
 
     private void ClearSchedule()
     {
+        generatedFor = null;
         previewSchedules.Clear();
         ScheduleForm = new ScheduleForm();
         filteredPresets = new List<PresetDto>();
@@ -545,9 +565,7 @@ else if (isLoading)
     // Request an optimized plan and show its result in the overview.
     private async Task GenerateScheduling()
     {
-        if (IsEditMode)
-            return;
-
+        if (isGenerating) return;
         schedulingError = null;
         if (isNonInterruptible && (ScheduleForm.Preset?.id ?? 0) <= 0)
         {
@@ -563,8 +581,12 @@ else if (isLoading)
             return;
         }
 
-        optimizedIntervals.Clear();
-        displayPlan = false;
+        string generationInputs = CurrentInputs;
+
+        // In edit mode the existing plan stays visible until a new plan is generated
+        if (IsEditMode) ShowExistingPlanPreview();
+        else { optimizedIntervals.Clear(); displayPlan = false; }
+        generatedFor = null;
         requestedWindowStart = null;
         requestedWindowEnd = null;
         previewSchedules.Clear();
@@ -611,11 +633,18 @@ else if (isLoading)
             Priority = ScheduleForm.Priority
         };
 
+        isGenerating = true;
         try
         {
             using HttpResponseMessage? result = await Http.PostAsJsonAsync(
                 "api/createPlan-controller/optimize",
                 optimizationRequest);
+
+            if (result.StatusCode == System.Net.HttpStatusCode.UnprocessableEntity)
+            {
+                NotificationService.WarningNotification(await result.Content.ReadAsStringAsync());
+                return;
+            }
 
             if (!result.IsSuccessStatusCode)
             {
@@ -624,22 +653,24 @@ else if (isLoading)
                 return;
             }
 
-            optimizedIntervals =
+            var generatedIntervals =
                 await result.Content.ReadFromJsonAsync<List<OptimizationResultDTO>>()
                 ?? new List<OptimizationResultDTO>();
 
-            optimizedIntervals = optimizedIntervals
+            generatedIntervals = generatedIntervals
                 .OrderBy(x => x.StartTime)
                 .ToList();
 
-            if (optimizedIntervals.Count == 0)
+            if (generatedIntervals.Count == 0)
             {
                 NotificationService.ErrorNotification($"The optimizer returned no charging intervals.");
                 // schedulingError = "The optimizer returned no charging intervals.";
                 return;
             }
 
+            optimizedIntervals = generatedIntervals;
             displayPlan = true;
+            generatedFor = generationInputs;
 
             string planName = string.IsNullOrWhiteSpace(ScheduleForm.PlanName)
             ? ScheduleForm.DeviceName
@@ -661,10 +692,10 @@ else if (isLoading)
             // schedulingError = $"Error with optimization: {e.Message}";
             Logger.LogError(e, "Optimization failed");
         }
-
-        await Task.CompletedTask;
-        return ;
-
+        finally
+        {
+            isGenerating = false;
+        }
     }
 
     private static DateTime ChartTime(DateTime utc) => TimeZoneInfo.ConvertTimeFromUtc(
@@ -813,6 +844,19 @@ else if (isLoading)
                 firstPlanId = savedId;
             }
 
+            // In edit mode the new plan replaces the existing one.
+            if (IsEditMode)
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Delete,
+                    $"api/plan-controller/delete-plan/{editingPlanId}");
+                request.Headers.Add("UserId", userId);
+                using HttpResponseMessage deleted = await Http.SendAsync(request);
+                if (!deleted.IsSuccessStatusCode)
+                    NotificationService.ErrorNotification("The new plan was saved, but the old plan could not be deleted. Delete it on the Optimized page.");
+
+                PlanState.ReturnToSelectedPlan = true;
+            }
+
             if (firstPlanId.HasValue)
             {
                 PlanState.SelectedPlanId = firstPlanId.Value;
@@ -917,7 +961,24 @@ else if (isLoading)
         return result;
     }
 
-    private Task SubmitPlan() => IsEditMode ? UpdatePlanAsync() : addPlan();
+    // In edit mode a generated plan replaces the existing one only while its inputs still match.
+    private Task SubmitPlan()
+    {
+        if (isGenerating) return Task.CompletedTask;
+        if (!IsEditMode)
+            return addPlan();
+
+        if (generatedFor is null)
+            return UpdatePlanAsync();
+
+        if (generatedFor != CurrentInputs)
+        {
+            NotificationService.WarningNotification("The scheduling inputs have changed. Generate the plan again before updating.");
+            return Task.CompletedTask;
+        }
+
+        return addPlan();
+    }
 
 
     private async Task UpdatePlanAsync()
