@@ -6,6 +6,7 @@
 @using Utilities.Models
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.AspNetCore.Components.QuickGrid
+@using SmartHomeApplication.Components.Shared.Demand
 
 <PageTitle>Add Device</PageTitle>
 
@@ -54,16 +55,11 @@
                                 </div>
                             </label>
                             
-                            <InputSelect id="deviceCategory"
-                                         class="form-control"
-                                         @bind-Value="CreateDeviceDto.Category"
-                                         @bind-Value:after="CategoryChanged">
-                            <option value="">-- Select a Category --</option>
-                            @foreach (string category in categories)
-                            {
-                                <option value="@category">@category</option>
-                            }
-                            </InputSelect>
+                            <ButtonSelect Id="deviceCategory"
+                                          Options="@(categories.Select(category => (Value: category, Text: category)))"
+                                          @bind-Value="CreateDeviceDto.Category"
+                                          @bind-Value:after="CategoryChanged"
+                                          Placeholder="Select a category" />
                             <ValidationMessage For="() => CreateDeviceDto.Category" class="text-danger" /> 
                         </div>
                         @if (IsInterruptible && CreateDeviceDto.Category != "")
@@ -83,14 +79,12 @@
                         {
                           <div class="mb-3">
                                 <label for="devicePreset" class="form-label">Preset</label>
-                                <InputSelect id="devicePreset" class="form-control" @bind-Value="selectedPresetOption" @bind-Value:after="PresetSelectionChanged">
-                                    <option value="">-- Select a Preset --</option>
-                                    @foreach (var preset in CreateDeviceDto.Presets)
-                                    {
-                                        <option value="@preset.PresetName">@preset.PresetName</option>
-                                    }
-                                    <option value="@CustomPresetOption">Create a new preset</option>
-                                </InputSelect>
+                                <ButtonSelect Id="devicePreset"
+                                              Options="@(CreateDeviceDto.Presets.Select(preset => (Value: preset.PresetName, Text: preset.PresetName))
+                                                  .Append((CustomPresetOption, "+ Create a new preset")))"
+                                              @bind-Value="selectedPresetOption"
+                                              @bind-Value:after="PresetSelectionChanged"
+                                              Placeholder="Select a preset" />
                                 <ValidationMessage For="() => CreateDeviceDto.Preset" class="text-danger" /> 
                             </div>
                             @if (IsCustomPreset)
@@ -142,16 +136,18 @@
         <div class="card shadow-sm border-0 rounded-4 p-4 bg-white h-100 catalogue-card">
              <h2 class="h5">Device catalogue</h2>
                 <section class="border rounded catalogue-scroll" aria-label="Device catalogue">
-                    <QuickGrid Class="table table-striped" Items="FilteredDevices">
+                    <QuickGrid Class="table table-striped" Items="FilteredDevices"
+                               RowClass="@(device => selectedCatalogueDevice == device ? "catalogue-row-selected" : string.Empty)">
                         <TemplateColumn Title="Model" Context="device" SortBy="@(GridSort<CatalogueDeviceDto>.ByAscending(d => d.Model))">
-                            <button type="button" class="btn btn-link p-0 text-start" @onclick="() => SelectDevice(device)">
+                            <button type="button" class="btn btn-link p-0 text-start stretched-link catalogue-row-button"
+                                    aria-label="@($"{device.Model}, {device.Category}")"
+                                    aria-pressed="@(selectedCatalogueDevice == device ? "true" : "false")"
+                                    @onclick="() => SelectDevice(device)">
                                 @device.Model
                             </button>
                         </TemplateColumn>
                         <TemplateColumn Title="Category" Context="device" SortBy="@(GridSort<CatalogueDeviceDto>.ByAscending(d => d.Category))">
-                            <button type="button" class="btn btn-link p-0 text-start" @onclick="() => SelectDevice(device)">
-                                @device.Category
-                            </button>
+                            @device.Category
                         </TemplateColumn>
                     </QuickGrid>
                 </section>
@@ -238,6 +234,7 @@
     }
     
     private List<CatalogueDeviceDto> devices = [];
+    private CatalogueDeviceDto? selectedCatalogueDevice;
    
     private IQueryable<CatalogueDeviceDto> FilteredDevices => 
     devices.AsQueryable().Where(d => d.Model.Contains(CreateDeviceDto.Model ?? "",StringComparison.OrdinalIgnoreCase) && 
@@ -251,6 +248,15 @@
     
     private void SelectDevice(CatalogueDeviceDto device)
     {
+        if (selectedCatalogueDevice == device)
+        {
+            selectedCatalogueDevice = null;
+            CreateDeviceDto = new CreateDeviceDto();
+            selectedPresetOption = string.Empty;
+            return;
+        }
+
+        selectedCatalogueDevice = device;
         CreateDeviceDto.Model = device.Model;
         CreateDeviceDto.Category = device.Category;
         CreateDeviceDto.Presets = device.Presets;
@@ -295,6 +301,39 @@
 }
 
 <style>
+    .catalogue-scroll tbody tr {
+        position: relative;
+        cursor: pointer;
+    }
+
+    .catalogue-scroll tbody tr:hover > td {
+        --bs-table-bg-state: #edf5fd;
+    }
+
+    .catalogue-scroll tbody tr.catalogue-row-selected > td {
+        --bs-table-bg-state: #deedfc;
+    }
+
+    .catalogue-scroll .catalogue-row-button:focus {
+        box-shadow: none;
+    }
+
+    .catalogue-scroll .catalogue-row-button:focus-visible::after {
+        outline: 2px solid #0a66c3;
+        outline-offset: -2px;
+    }
+
+    .add-appliance-layout .plan-picker-placeholder {
+        color: #857f78;
+    }
+
+    .add-appliance-layout .plan-picker-option[data-value="__custom_preset__"] {
+        border-top: 1px solid #b8d5f2;
+        margin-top: 0.25rem;
+        color: #0a66c3;
+        font-weight: 600;
+    }
+
     .form-control {
         background-color: #f8f9fa;
         border: 1px solid #ced4da;
@@ -380,6 +419,47 @@
         background: #fff;
     }
 
+    .add-appliance-layout .catalogue-scroll th {
+        background: #faf9f7;
+        color: var(--smarthome-muted);
+        font-size: 0.8rem;
+    }
+
+    .add-appliance-layout .catalogue-scroll .col-title {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        border: 0;
+        background: none;
+        padding: 0;
+        color: inherit;
+        font: inherit;
+        font-weight: 600;
+        text-align: left;
+    }
+
+    .add-appliance-layout .catalogue-scroll .col-title:hover {
+        color: #0a66c3;
+    }
+
+    .add-appliance-layout .sort-indicator {
+        width: 0.4rem;
+        height: 0.4rem;
+        border-right: 1.5px solid currentColor;
+        border-bottom: 1.5px solid currentColor;
+        transform: rotate(45deg);
+        opacity: 0.4;
+    }
+
+    .add-appliance-layout .col-sort-asc .sort-indicator {
+        opacity: 1;
+        transform: rotate(225deg);
+    }
+
+    .add-appliance-layout .col-sort-desc .sort-indicator {
+        opacity: 1;
+    }
+
     @@media (min-width: 992px) {
         .add-appliance-layout {
             height: calc(100dvh - 6.6rem);
@@ -426,6 +506,112 @@
         }
     }
 
+    @@media (min-width: 961px) {
+        .add-appliance-layout {
+            flex: 1;
+            height: 100%;
+            min-height: 0;
+            align-items: stretch;
+            row-gap: 1.5rem;
+        }
+
+        .add-appliance-layout > div {
+            flex: 0 0 50%;
+            width: 50%;
+            height: 100%;
+            min-height: 0;
+        }
+
+        .add-appliance-layout .appliance-form-card,
+        .add-appliance-layout .catalogue-card {
+            max-height: 100%;
+            min-height: 0;
+            overflow: hidden;
+            box-shadow: var(--smarthome-card-shadow) !important;
+            border: 1px solid var(--smarthome-border) !important;
+        }
+
+        .add-appliance-layout h2 {
+            flex: none;
+            color: var(--smarthome-text);
+            font-weight: 600;
+        }
+
+        .add-appliance-layout .form-control {
+            background: #faf9f7;
+            border-color: var(--smarthome-border);
+        }
+
+        .add-appliance-layout .catalogue-scroll {
+            flex: 1;
+            min-height: 0;
+            height: auto;
+            max-height: none;
+            margin-top: 0.75rem;
+        }
+
+        .add-appliance-layout .appliance-form-card {
+            overflow-y: auto;
+        }
+
+        .add-appliance-layout .catalogue-scroll table {
+            width: 100%;
+            table-layout: fixed;
+            margin-bottom: 0;
+            font-size: 0.875rem;
+        }
+
+        .add-appliance-layout .catalogue-scroll th,
+        .add-appliance-layout .catalogue-scroll td {
+            padding: 0.85rem 1rem;
+            vertical-align: middle;
+            overflow-wrap: anywhere;
+        }
+
+        .add-appliance-layout .catalogue-scroll .btn {
+            font-size: inherit;
+        }
+
+        .add-appliance-layout .catalogue-scroll tbody tr:hover {
+            --bs-table-bg: #edf5fd;
+        }
+
+        .add-appliance-layout .info-tooltip .info-tooltiptext {
+            display: none;
+            position: absolute;
+            width: min(22rem, 100%);
+            left: 0;
+            top: calc(100% + 0.5rem);
+            bottom: auto;
+            transform: none;
+            padding: 0.85rem 1rem;
+            background: #464646;
+            color: #fff;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 400;
+            line-height: 1.5;
+            box-shadow: 0 8px 24px rgba(43, 35, 25, 0.15);
+        }
+
+        .add-appliance-layout .appliance-form-card .form-label {
+            display: block;
+            position: relative;
+        }
+
+        .add-appliance-layout .info-tooltip {
+            display: inline-block;
+            position: static;
+        }
+
+        .add-appliance-layout .info-tooltip:hover .info-tooltiptext,
+        .add-appliance-layout .info-tooltip:focus-within .info-tooltiptext {
+            display: block;
+            visibility: visible;
+            opacity: 1;
+        }
+    }
+
     @@media (max-width: 640.98px), (max-width: 960px) and (max-height: 500px) and (pointer: coarse) {
         .add-appliance-layout {
             row-gap: 1rem;
@@ -439,6 +625,19 @@
         .add-appliance-layout .catalogue-card {
             padding: 1rem !important;
             min-width: 0;
+        }
+
+        .add-appliance-layout .plan-picker-trigger,
+        .add-appliance-layout .plan-picker-option {
+            min-width: 0;
+            width: 100%;
+            min-height: 44px;
+            white-space: normal;
+            overflow-wrap: anywhere;
+        }
+
+        .add-appliance-layout .plan-picker-menu {
+            max-height: min(220px, 50dvh);
         }
 
         .add-appliance-layout .catalogue-scroll table {
@@ -456,7 +655,18 @@
 
         .add-appliance-layout .catalogue-scroll .col-title {
             min-width: 0;
+            min-height: 44px;
             flex-wrap: wrap;
+        }
+
+        .add-appliance-layout .catalogue-scroll td {
+            vertical-align: middle;
+        }
+
+        .add-appliance-layout .catalogue-row-button {
+            width: 100%;
+            min-height: 44px;
+            font-size: inherit;
         }
 
         /* Keep category help readable on touch screens without a hover popup. */

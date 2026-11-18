@@ -21,4 +21,17 @@ public class ElectricityPriceController : ControllerBase
     {
         return await _service.GetPricesForDateAsync(areaCode);
     }
+
+    [HttpPost("unscheduled-estimate")]
+    public async Task<ActionResult<UnscheduledEstimateDto>> GetUnscheduledEstimate(
+        [FromBody] UnscheduledEstimateRequestDto request)
+    {
+        if (request.EndTime <= request.StartTime || request.EnergyInKwh <= 0)
+            return BadRequest("A positive workload and a valid time range are required.");
+
+        UnscheduledEstimateResultDto result = await _service.GetUnscheduledEstimateAsync(request);
+        return result.Estimate is null
+            ? NotFound(result.Error)
+            : Ok(result.Estimate);
+    }
 }

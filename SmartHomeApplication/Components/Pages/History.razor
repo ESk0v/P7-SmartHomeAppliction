@@ -333,7 +333,7 @@
     }
 
     .period-option:focus-visible {
-        outline: 1.5px solid #a9a0ff;
+        outline: 1.5px solid #b8d5f2;
         outline-offset: 1px;
     }
 
@@ -368,7 +368,6 @@
         align-items: stretch;
         justify-content: space-between;
         gap: 6px;
-        border-bottom: 1px solid #e5e2dc;
         /* faint guide lines at 25 / 50 / 75 / 100 % */
         background-image: repeating-linear-gradient(
         to top,
@@ -505,6 +504,60 @@
         left: auto;
         right: 0;
         transform: none;
+    }
+
+    @@media (min-width: 961px) {
+        .history-page {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            overflow: hidden;
+        }
+
+        .history-page .statistics {
+            flex: none;
+            gap: 1rem;
+        }
+
+        .history-page .history-chart-card {
+            flex: 1;
+            min-height: 0;
+            height: auto;
+            margin-top: 0;
+            padding: 1.25rem;
+            box-shadow: var(--smarthome-card-shadow);
+        }
+
+        .history-page .history-chart-header {
+            margin-bottom: 1rem;
+        }
+
+        .history-page .history-chart-title {
+            color: var(--smarthome-text);
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .history-page .history-chart-label {
+            margin-top: 0.75rem;
+            color: var(--smarthome-muted);
+        }
+
+        .history-page .history-legend {
+            gap: 1rem;
+        }
+
+        .history-page .history-legend-item {
+            gap: 0.4rem;
+        }
+
+        .period-toggle .period-option {
+            min-width: 4rem;
+            min-height: 40px;
+            font-size: 0.85rem;
+        }
     }
 
     @@media (max-width: 640.98px), (max-width: 960px) and (max-height: 500px) and (pointer: coarse) {

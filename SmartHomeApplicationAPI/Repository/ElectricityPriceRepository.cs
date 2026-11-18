@@ -18,7 +18,23 @@ public class ElectricityPriceRepository : IElectricityPriceRepository
         return await _db.Electricity
             .Where(p => p.Time >= date && p.PriceArea == areaCode)
             .OrderBy(p => p.Time)
-            .Select(p => new HourPriceDto(p.Time, p.PricePerKwh))
+            .Select(p => new HourPriceDto(p.Time, p.PricePerKwh, p.IsPredicted))
+            .ToListAsync();
+    }
+
+    public async Task<List<ElectricityReadingDto>> GetReadingsAsync(
+        string areaCode,
+        DateTime startTime,
+        DateTime endTime)
+    {
+        return await _db.Electricity
+            .Where(p => p.PriceArea == areaCode
+                && p.Time >= startTime
+                && p.Time < endTime)
+            .Select(p => new ElectricityReadingDto(
+                p.Time,
+                p.PricePerKwh,
+                p.Co2EmissionGramsPerKwh))
             .ToListAsync();
     }
 }

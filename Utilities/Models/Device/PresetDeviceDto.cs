@@ -7,6 +7,8 @@ namespace Utilities.Models
         public int Id { get; set; }
 
         [Required(ErrorMessage = "Preset name is required.")]
+        // TODO: CreateDeviceDto.Preset allows 50 characters; this limit silently blocks
+        // editing longer preset names created through the Add Device form.
         [StringLength(10)]
         public string PresetName { get; set; } = "";
 
