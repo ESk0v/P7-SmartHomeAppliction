@@ -13,6 +13,7 @@
 @inject NavigationManager NavigationManager
 @inject AuthenticationStateProvider AuthProvider
 @inject ILogger<Optimized> Logger
+@inject INotificationService NotificationService
 
 <PageTitle>Optimized plans</PageTitle>
 
@@ -29,7 +30,10 @@
         </div>
 
         <div class="header-actions">
-            <button type="button" class="optimized-action optimized-action-primary" @onclick="EditPlan" disabled="@(selectedPlan is null)">
+            <button type="button" class="optimized-action btn btn-outline-danger" @onclick="DeletePlan" disabled="@(selectedPlan is null || isDeleting)">
+                Delete
+            </button>
+            <button type="button" class="optimized-action optimized-action-primary" @onclick="EditPlan" disabled="@(selectedPlan is null || isDeleting)">
                 Adjust
             </button>
         </div>
@@ -163,7 +167,11 @@
         }
     </div>
 
+<ConfirmationDialog @ref="deleteConfirmation" />
+
 @code {
+    private ConfirmationDialog deleteConfirmation = default!;
+    private bool isDeleting;
     private List<PlanDto> plans = new List<PlanDto>();
 
     private bool isLoading = true;
@@ -258,8 +266,44 @@
         NavigationManager.NavigateTo("/plans/edit");
     }
 
-    protected override async Task OnInitializedAsync()
+    private async Task DeletePlan()
     {
+        var plan = selectedPlan;
+        if (plan is null || isDeleting) return;
+        if (!await deleteConfirmation.ShowAsync("Delete plan?",
+            $"Delete the unfinished blocks of \"{plan.planName}\"? Completed blocks will remain in History. This cannot be undone.",
+            "Delete plan")) return;
+
+        isDeleting = true;
+        try
+        {
+            var state = await AuthProvider.GetAuthenticationStateAsync();
+            string? userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrWhiteSpace(userId)) throw new InvalidOperationException("The current user could not be identified.");
+
+            using var request = new HttpRequestMessage(HttpMethod.Delete, $"api/plan-controller/delete-plan/{plan.planId}");
+            request.Headers.Add("UserId", userId);
+            using var response = await Http.SendAsync(request);
+            response.EnsureSuccessStatusCode();
+
+            selectedPlanId = 0;
+            await LoadPlansAsync();
+            NotificationService.SuccessNotification($"Unfinished blocks of \"{plan.planName}\" deleted.");
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Failed to delete plan {PlanId}", plan.planId);
+            NotificationService.ErrorNotification("The plan could not be deleted. Please reload and try again.");
+        }
+        finally { isDeleting = false; }
+    }
+
+    protected override Task OnInitializedAsync() => LoadPlansAsync();
+
+    private async Task LoadPlansAsync()
+    {
+        isLoading = true;
+        loadError = null;
         try
         {
             AuthenticationState? state = await AuthProvider.GetAuthenticationStateAsync();
@@ -283,6 +327,11 @@
         {
             Logger.LogError(exception, "Failed to load optimized plan data");
             loadError = "The optimized plan could not be loaded.";
+            allSchedules.Clear();
+            plans.Clear();
+            plansById.Clear();
+            selectedSchedules.Clear();
+            selectedPlanId = 0;
         }
         finally
         {
@@ -308,6 +357,8 @@
         if (allSchedules.Count == 0)
         {
             selectedPlanId = 0;
+            plans.Clear();
+            plansById.Clear();
             selectedSchedules.Clear();
             return;
         }

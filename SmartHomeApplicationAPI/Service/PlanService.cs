@@ -1,16 +1,19 @@
 using FluentValidation;
 using Utilities.Models;
 using SmartHomeApplicationAPI.Repository;
+using SmartHomeApplicationAPI.Infrastructure.Models;
 
 namespace SmartHomeApplicationAPI.Service;
 
 public class PlanService : IPlanService
 {
     private readonly IPlanRepository _repository;
+    private readonly TimeProvider _timeProvider;
 
-    public PlanService(IPlanRepository repository)
+    public PlanService(IPlanRepository repository, TimeProvider? timeProvider = null)
     {
         _repository = repository;
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     public async Task<List<PlanDto>> GetPlansAsync(string userID)
@@ -22,6 +25,42 @@ public class PlanService : IPlanService
 
     public Task<PlanDTO?> GetPlanForEditAsync(string userId, int planId) =>
         _repository.GetPlanForEditAsync(userId, planId);
+
+    public async Task<bool> DeletePlanAsync(string userId, int planId)
+    {
+        DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
+        var ownedPlans = (await _repository.GetUserPlansAsync(userId)).ToDictionary(plan => plan.Id);
+        if (!ownedPlans.TryGetValue(planId, out var current)) return false;
+
+        var chain = new List<Plan>();
+        var visited = new HashSet<int>();
+        while (current is not null && visited.Add(current.Id))
+        {
+            chain.Add(current);
+            current = current.NextPlanId is int nextId && ownedPlans.TryGetValue(nextId, out var next) ? next : null;
+        }
+
+        // A block is unfinished until its end time, including blocks currently running.
+        var toDelete = chain.Where(plan => plan.PlanEndTime > now).ToList();
+        var deletedIds = toDelete.Select(plan => plan.Id).ToHashSet();
+
+        // Preserve completed blocks and reconnect their links past the removed intervals.
+        foreach (var plan in ownedPlans.Values.Where(plan => !deletedIds.Contains(plan.Id)))
+        {
+            if (plan.NextPlanId is not int linkedId || !deletedIds.Contains(linkedId)) continue;
+            int? nextId = linkedId;
+            var skipped = new HashSet<int>();
+            while (nextId is int id && deletedIds.Contains(id) && skipped.Add(id))
+                nextId = ownedPlans[id].NextPlanId;
+
+            if (nextId is int remaining && deletedIds.Contains(remaining)) nextId = null;
+            plan.NextPlan = nextId is int keptId ? ownedPlans.GetValueOrDefault(keptId) : null;
+            plan.NextPlanId = nextId;
+        }
+
+        await _repository.DeletePlansAsync(toDelete);
+        return true;
+    }
 
     public async Task<PlanDTO?> UpdatePlanAsync(string userId, int planId, PlanDTO update)
     {

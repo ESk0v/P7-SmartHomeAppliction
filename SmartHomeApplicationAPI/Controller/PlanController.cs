@@ -36,6 +36,15 @@ public class PlanController : ControllerBase
         return plan is null ? NotFound() : Ok(plan);
     }
 
+    [HttpDelete("delete-plan/{planId:int}")]
+    public async Task<IActionResult> DeletePlan(int planId, [FromHeader(Name = "UserId")] string userId)
+    {
+        if (string.IsNullOrWhiteSpace(userId)) return Unauthorized();
+        if (planId <= 0) return BadRequest("Select a valid plan.");
+
+        return await _service.DeletePlanAsync(userId, planId) ? NoContent() : NotFound();
+    }
+
     [HttpPut("update-plan/{planId:int}")]
     public async Task<ActionResult<PlanDTO>> UpdatePlan(
         int planId, [FromHeader(Name = "UserId")] string userId, [FromBody] PlanDTO update)

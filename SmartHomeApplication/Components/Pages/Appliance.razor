@@ -2,7 +2,6 @@
 @attribute [Authorize]
 @inject SmartHomeApplication.Service.IDeviceService DeviceService
 @inject INotificationService NotificationService
-@inject IJSRuntime JS
 @using Utilities.Models
 @using global::Shared.Dashboard
 
@@ -180,14 +179,18 @@
                 <div class="mt-4 d-flex align-items-center">
                     <button type="submit" class="btn btn-primary">Save</button>
                     <button type="button" class="btn btn-outline-secondary" @onclick="Cancel">Cancel</button> 
-                    <button type="button" class="btn btn-outline-danger ms-auto" @onclick="() => DeleteUserDevice(selected.Id)">Delete</button>
+                    <button type="button" class="btn btn-outline-danger ms-auto" @onclick="() => DeleteUserDevice(selected.Id)" disabled="@isDeleting">Delete</button>
                 </div>
             </EditForm>
         }
     </div>
 </div>
 
+<ConfirmationDialog @ref="deleteConfirmation" />
+
 @code {
+    private ConfirmationDialog deleteConfirmation = default!;
+    private bool isDeleting;
     private static readonly string[] iconOptions =
             Enum.GetNames<DeviceIcon>()
                 .Where(n => n != nameof(DeviceIcon.default_icon))
@@ -327,10 +330,15 @@
 
     private async Task DeleteUserDevice(int userDeviceId)
     {
-        if (!await JS.InvokeAsync<bool>("confirm", $"Delete device \"{selected?.Nickname}\"? This cannot be undone.")) return;
+        var device = userdevices.FirstOrDefault(item => item.Id == userDeviceId);
+        if (device is null || isDeleting) return;
+        if (!await deleteConfirmation.ShowAsync("Delete device?",
+            $"Delete device \"{device.Nickname}\"? This cannot be undone.", "Delete device")) return;
+
+        isDeleting = true;
         try
         {
-            previouslySelectedDeviceName = selected?.Nickname ?? string.Empty;
+            previouslySelectedDeviceName = device.Nickname;
             await DeviceService.DeleteUserDeviceAsync(userDeviceId);
             userdevices = (await DeviceService.GetUserDevicesAsync()).ToList();
             selected = userdevices.FirstOrDefault();
@@ -351,6 +359,7 @@
         {   
             NotificationService.ErrorNotification($"Error deleting device: {ex.Message}");
         }
+        finally { isDeleting = false; }
     }
 
     private void Cancel()
