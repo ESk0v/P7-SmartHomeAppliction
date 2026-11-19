@@ -1,8 +1,11 @@
 @inject ILogger<PriceChart> Logger
 @inject HttpClient Http
+@inject AuthenticationStateProvider AuthProvider
 
 @using Utilities.Models
 @using System.Globalization
+@using System.Security.Claims
+@using Utilities.Security
 
 @namespace Shared.Dashboard
 <section class="chart-card" style="@ZeroLineStyle" aria-label="Price forecast and schedule">
@@ -190,8 +193,10 @@
     {
         try
         {
+            AuthenticationState? state = await AuthProvider.GetAuthenticationStateAsync();
+            string area = state.User.FindFirstValue(CustomClaimTypes.PriceArea) ?? "DK1";
             prices = await Http.GetFromJsonAsync<List<HourPriceDto>>(
-                "api/electricity-price-controller/dashboard-showcase?areaCode=DK1") ?? new List<HourPriceDto>();
+                $"api/electricity-price-controller/dashboard-showcase?areaCode={area}") ?? new List<HourPriceDto>();
             if (MaxDisplayedPrices > 0)
             {
                 prices = prices.Take(MaxDisplayedPrices).ToList();

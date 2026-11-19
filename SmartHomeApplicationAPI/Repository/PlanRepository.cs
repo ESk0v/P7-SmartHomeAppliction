@@ -123,6 +123,17 @@ public class PlanRepository : IPlanRepository
         await _db.SaveChangesAsync();
     }
 
+    public Task<DevicePreset?> GetPresetForSaveAsync(int presetId) =>
+        _db.Preset.AsNoTracking().FirstOrDefaultAsync(preset => preset.Id == presetId);
+
+    public async Task SavePlansAsync(IEnumerable<Plan> removed, IEnumerable<Plan> added)
+    {
+        _db.Plan.RemoveRange(removed);
+        _db.Plan.AddRange(added);
+        // One SaveChanges transaction persists the new chain, removals, and repaired links together.
+        await _db.SaveChangesAsync();
+    }
+
     private async Task<PlanDTO> ToPlanDtoAsync(Plan plan)
     {
         decimal? batteryCapacity = await _db.Preset

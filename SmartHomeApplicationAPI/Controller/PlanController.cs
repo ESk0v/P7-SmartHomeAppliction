@@ -65,4 +65,20 @@ public class PlanController : ControllerBase
             return BadRequest(string.Join(" ", exception.Errors.Select(error => error.ErrorMessage)));
         }
     }
+
+    [HttpPost("save-generated-plan")]
+    public async Task<ActionResult<PlanDTO>> SaveGeneratedPlan(
+        [FromHeader(Name = "UserId")] string userId, [FromBody] SaveGeneratedPlanRequestDto request)
+    {
+        if (string.IsNullOrWhiteSpace(userId)) return Unauthorized();
+        try
+        {
+            var saved = await _service.SaveGeneratedPlanAsync(userId, request);
+            return saved is null ? NotFound() : Ok(saved);
+        }
+        catch (ValidationException exception)
+        {
+            return BadRequest(exception.Message);
+        }
+    }
 }

@@ -1,5 +1,6 @@
 ﻿@page "/register"
 @using SmartHomeApplication.Components.Layout
+@using SmartHomeApplication.Components.Shared.Demand
 @layout EmptyLayout
 
 <PageTitle>@(HasErrorInvalid || HasErrorUnavailable ? "Error: Register" : "Register")</PageTitle>
@@ -18,7 +19,7 @@
             @if (HasErrorInvalid)
             {
                 <div id="account-error" class="alert alert-danger" role="alert">
-                    Passwords do not match.
+                    Passwords do not match or area code is not selected.
                 </div>
             }
             @if (HasErrorUnavailable)
@@ -41,6 +42,21 @@
                 <input id="displayName" name="DisplayName" autocomplete="nickname" type="text" class="form-control" minlength="2" required />
             </div>
             <div class="mb-3">
+                <div class="d-flex align-items-center justify-content-between gap-2 mb-1">
+                    <label for="priceArea" class="mb-0">Electricity price area</label>
+                    <DataDialog Title="About area codes" ButtonText="About area codes" Width="64rem">
+                        <p><strong>DK1:</strong> Jylland, Fyn, and the associated western islands.</p>
+                        <p><strong>DK2:</strong> Sjælland, Lolland-Falster, Møn, Bornholm, and the associated eastern islands.</p>
+                        <p>Choose the area where your devices use electricity. The two areas can have different electricity prices.</p>
+                    </DataDialog>
+                </div>
+                <ButtonSelect Id="priceArea" Label="Electricity price area (required)" Options="areaOptions"
+                              @bind-Value="selectedArea" Placeholder="Select an area"
+                              Invalid="HasAreaError" DescribedBy="priceArea-error" />
+                <input type="hidden" name="PriceArea" value="@selectedArea" />
+                <span id="priceArea-error" class="text-danger small" role="alert">@(HasAreaError ? "Select an electricity price area." : null)</span>
+            </div>
+            <div class="mb-3">
                 <label for="password">Password</label>
                 <p id="password-hint" class="small text-muted mb-2">Use at least 8 characters, including an uppercase letter, a lowercase letter, and a number.</p>
                 <input id="password" name="Password" aria-describedby="password-hint" type="password" class="form-control" autocomplete="new-password" minlength="8"
@@ -55,7 +71,8 @@
                 <span class="text-danger"></span>
             </div>
             <div class="mb-3 d-grid gap-2">
-                <button type="submit" class="btn btn-primary">Register</button>
+                <button type="submit" class="btn btn-primary" @onclick="ValidateArea"
+                        @onclick:preventDefault="@(string.IsNullOrEmpty(selectedArea))">Register</button>
             </div>
         </form>
 
@@ -66,6 +83,13 @@
 </div>
 
 @code {
+    private static readonly (string Value, string Text)[] areaOptions =
+        [("DK1", "DK1 — Jylland og Fyn"), ("DK2", "DK2 — Sjælland og øerne")];
+    private string? selectedArea;
+    private bool areaRequired;
+    private bool HasAreaError => areaRequired && string.IsNullOrEmpty(selectedArea);
+    private void ValidateArea() => areaRequired = true;
+
     [SupplyParameterFromQuery]
     private string? Error { get; set; }
 

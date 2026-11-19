@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using System.Security.Claims;
+using Utilities.Security;
 using SmartHomeApplication.Models;
 using System.Diagnostics;
 using System.Net;
@@ -27,6 +28,9 @@ namespace SmartHomeApplication.Controllers
         {
             var stopwatch = Stopwatch.StartNew();
             _logger.LogInformation("Starting registration flow");
+
+            if (!ModelState.IsValid)
+                return Redirect("/register?error=invalid");
             
             var response = await _apiClient.PostAsJsonAsync("api/auth/register", model, cancellationToken);
             _logger.LogInformation("Registration returned after: {TotalSeconds} seconds", stopwatch.Elapsed.TotalSeconds);
@@ -137,7 +141,8 @@ namespace SmartHomeApplication.Controllers
             {
                 new(ClaimTypes.NameIdentifier, result.UserId),
                 new(ClaimTypes.Name, result.Username),
-                new("display_name", result.DisplayName)
+                new(CustomClaimTypes.DisplayName, result.DisplayName),
+                new(CustomClaimTypes.PriceArea, result.PriceArea)
             };
             _logger.LogInformation("New claims created");
 

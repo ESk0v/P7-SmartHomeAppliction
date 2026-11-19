@@ -15,96 +15,83 @@ public class PlanFormTests
     private static readonly DateTime WindowStart = new(2026, 11, 20, 6, 0, 0, DateTimeKind.Utc);
 
     [Fact]
-    public async Task SaveSplitPlan_ExcludesPauses_DistributesOneBaseline_AndPreservesLinks()
+    public async Task SaveSplitPlan_SendsAllIntervalsAndSettingsInOneRequest()
     {
-        UnscheduledEstimateRequestDto? baseline = null;
-        var saved = new List<PlanDTO>();
+        SaveGeneratedPlanRequestDto? saved = null;
+        int requests = 0;
         using var handler = new StubHandler(async request =>
         {
-            if (request.RequestUri!.AbsolutePath.EndsWith("unscheduled-estimate"))
-            {
-                Assert.Null(baseline);
-                baseline = await request.Content!.ReadFromJsonAsync<UnscheduledEstimateRequestDto>();
-                return Json(new UnscheduledEstimateDto(10m, 100m));
-            }
-
-            Assert.EndsWith("post-plan", request.RequestUri.AbsolutePath);
-            var plan = (await request.Content!.ReadFromJsonAsync<PlanDTO>())!;
-            plan.planId = saved.Count + 1;
-            saved.Add(plan);
-            return Json(plan);
+            requests++;
+            Assert.Equal(HttpMethod.Post, request.Method);
+            Assert.EndsWith("save-generated-plan", request.RequestUri!.AbsolutePath);
+            Assert.Equal("test-user", Assert.Single(request.Headers.GetValues("UserId")));
+            saved = await request.Content!.ReadFromJsonAsync<SaveGeneratedPlanRequestDto>();
+            return Json(new PlanDTO { planId = 3 });
         });
         var form = CreateForm(handler);
-        Set(form, "optimizedIntervals", new List<OptimizationResultDTO>
+        Set(form, "area", "DK2");
+        var intervals = new List<OptimizationResultDTO>
         {
             new(WindowStart.AddHours(1), WindowStart.AddHours(1).AddMinutes(15), 1m, 2m),
             new(WindowStart.AddHours(3), WindowStart.AddHours(3).AddMinutes(30), 3m, 4m),
             new(WindowStart.AddHours(6), WindowStart.AddHours(6).AddMinutes(45), 5m, 6m)
-        });
+        };
+        Set(form, "optimizedIntervals", intervals);
+        var expectedIntervals = intervals.ToArray();
 
-        await Invoke(form, "addPlan");
+        await Invoke(form, "SaveGeneratedPlanAsync");
 
-        Assert.NotNull(baseline);
-        Assert.Equal(WindowStart, baseline.StartTime);
-        Assert.Equal(WindowStart.AddMinutes(90), baseline.EndTime);
-        Assert.Equal(40m, baseline.EnergyInKwh);
-        Assert.Equal(3, saved.Count);
-        Assert.Equal(new int?[] { null, 1, 2 }, saved.Select(plan => plan.nextPlanId));
-        Assert.Equal(new[] { 6d, 3d, 1d }, saved.Select(plan => (plan.startTime - WindowStart).TotalHours));
-        Assert.Equal(10m, saved.Sum(plan => plan.estimatedUnscheduledCost!.Value));
-        Assert.Equal(100m, saved.Sum(plan => plan.estimatedUnscheduledCo2Emissions!.Value));
-        Assert.Equal(5m, saved[0].estimatedUnscheduledCost);
-        Assert.All(saved, plan =>
-        {
-            Assert.Equal(DateTimeKind.Utc, plan.startTime.Kind);
-            Assert.Equal(WindowStart, plan.windowStartTime);
-            Assert.Equal("Test plan", plan.planName);
-        });
+        Assert.Equal(1, requests);
+        Assert.NotNull(saved);
+        Assert.Null(saved.ReplacesPlanId);
+        Assert.Equal("DK2", saved.AreaCode);
+        Assert.Equal(1, saved.UserDeviceId);
+        Assert.Equal(WindowStart, saved.WindowStart);
+        Assert.Equal(WindowStart.AddHours(8), saved.WindowEnd);
+        Assert.Equal("Test plan", saved.PlanName);
+        Assert.Equal(50, saved.ChargeStopPercentage);
+        Assert.Equal(expectedIntervals, saved.Intervals);
         Assert.Equal(3, Property<OptimizedPlanState>(form, "PlanState").SelectedPlanId);
         Assert.EndsWith("/optimized", Property<NavigationManager>(form, "NavigationManager").Uri);
     }
 
     [Fact]
-    public async Task SaveAppliance_UsesPresetEnergy_AndKeepsEntireBaselineOnSingleInterval()
+    public async Task SaveAppliance_SendsPresetAndOmitsChargeTarget()
     {
-        UnscheduledEstimateRequestDto? baseline = null;
-        PlanDTO? saved = null;
+        SaveGeneratedPlanRequestDto? saved = null;
+        int requests = 0;
         using var handler = new StubHandler(async request =>
         {
-            if (request.RequestUri!.AbsolutePath.EndsWith("unscheduled-estimate"))
-            {
-                baseline = await request.Content!.ReadFromJsonAsync<UnscheduledEstimateRequestDto>();
-                return Json(new UnscheduledEstimateDto(8m, 60m));
-            }
-
-            saved = (await request.Content!.ReadFromJsonAsync<PlanDTO>())!;
-            saved.planId = 10;
-            return Json(saved);
+            requests++;
+            Assert.EndsWith("save-generated-plan", request.RequestUri!.AbsolutePath);
+            saved = await request.Content!.ReadFromJsonAsync<SaveGeneratedPlanRequestDto>();
+            return Json(new PlanDTO { planId = 10 });
         });
         var form = CreateForm(handler);
-        Set(form, "isInterruptible", false);
+        Set(form, "userDevices", new List<PlanUserDeviceDto>
+        {
+            new(1, 1, "Test device", "", "", "Non-Interruptible", "", null)
+        });
         Field<ScheduleForm>(form, "ScheduleForm").Preset = new PresetDto { id = 9, consumption = 2.5m };
 
-        await Invoke(form, "addPlan");
+        await Invoke(form, "SaveGeneratedPlanAsync");
 
-        Assert.NotNull(baseline);
-        Assert.Equal(2.5m, baseline.EnergyInKwh);
-        Assert.Equal(WindowStart.AddMinutes(30), baseline.EndTime);
+        Assert.Equal(1, requests);
         Assert.NotNull(saved);
-        Assert.Equal(8m, saved.estimatedUnscheduledCost);
-        Assert.Equal(60m, saved.estimatedUnscheduledCo2Emissions);
-        Assert.Null(saved.nextPlanId);
-        Assert.Null(saved.chargeStopPercentage);
+        Assert.Equal(9, saved.PresetId);
+        Assert.Equal(1, saved.UserDeviceId);
+        Assert.Single(saved.Intervals);
+        Assert.Null(saved.ChargeStopPercentage);
     }
 
     [Fact]
-    public async Task SavePlan_WhenBaselineFails_DoesNotSaveAnyIntervals()
+    public async Task SavePlan_WhenRejected_KeepsResultAndDoesNotNavigate()
     {
         int requests = 0;
         using var handler = new StubHandler(request =>
         {
             requests++;
-            Assert.EndsWith("unscheduled-estimate", request.RequestUri!.AbsolutePath);
+            Assert.EndsWith("save-generated-plan", request.RequestUri!.AbsolutePath);
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.BadRequest)
             {
                 Content = new StringContent("No electricity data is available.")
@@ -112,10 +99,11 @@ public class PlanFormTests
         });
         var form = CreateForm(handler);
 
-        await Invoke(form, "addPlan");
+        await Invoke(form, "SaveGeneratedPlanAsync");
 
         Assert.Equal(1, requests);
         Assert.Contains("No electricity data", Field<string>(form, "schedulingError"));
+        Assert.Single(Field<List<OptimizationResultDTO>>(form, "optimizedIntervals"));
         Assert.Equal(0, Property<OptimizedPlanState>(form, "PlanState").SelectedPlanId);
         Assert.Equal("https://localhost/", Property<NavigationManager>(form, "NavigationManager").Uri);
     }
@@ -203,7 +191,8 @@ public class PlanFormTests
         Assert.Equal(minute == 30 ? 15 : 1, Field<int>(form, "TimeStep"));
         var expectedTimes = (schedule.Start, schedule.End);
         schedule.PlanName = " Renamed plan ";
-        await Invoke(form, "UpdatePlanAsync");
+        typeof(PlanForm).GetProperty(nameof(PlanForm.IsEditMode))!.SetValue(form, true);
+        await Invoke(form, "SubmitPlan");
 
         Assert.NotNull(baseline);
         Assert.Equal(start, baseline.StartTime);
@@ -234,19 +223,21 @@ public class PlanFormTests
     {
         var start = new DateTime(2026, month, 10, 12, 0, 0, DateTimeKind.Utc);
         int calls = 0;
-        using var handler = new StubHandler(request =>
+        using var handler = new StubHandler(async request =>
         {
             calls++;
             Assert.EndsWith("/optimize", request.RequestUri!.AbsolutePath);
-            return Task.FromResult(calls == 1
+            Assert.Equal("DK2", (await request.Content!.ReadFromJsonAsync<OptimizationRequestDTO>())!.Area);
+            return calls == 1
                 ? Json(new[]
                 {
                     new OptimizationResultDTO(start.AddHours(2), start.AddHours(3), 2m, 20m),
                     new OptimizationResultDTO(start, start.AddHours(1), 1m, 10m)
                 })
-                : new HttpResponseMessage(HttpStatusCode.BadRequest));
+                : new HttpResponseMessage(HttpStatusCode.BadRequest);
         });
         var form = CreateForm(handler);
+        Set(form, "area", "DK2");
         Set(form, "schedulingDate", start.Date);
         var schedule = Field<ScheduleForm>(form, "ScheduleForm");
         schedule.Start = 9 * 60;
@@ -282,6 +273,263 @@ public class PlanFormTests
         Assert.Same(saved, Assert.Single(Property<List<PlanDto>>(form, "ChartSchedules")));
     }
 
+    [Fact]
+    public async Task RegenerateEdit_PreviewsReplacement_ThenSavesAllBlocksInOneRequest()
+    {
+        SaveGeneratedPlanRequestDto? saved = null;
+        var events = new List<string>();
+        using var handler = new StubHandler(async request =>
+        {
+            string path = request.RequestUri!.AbsolutePath;
+            events.Add(request.Method.Method + " " + path);
+            if (path.EndsWith("/optimize")) return Json(RegeneratedIntervals());
+            Assert.Equal(HttpMethod.Post, request.Method);
+            Assert.EndsWith("save-generated-plan", path);
+            Assert.Equal("test-user", Assert.Single(request.Headers.GetValues("UserId")));
+            saved = await request.Content!.ReadFromJsonAsync<SaveGeneratedPlanRequestDto>();
+            return Json(new PlanDTO { planId = 101 });
+        });
+        var form = CreateEditingForm(handler);
+        var unrelated = DisplayPlan(30, null);
+        Set(form, "activeSchedules", new List<PlanDto> { DisplayPlan(10, 20), DisplayPlan(20, null), unrelated });
+
+        await Invoke(form, "GenerateScheduling");
+
+        Assert.Single(events); // Generating must not persist or delete anything.
+        var preview = Property<List<PlanDto>>(form, "ChartSchedules");
+        Assert.Equal(3, preview.Count);
+        Assert.All(preview.Take(2), plan => Assert.True(plan.planId < 0));
+        Assert.Same(unrelated, preview[2]);
+
+        // Renaming is safe without running the optimizer again.
+        Field<ScheduleForm>(form, "ScheduleForm").PlanName = "Replacement";
+        await Invoke(form, "SubmitPlan");
+
+        Assert.NotNull(saved);
+        Assert.Equal(10, saved.ReplacesPlanId);
+        Assert.Equal(RegeneratedIntervals(), saved.Intervals);
+        Assert.Equal("Replacement", saved.PlanName);
+        Assert.Equal(WindowStart, saved.WindowStart);
+        Assert.Equal(WindowStart.AddHours(8), saved.WindowEnd);
+        Assert.Equal(2, events.Count);
+        Assert.EndsWith("save-generated-plan", events[^1]);
+        Assert.Equal(101, Property<OptimizedPlanState>(form, "PlanState").SelectedPlanId);
+        Assert.True(Property<OptimizedPlanState>(form, "PlanState").ReturnToSelectedPlan);
+        Assert.EndsWith("/optimized", Property<NavigationManager>(form, "NavigationManager").Uri);
+    }
+
+    [Theory]
+    [InlineData("window")]
+    [InlineData("device")]
+    [InlineData("preset")]
+    [InlineData("charge")]
+    [InlineData("priority")]
+    public async Task RegenerateEdit_WhenSchedulingInputsChange_RequiresGenerationAgain(string input)
+    {
+        int requests = 0;
+        using var handler = new StubHandler(request =>
+        {
+            requests++;
+            Assert.EndsWith("/optimize", request.RequestUri!.AbsolutePath);
+            return Task.FromResult(Json(RegeneratedIntervals()));
+        });
+        var form = CreateEditingForm(handler);
+        await Invoke(form, "GenerateScheduling");
+        var schedule = Field<ScheduleForm>(form, "ScheduleForm");
+        switch (input)
+        {
+            case "window": schedule.Start += 15; break;
+            case "device": Set(form, "selectedDeviceId", "2"); break;
+            case "preset": schedule.Preset = new PresetDto { id = 99 }; break;
+            case "charge": schedule.ChargeStopPercentage = 80; break;
+            case "priority": schedule.Priority = "Greenest"; break;
+        }
+
+        await Invoke(form, "SubmitPlan");
+
+        Assert.Equal(1, requests);
+        Mock.Get(Property<INotificationService>(form, "NotificationService")).Verify(
+            notifications => notifications.WarningNotification(It.Is<string>(message => message.Contains("Generate the plan again"))), Times.Once);
+    }
+
+    [Fact]
+    public async Task RegenerateEdit_WhenInputsChangeDuringTheRequest_RejectsTheStaleResult()
+    {
+        var response = new TaskCompletionSource<HttpResponseMessage>();
+        int requests = 0;
+        using var handler = new StubHandler(request => { requests++; return response.Task; });
+        var form = CreateEditingForm(handler);
+
+        Task generating = Invoke(form, "GenerateScheduling");
+        Assert.True(Field<bool>(form, "isGenerating"));
+        await Invoke(form, "SubmitPlan");
+        Field<ScheduleForm>(form, "ScheduleForm").Priority = "Greenest";
+        response.SetResult(Json(RegeneratedIntervals()));
+        await generating;
+        await Invoke(form, "SubmitPlan");
+
+        Assert.Equal(1, requests);
+        Assert.False(Field<bool>(form, "isGenerating"));
+        Mock.Get(Property<INotificationService>(form, "NotificationService")).Verify(
+            notifications => notifications.WarningNotification(It.Is<string>(message => message.Contains("Generate the plan again"))), Times.Once);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RegenerateEdit_WhenOptimizationFailsOrReturnsNoIntervals_PreservesOriginalPreview(bool emptyResult)
+    {
+        using var handler = new StubHandler(request => Task.FromResult(emptyResult
+            ? Json(Array.Empty<OptimizationResultDTO>())
+            : new HttpResponseMessage(HttpStatusCode.UnprocessableEntity) { Content = new StringContent("Choose a longer window.") }));
+        var form = CreateEditingForm(handler);
+        var originals = Field<List<OptimizationResultDTO>>(form, "optimizedIntervals").ToArray();
+
+        await Invoke(form, "GenerateScheduling");
+
+        Assert.Equal(originals, Field<List<OptimizationResultDTO>>(form, "optimizedIntervals"));
+        Assert.True(Property<bool>(form, "displayPlan"));
+        Assert.False(Field<bool>(form, "isGenerating"));
+        Assert.Empty(Field<List<PlanDto>>(form, "previewSchedules"));
+    }
+
+    [Fact]
+    public async Task RegenerateEdit_WhenReplacementFails_DoesNotSaveSeparateBlocksOrNavigateAway()
+    {
+        int saves = 0;
+        using var handler = new StubHandler(request =>
+        {
+            Assert.NotEqual(HttpMethod.Delete, request.Method);
+            string path = request.RequestUri!.AbsolutePath;
+            if (path.EndsWith("/optimize")) return Task.FromResult(Json(RegeneratedIntervals()));
+            Assert.Equal(HttpMethod.Post, request.Method);
+            Assert.EndsWith("save-generated-plan", path);
+            saves++;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.InternalServerError)
+                { Content = new StringContent("Replacement was not saved.") });
+        });
+        var form = CreateEditingForm(handler);
+
+        await Invoke(form, "GenerateScheduling");
+        await Invoke(form, "SubmitPlan");
+
+        Assert.Equal(1, saves);
+        Assert.Contains("Replacement was not saved", Field<string>(form, "schedulingError"));
+        Assert.False(Field<bool>(form, "isSaving"));
+        Assert.Equal("https://localhost/", Property<NavigationManager>(form, "NavigationManager").Uri);
+    }
+
+    [Fact]
+    public async Task RegenerateEdit_DoubleClickingUpdate_SendsOnlyOneReplacement()
+    {
+        int saves = 0;
+        var response = new TaskCompletionSource<HttpResponseMessage>();
+        using var handler = new StubHandler(request =>
+        {
+            string path = request.RequestUri!.AbsolutePath;
+            if (path.EndsWith("/optimize")) return Task.FromResult(Json(RegeneratedIntervals()));
+            Assert.EndsWith("save-generated-plan", path);
+            saves++;
+            return response.Task;
+        });
+        var form = CreateEditingForm(handler);
+        await Invoke(form, "GenerateScheduling");
+
+        Task saving = Invoke(form, "SubmitPlan");
+        Assert.True(Field<bool>(form, "isSaving"));
+        await Invoke(form, "SubmitPlan");
+        response.SetResult(Json(new PlanDTO { planId = 101 }));
+        await saving;
+
+        Assert.Equal(1, saves);
+        Assert.False(Field<bool>(form, "isSaving"));
+    }
+
+    [Fact]
+    public async Task CancelGeneratedPlan_DiscardsOnlyTheResult_AndKeepsAllFormChoices()
+    {
+        using var handler = new StubHandler(request => Task.FromResult(Json(RegeneratedIntervals())));
+        var form = CreateEditingForm(handler);
+        typeof(PlanForm).GetProperty(nameof(PlanForm.IsEditMode))!.SetValue(form, false);
+        var schedule = Field<ScheduleForm>(form, "ScheduleForm");
+        var choices = (schedule.PlanName, schedule.Start, schedule.End, schedule.ChargeStopPercentage, schedule.Priority);
+        var preset = schedule.Preset;
+        await Invoke(form, "GenerateScheduling");
+
+        typeof(PlanForm).GetMethod("CancelGeneratedPlan", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(form, null);
+
+        Assert.Same(schedule, Field<ScheduleForm>(form, "ScheduleForm"));
+        Assert.Equal(choices, (schedule.PlanName, schedule.Start, schedule.End, schedule.ChargeStopPercentage, schedule.Priority));
+        Assert.Same(preset, schedule.Preset);
+        Assert.Equal("1", Field<string>(form, "selectedDeviceId"));
+        Assert.Empty(Field<List<OptimizationResultDTO>>(form, "optimizedIntervals"));
+        Assert.Empty(Field<List<PlanDto>>(form, "previewSchedules"));
+        Assert.Null(Field<DateTime?>(form, "requestedWindowStart"));
+        Assert.Null(Field<DateTime?>(form, "requestedWindowEnd"));
+        Assert.Null(Field<object?>(form, "generatedFor"));
+        Assert.False(Property<bool>(form, "displayPlan"));
+    }
+
+    [Theory]
+    [InlineData("GenerateScheduling")]
+    [InlineData("UpdatePlanAsync")]
+    public async Task GenerationAndEditing_RejectNonexistentCopenhagenTimes_WithoutSendingRequests(string action)
+    {
+        int requests = 0;
+        using var handler = new StubHandler(request =>
+        {
+            requests++;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.BadRequest));
+        });
+        var form = CreateEditingForm(handler);
+        Set(form, "schedulingDate", new DateTime(2026, 3, 29));
+        var schedule = Field<ScheduleForm>(form, "ScheduleForm");
+        schedule.Start = 150; // 02:30 does not exist when Copenhagen advances to summer time.
+        schedule.End = 240;
+
+        await Invoke(form, action);
+
+        Assert.Equal(0, requests);
+        Assert.Equal(150, schedule.Start);
+        Assert.Equal(240, schedule.End);
+        Mock.Get(Property<INotificationService>(form, "NotificationService")).Verify(
+            notifications => notifications.ErrorNotification(It.Is<string>(message => message.Contains("does not exist"))), Times.Once);
+    }
+
+    private static List<OptimizationResultDTO> RegeneratedIntervals() => new()
+    {
+        new(WindowStart.AddHours(1), WindowStart.AddHours(1).AddMinutes(15), 1m, 10m),
+        new(WindowStart.AddHours(3), WindowStart.AddHours(3).AddMinutes(45), 3m, 30m)
+    };
+
+    private static PlanForm CreateEditingForm(HttpMessageHandler handler)
+    {
+        var form = CreateForm(handler);
+        typeof(PlanForm).GetProperty(nameof(PlanForm.IsEditMode))!.SetValue(form, true);
+        Set(form, "editingPlanId", 10);
+        Set(form, "editLoaded", true);
+        Set(form, "userId", "test-user");
+        Set(form, "schedulingDate", WindowStart.Date);
+        var schedule = Field<ScheduleForm>(form, "ScheduleForm");
+        schedule.Start = 7 * 60; // Copenhagen UTC+1 in November.
+        schedule.End = 15 * 60;
+        schedule.Priority = "Cheapest";
+        var plan = ExistingPlan(10, 20, WindowStart.AddHours(1), WindowStart.AddHours(2));
+        var next = ExistingPlan(20, null, WindowStart.AddHours(3), WindowStart.AddHours(4));
+        Set(form, "existingPlan", plan);
+        Set(form, "existingPlanIntervals", new List<PlanDTO> { plan, next });
+        Set(form, "optimizedIntervals", new List<OptimizationResultDTO>
+        {
+            new(plan.startTime, plan.endTime, plan.estimatedCost, plan.estimatedCo2Emissions),
+            new(next.startTime, next.endTime, next.estimatedCost, next.estimatedCo2Emissions)
+        });
+        return form;
+    }
+
+    private static PlanDto DisplayPlan(int id, int? nextId) => new(
+        id, nextId, "Saved plan", "", "#111111", "Saved device", "Interruptible", "Cheapest",
+        50, null, WindowStart, WindowStart.AddHours(1), WindowStart, WindowStart.AddHours(8), 1m, 10m, 0m, 0m, 80m);
+
     private static PlanDTO ExistingPlan(int id, int? nextId, DateTime start, DateTime end) => new()
     {
         planId = id, nextPlanId = nextId, userDeviceId = 1, planName = "Test plan",
@@ -299,7 +547,7 @@ public class PlanFormTests
         typeof(PlanForm).GetProperty("PlanState", flags)!.SetValue(form, new OptimizedPlanState());
         Set(form, "userDevices", new List<PlanUserDeviceDto> { new(1, 1, "Test device", "", "", "Interruptible", "", 80m) });
         Set(form, "selectedDeviceId", "1");
-        Set(form, "isInterruptible", true);
+        Set(form, "userId", "test-user");
         Set(form, "requestedWindowStart", (DateTime?)WindowStart);
         Set(form, "requestedWindowEnd", (DateTime?)WindowStart.AddHours(8));
         Set(form, "optimizedIntervals", new List<OptimizationResultDTO> { new(WindowStart.AddHours(1), WindowStart.AddHours(1).AddMinutes(30), 1m, 2m) });

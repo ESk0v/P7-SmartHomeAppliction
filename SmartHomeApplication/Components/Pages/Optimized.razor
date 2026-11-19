@@ -88,7 +88,7 @@
                                     <span>@block.deviceName · @FormatDuration(block.endTime - block.startTime)</span>
                                 </div>
                                 <div class="schedule-block-value">
-                                    <strong>@block.estimatedCost.ToString("C", CultureInfo.CurrentCulture)</strong>
+                                    <strong>@block.estimatedCost.ToString("C", CultureInfo.GetCultureInfo("da-DK"))</strong>
                                     <span>Block @(selectedSchedules.IndexOf(block) + 1) of @selectedSchedules.Count</span>
                                 </div>
                             </div>

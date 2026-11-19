@@ -76,7 +76,7 @@ public class PlanDeletionTests
         .UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
 
     private static PlanService CreateService(SmartHomeDbContext db) =>
-        new(new PlanRepository(db), new FixedTimeProvider());
+        new(new PlanRepository(db), Moq.Mock.Of<IElectricityPriceService>(), new FixedTimeProvider());
 
     private sealed class FixedTimeProvider : TimeProvider
     {

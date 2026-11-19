@@ -10,4 +10,6 @@ public interface IPlanService
     Task<PlanDTO?> UpdatePlanAsync(string userId, int planId, PlanDTO update);
 
     Task<bool> DeletePlanAsync(string userId, int planId);
+
+    Task<PlanDTO?> SaveGeneratedPlanAsync(string userId, SaveGeneratedPlanRequestDto request);
 }

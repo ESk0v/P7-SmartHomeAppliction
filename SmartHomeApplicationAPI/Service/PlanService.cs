@@ -9,11 +9,13 @@ public class PlanService : IPlanService
 {
     private readonly IPlanRepository _repository;
     private readonly TimeProvider _timeProvider;
+    private readonly IElectricityPriceService _priceService;
 
-    public PlanService(IPlanRepository repository, TimeProvider? timeProvider = null)
+    public PlanService(IPlanRepository repository, IElectricityPriceService priceService, TimeProvider? timeProvider = null)
     {
         _repository = repository;
         _timeProvider = timeProvider ?? TimeProvider.System;
+        _priceService = priceService;
     }
 
     public async Task<List<PlanDto>> GetPlansAsync(string userID)
@@ -30,7 +32,114 @@ public class PlanService : IPlanService
     {
         DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
         var ownedPlans = (await _repository.GetUserPlansAsync(userId)).ToDictionary(plan => plan.Id);
-        if (!ownedPlans.TryGetValue(planId, out var current)) return false;
+        if (!ownedPlans.ContainsKey(planId)) return false;
+
+        var toDelete = GetUnfinishedChain(ownedPlans, planId, now);
+        RepairLinks(ownedPlans, toDelete);
+        await _repository.DeletePlansAsync(toDelete);
+        return true;
+    }
+
+    public async Task<PlanDTO?> SaveGeneratedPlanAsync(string userId, SaveGeneratedPlanRequestDto request)
+    {
+        var ownedPlans = new Dictionary<int, Plan>();
+        var removed = new List<Plan>();
+        if (request.ReplacesPlanId is int originalId)
+        {
+            if (originalId <= 0) throw new ValidationException("Select a valid plan to replace.");
+            ownedPlans = (await _repository.GetUserPlansAsync(userId)).ToDictionary(plan => plan.Id);
+            if (!ownedPlans.ContainsKey(originalId)) return null;
+            removed = GetUnfinishedChain(ownedPlans, originalId, _timeProvider.GetUtcNow().UtcDateTime);
+            if (removed.Count == 0)
+                throw new ValidationException("This plan has finished and can no longer be replaced.");
+        }
+
+        if (request.Intervals is null || request.Intervals.Count == 0 || request.Intervals.Any(interval => interval is null))
+            throw new ValidationException("Generate a plan before saving.");
+        if (request.AreaCode is not ("DK1" or "DK2"))
+            throw new ValidationException("Select DK1 or DK2.");
+
+        var device = await _repository.GetUserDeviceForUpdateAsync(userId, request.UserDeviceId);
+        var preset = request.PresetId is int presetId ? await _repository.GetPresetForSaveAsync(presetId) : null;
+        var settings = new PlanDTO
+        {
+            userDeviceId = request.UserDeviceId, planName = request.PlanName,
+            windowStartTime = request.WindowStart, windowEndTime = request.WindowEnd,
+            optimizationObjective = request.OptimizationObjective, presetId = request.PresetId,
+            chargeStopPercentage = request.ChargeStopPercentage
+        };
+        var validator = CreateUpdateValidator(device, preset is not null && preset.DeviceId == device?.deviceId);
+        var validation = await validator.ValidateAsync(settings);
+        if (!validation.IsValid) throw new ValidationException(validation.Errors);
+
+        var ordered = request.Intervals.OrderBy(interval => interval.StartTime).ToList();
+        for (int index = 0; index < ordered.Count; index++)
+        {
+            var interval = ordered[index];
+            if (interval.StartTime.Kind != DateTimeKind.Utc || interval.EndTime.Kind != DateTimeKind.Utc ||
+                interval.EndTime <= interval.StartTime || interval.StartTime < request.WindowStart ||
+                interval.EndTime > request.WindowEnd ||
+                (index > 0 && interval.StartTime < ordered[index - 1].EndTime))
+                throw new ValidationException("Plan blocks must be valid UTC intervals inside the scheduling window, without overlaps.");
+        }
+
+        // Use stored device/preset values, with the same workload calculation for new and regenerated plans.
+        decimal energy = device!.category == "Interruptible"
+            ? (device.batteryCapacityInKwh ?? 0m) * request.ChargeStopPercentage!.Value / 100m
+            : preset!.ConsumptionInKwh;
+        if (energy <= 0) throw new ValidationException("A positive workload is required to calculate the unscheduled baseline.");
+        long totalTicks = ordered.Sum(interval => (interval.EndTime - interval.StartTime).Ticks);
+        var baseline = await _priceService.GetUnscheduledEstimateAsync(new UnscheduledEstimateRequestDto
+        {
+            AreaCode = request.AreaCode, StartTime = request.WindowStart,
+            EndTime = request.WindowStart.AddTicks(totalTicks), EnergyInKwh = energy
+        });
+        if (baseline.Estimate is null)
+            throw new ValidationException(baseline.Error ?? "Could not calculate the unscheduled baseline.");
+
+        decimal remainingPrice = baseline.Estimate.EstimatedPrice;
+        decimal remainingCo2 = baseline.Estimate.EstimatedCo2Emissions;
+        var plans = new List<Plan>();
+        for (int index = 0; index < ordered.Count; index++)
+        {
+            var interval = ordered[index];
+            decimal durationTicks = (interval.EndTime - interval.StartTime).Ticks;
+            bool last = index == ordered.Count - 1;
+            decimal price = last ? remainingPrice : baseline.Estimate.EstimatedPrice * durationTicks / totalTicks;
+            decimal co2 = last ? remainingCo2 : baseline.Estimate.EstimatedCo2Emissions * durationTicks / totalTicks;
+            plans.Add(new Plan
+            {
+                Name = request.PlanName.Trim(), UserDeviceId = request.UserDeviceId,
+                PlanStartTime = interval.StartTime, PlanEndTime = interval.EndTime,
+                WindowStartTime = request.WindowStart, WindowEndTime = request.WindowEnd,
+                OptimizationObjective = request.OptimizationObjective, DevicePresetId = request.PresetId,
+                ChargeStopPercentage = request.ChargeStopPercentage,
+                EstimatedPrice = interval.EstimatedPrice, EstimatedCo2Emissions = interval.EstimatedCo2Emissions,
+                EstimatedUnscheduledPrice = price, EstimatedUnscheduledCo2Emissions = co2
+            });
+            remainingPrice -= price;
+            remainingCo2 -= co2;
+        }
+        for (int index = 0; index + 1 < plans.Count; index++) plans[index].NextPlan = plans[index + 1];
+
+        RepairLinks(ownedPlans, removed);
+        await _repository.SavePlansAsync(removed, plans);
+        settings.planId = plans[0].Id;
+        settings.nextPlanId = plans[0].NextPlan?.Id;
+        settings.planName = plans[0].Name;
+        settings.startTime = plans[0].PlanStartTime;
+        settings.endTime = plans[0].PlanEndTime;
+        settings.estimatedCost = plans[0].EstimatedPrice;
+        settings.estimatedCo2Emissions = plans[0].EstimatedCo2Emissions;
+        settings.estimatedUnscheduledCost = plans[0].EstimatedUnscheduledPrice;
+        settings.estimatedUnscheduledCo2Emissions = plans[0].EstimatedUnscheduledCo2Emissions;
+        settings.batteryCapacityInKwh = device.batteryCapacityInKwh;
+        return settings;
+    }
+
+    private static List<Plan> GetUnfinishedChain(Dictionary<int, Plan> ownedPlans, int planId, DateTime now)
+    {
+        Plan? current = ownedPlans[planId];
 
         var chain = new List<Plan>();
         var visited = new HashSet<int>();
@@ -41,7 +150,11 @@ public class PlanService : IPlanService
         }
 
         // A block is unfinished until its end time, including blocks currently running.
-        var toDelete = chain.Where(plan => plan.PlanEndTime > now).ToList();
+        return chain.Where(plan => plan.PlanEndTime > now).ToList();
+    }
+
+    private static void RepairLinks(Dictionary<int, Plan> ownedPlans, List<Plan> toDelete)
+    {
         var deletedIds = toDelete.Select(plan => plan.Id).ToHashSet();
 
         // Preserve completed blocks and reconnect their links past the removed intervals.
@@ -57,9 +170,6 @@ public class PlanService : IPlanService
             plan.NextPlan = nextId is int keptId ? ownedPlans.GetValueOrDefault(keptId) : null;
             plan.NextPlanId = nextId;
         }
-
-        await _repository.DeletePlansAsync(toDelete);
-        return true;
     }
 
     public async Task<PlanDTO?> UpdatePlanAsync(string userId, int planId, PlanDTO update)

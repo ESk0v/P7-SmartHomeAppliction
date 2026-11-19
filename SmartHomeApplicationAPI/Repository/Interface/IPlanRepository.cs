@@ -18,4 +18,8 @@ public interface IPlanRepository
     Task<List<Plan>> GetUserPlansAsync(string userId);
 
     Task DeletePlansAsync(IEnumerable<Plan> plans);
+
+    Task<DevicePreset?> GetPresetForSaveAsync(int presetId);
+
+    Task SavePlansAsync(IEnumerable<Plan> removed, IEnumerable<Plan> added);
 }

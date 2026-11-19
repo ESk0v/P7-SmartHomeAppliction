@@ -80,6 +80,7 @@ public class CreatePlanService : ICreatePlanService
         }
 
         var loads = new List<SolverLoadDTO>();
+        int requestedEvIndex = -1;
 
         foreach (var group in devicePresets.GroupBy(x => x.Device.id))
         {
@@ -110,6 +111,8 @@ public class CreatePlanService : ICreatePlanService
 
             if (isEv)
             {
+                // Python returns EV results in the same order as the EV loads in the request.
+                if (isRequested) requestedEvIndex = loads.Count(existing => existing.Type == "ev");
                 load.MaxEnergy = (double?)preset.BatteryCapacityInKwh;            // E_max, kWh
                 load.MaxChargingPower = (double)preset.ConsumptionInKwh;          // P_ev_max, kW
                 load.InitialEnergy = 0.2 * (load.MaxEnergy ?? 0);                 // hardcoded 20%
@@ -203,13 +206,13 @@ public class CreatePlanService : ICreatePlanService
         // EV
         var evs = root.GetProperty("evs");
 
-        if (evs.GetArrayLength() == 0)
+        if (requestedEvIndex < 0 || requestedEvIndex >= evs.GetArrayLength())
         {
             throw new InvalidOperationException(
                 "Solver returned no optimizable appliance or EV.");
         }
 
-        var ev = evs[0];
+        var ev = evs[requestedEvIndex];
 
         var powers = ev.GetProperty("power_kw")
             .EnumerateArray()
