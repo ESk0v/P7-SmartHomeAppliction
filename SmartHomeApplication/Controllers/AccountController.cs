@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using System.Security.Claims;
+using Utilities.Security;
 using SmartHomeApplication.Models;
 using System.Diagnostics;
 using System.Net;
@@ -27,6 +28,9 @@ namespace SmartHomeApplication.Controllers
         {
             var stopwatch = Stopwatch.StartNew();
             _logger.LogInformation("Starting registration flow");
+
+            if (!ModelState.IsValid)
+                return Redirect("/register?error=invalid");
             
             var response = await _apiClient.PostAsJsonAsync("api/auth/register", model, cancellationToken);
             _logger.LogInformation("Registration returned after: {TotalSeconds} seconds", stopwatch.Elapsed.TotalSeconds);
@@ -105,6 +109,30 @@ namespace SmartHomeApplication.Controllers
             return Redirect("/login");
         }
 
+        // Status checks must not extend the cookie; only Continue renews it explicitly.
+        [HttpGet("session")]
+        public async Task<IActionResult> Session()
+        {
+            var authentication = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            if (!authentication.Succeeded) return Unauthorized();
+            return Json(new { expiresUtc = authentication.Properties?.ExpiresUtc });
+        }
+
+        [HttpPost("session/continue")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ContinueSession(
+            [FromServices] Microsoft.Extensions.Options.IOptionsMonitor<CookieAuthenticationOptions> options)
+        {
+            var authentication = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            if (!authentication.Succeeded || authentication.Principal is null) return Unauthorized();
+
+            var properties = authentication.Properties ?? new AuthenticationProperties();
+            properties.IssuedUtc = DateTimeOffset.UtcNow;
+            properties.ExpiresUtc = properties.IssuedUtc + options.Get(CookieAuthenticationDefaults.AuthenticationScheme).ExpireTimeSpan;
+            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, authentication.Principal, properties);
+            return Json(new { expiresUtc = properties.ExpiresUtc });
+        }
+
         private async Task SignInAsync(AuthRespModel result)
         {
             var stopwatch = Stopwatch.StartNew();
@@ -113,7 +141,8 @@ namespace SmartHomeApplication.Controllers
             {
                 new(ClaimTypes.NameIdentifier, result.UserId),
                 new(ClaimTypes.Name, result.Username),
-                new("display_name", result.DisplayName)
+                new(CustomClaimTypes.DisplayName, result.DisplayName),
+                new(CustomClaimTypes.PriceArea, result.PriceArea)
             };
             _logger.LogInformation("New claims created");
 

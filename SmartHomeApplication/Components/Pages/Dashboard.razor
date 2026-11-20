@@ -6,6 +6,7 @@
 @using System.Globalization
 @using Utilities.Models
 @using System.Security.Claims
+@using Utilities.Security
 @inject NavigationManager NavigationManager
 @inject HttpClient Http
 @inject AuthenticationStateProvider AuthProvider
@@ -29,6 +30,7 @@
 </SectionContent>
 
 <div class="dashboard">
+    @if (loadError is not null) { <p role="alert">@loadError</p> }
     <div class="statistics">
         <Statistics Type="StatisticsType.PlannedCost" From="DateTime.Today" To="DateTime.Today.AddDays(1)" />
         <Statistics Type="StatisticsType.ScheduleSavingsCost" From="DateTime.Today" To="DateTime.Today.AddDays(1)" />
@@ -43,10 +45,10 @@
         }
     </div>
 
-    <div class="devices">
+    <div class="devices" role="region" aria-label="Device schedules" tabindex="0">
         @if (displaySchedules is null)
         {
-            <p>Loading...</p>
+            <p role="status">Loading device schedules…</p>
         }
         else {
             @foreach (PlanDto schedule in displaySchedules)
@@ -61,6 +63,7 @@
     private string date = DateTime.Today.ToString("ddd dd MMM yyyy", CultureInfo.InvariantCulture);
     private string area = "Nordpool DK1";
 
+    private string? loadError;
     private List<PlanDto>? activeSchedules;
     private List<PlanDto>? displaySchedules;  
 
@@ -70,41 +73,52 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var state = await AuthProvider.GetAuthenticationStateAsync();
-        var userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        try
+        {
+        AuthenticationState? state = await AuthProvider.GetAuthenticationStateAsync();
+        string? userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        area = $"Nordpool {state.User.FindFirstValue(CustomClaimTypes.PriceArea) ?? "DK1"}";
         
-        var request = new HttpRequestMessage(HttpMethod.Get, "api/plan-controller/get-plan");
+        HttpRequestMessage? request = new HttpRequestMessage(HttpMethod.Get, "api/plan-controller/get-plan");
         request.Headers.Add("UserId", userId);
 
-        var response = await Http.SendAsync(request);
+        HttpResponseMessage? response = await Http.SendAsync(request);
         response.EnsureSuccessStatusCode();
         activeSchedules = await response.Content.ReadFromJsonAsync<List<PlanDto>>();
         displaySchedules = BuildDisplaySchedules(activeSchedules ?? new List<PlanDto>());
+        }
+        catch (Exception exception)
+        {
+            Logger.LogError(exception, "Failed to load dashboard schedules");
+            loadError = "Schedules could not be loaded. Please reload to try again.";
+            activeSchedules = new List<PlanDto>();
+            displaySchedules = new List<PlanDto>();
+        }
     }
     private List<PlanDto> BuildDisplaySchedules(List<PlanDto> allSchedules)
     {
         if (allSchedules.Count == 0)
             return new List<PlanDto>();
 
-        var plansById = allSchedules.ToDictionary(x => x.planId);
+        Dictionary<int, PlanDto>? plansById = allSchedules.ToDictionary(x => x.planId);
 
         HashSet<int> continuationIds = allSchedules
             .Where(x => x.nextPlanId.HasValue)
             .Select(x => x.nextPlanId!.Value)
             .ToHashSet();
 
-        var normalPlans = allSchedules
+        List<PlanDto>? normalPlans = allSchedules
             .Where(x => !continuationIds.Contains(x.planId))
             .ToList();
 
-        var result = new List<PlanDto>();
+        List<PlanDto>? result = new List<PlanDto>();
 
-        foreach (var plan in normalPlans)
+        foreach (PlanDto plan in normalPlans)
         {  
             PlanDto current = plan;
             PlanDto lastPlan = plan;
 
-            HashSet<int> visited = new();
+            HashSet<int> visited = new HashSet<int>();
 
             visited.Add(current.planId);
             decimal estimatedUnscheduledPrice = plan.estimatedUnscheduledPrice;
@@ -120,7 +134,7 @@
                 estimatedUnscheduledCo2Emissions += current.estimatedUnscheduledCo2Emissions;
             }
 
-            var combinedPlan = new PlanDto
+            PlanDto? combinedPlan = new PlanDto
             (
                 planId: plan.planId,
                 nextPlanId: plan.nextPlanId,
@@ -213,7 +227,7 @@
     }
 
     .heading p {
-        color: #999;
+        color: var(--smarthome-muted);
         font-size: 0.70rem;
         line-height: 0.75;
         margin: 0;

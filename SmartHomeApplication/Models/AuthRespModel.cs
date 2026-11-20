@@ -1,4 +1,4 @@
 ﻿namespace SmartHomeApplication.Models
 {
-    public record AuthRespModel(string UserId, string Username, string DisplayName, string[] Roles);
+    public record AuthRespModel(string UserId, string Username, string DisplayName, string[] Roles, string PriceArea = "DK1");
 }

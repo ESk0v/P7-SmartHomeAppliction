@@ -1,3 +1,4 @@
+using FluentValidation;
 using Utilities.Models;
 using SmartHomeApplicationAPI.Repository;
 using SmartHomeApplicationAPI.DTOs.Optimization;
@@ -57,8 +58,9 @@ public class CreatePlanService : ICreatePlanService
     {
         #region Data Retrival
         var now = DateTime.UtcNow;
+        var quarter = TimeSpan.FromMinutes(15).Ticks;
         var start = new DateTime(
-            now.Ticks - now.Ticks % TimeSpan.FromMinutes(15).Ticks,
+            (now.Ticks + quarter - 1) / quarter * quarter,
             DateTimeKind.Utc);
 
         var end = request.EndWindow.ToUniversalTime();
@@ -68,11 +70,8 @@ public class CreatePlanService : ICreatePlanService
         var devicePresets = await _repository.GetDevicesWithPresetsAsync(request.UserDeviceId);
         var userDeviceIds = devicePresets.Select(x => x.Device.id).Distinct().ToList();
 
-        var plans = await _repository.GetActivePlansAsync(userDeviceIds, start);
+        var plans = await _repository.GetActivePlansAsync(userDeviceIds, now);
 
-        // Step index from step 0. Clamped to 0 so a window that starts before "now" begins at step 0
-        // Quarters from step 0 (now rounded down to the quarter). Negative = before step 0
-        // Example: now 10:40 -> step 0 = 10:30, 10:45 = 1, 11:00 = 2, 10:00 = -2
         int Step(DateTime t)
         {
             var utc = t.Kind == DateTimeKind.Local
@@ -82,6 +81,8 @@ public class CreatePlanService : ICreatePlanService
         }
 
         var loads = new List<SolverLoadDTO>();
+        int requestedEvIndex = -1;
+        SolverLoadDTO? requestedLoad = null;
 
         foreach (var group in devicePresets.GroupBy(x => x.Device.id))
         {
@@ -112,13 +113,22 @@ public class CreatePlanService : ICreatePlanService
 
             if (isEv)
             {
+                // Python returns EV results in the same order as the EV loads in the request.
+                if (isRequested) requestedEvIndex = loads.Count(existing => existing.Type == "ev");
                 load.MaxEnergy = (double?)preset.BatteryCapacityInKwh;            // E_max, kWh
                 load.MaxChargingPower = (double)preset.ConsumptionInKwh;          // P_ev_max, kW
                 load.InitialEnergy = 0.2 * (load.MaxEnergy ?? 0);                 // hardcoded 20%
 
-                // Goal from the existing plan's stop percentage, otherwise hardcoded 100%
-                var stopPercentage = (double)(plan?.ChargeStopPercentage ?? 100);
+                // Goal: the requested percentage for a new plan, the saved one for an existing plan, otherwise 100%
+                var stopPercentage = (double)((isRequested ? request.ChargeStopPercentage : plan?.ChargeStopPercentage) ?? 100);
                 load.EnergyGoal = stopPercentage / 100.0 * (load.MaxEnergy ?? 0); // E_goal, kWh
+
+                // Window: the solver reads plug-in from ReadyStep and departure from DeadlineStep.
+                // Departure is capped at the last known price; beyond it the solver sets no goal and plans no charging.
+                var windowStart = isRequested ? request.StartWindow : plan!.WindowStartTime;
+                var windowEnd = isRequested ? request.EndWindow : plan!.WindowEndTime;
+                load.ReadyStep = Math.Max(0, Step(windowStart));                  // t_plug
+                load.DeadlineStep = Math.Min(Step(windowEnd), prices.Count);       // t_dep
             }
             else
             {
@@ -138,6 +148,9 @@ public class CreatePlanService : ICreatePlanService
                     load.DeadlineStep = Step(request.EndWindow);                  // latest finish
                 }
             }
+
+            if (isRequested)
+                requestedLoad = load;
 
             loads.Add(load);
         }
@@ -159,12 +172,30 @@ public class CreatePlanService : ICreatePlanService
             System.Text.Json.JsonSerializer.Serialize(solverReq));
         #endregion
 
+        // A program whose own power is above what the fuse allows can never be planned
+        if (requestedLoad?.PowerProfile is { Count: > 0 } profile)
+        {
+            var programKw = profile.Max() / 0.25;                                     // kWh per step -> kW
+            var availableKw = solverReq.FuseLimit - solverReq.BaseLoad.DefaultIfEmpty(0).Max();
+            if (programKw > availableKw)
+                throw new ValidationException(
+                    $"The selected program uses {programKw:0.#} kW, but only {availableKw:0.#} kW is available " +
+                    $"under the fuse limit of {solverReq.FuseLimit} kW. Choose another preset.");
+        }
+
         var response = await _http.PostAsJsonAsync("/run", solverReq, _solverJson);
         var body = await response.Content.ReadAsStringAsync();
 
         if (!response.IsSuccessStatusCode)
         {
             _logger.LogError("Optimisation failed ({Status}): {Body}", (int)response.StatusCode, body);
+
+            // Infeasibility can come from the time window, charging demand, or combined power limits.
+            if (response.StatusCode == System.Net.HttpStatusCode.UnprocessableEntity && body.Contains("Infeasible"))
+                throw new ValidationException(
+                    "The plan cannot fit within the selected time window and power limits together with your other plans. " +
+                    "Choose a longer time window, another time, or a lower energy demand.");
+
             throw new InvalidOperationException($"Optimisation failed: {body}");
         }
 
@@ -198,13 +229,13 @@ public class CreatePlanService : ICreatePlanService
         // EV
         var evs = root.GetProperty("evs");
 
-        if (evs.GetArrayLength() == 0)
+        if (requestedEvIndex < 0 || requestedEvIndex >= evs.GetArrayLength())
         {
             throw new InvalidOperationException(
                 "Solver returned no optimizable appliance or EV.");
         }
 
-        var ev = evs[0];
+        var ev = evs[requestedEvIndex];
 
         var powers = ev.GetProperty("power_kw")
             .EnumerateArray()

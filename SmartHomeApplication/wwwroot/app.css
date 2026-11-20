@@ -4,7 +4,7 @@ html, body {
 
 :root {
     --smarthome-text: #292724;
-    --smarthome-muted: #746f68;
+    --smarthome-muted: #6b6761;
     --smarthome-border: #e5e2dc;
     --smarthome-card-shadow: 0 2px 8px rgba(43, 35, 25, 0.035);
 }
@@ -142,3 +142,97 @@ h1:focus {
         min-width: 0;
     }
 }
+
+/* Accessibility: keep shared focus and control boundaries visible. */
+:where(a, button, input, select, textarea, summary, [tabindex]:not(h1):not(main)):focus-visible {
+    outline: 2px solid #042250 !important;
+    outline-offset: 3px;
+}
+.app-navigation :is(a, button):focus-visible {
+    outline-color: #fff !important;
+}
+.app-navigation .nav-item a.active { background-color: #084f98; }
+.app-main .form-control:not(:disabled),
+.empty-layout .form-control:not(:disabled),
+.app-main .form-select {
+    border-color: #807b75;
+}
+.plan-picker [aria-invalid="true"] { box-shadow: inset 0 0 0 2px #b32121; }
+.plan-picker-menu [role="option"]:focus-visible { outline-offset: -3px; }
+:where(button, summary) { touch-action: manipulation; }
+.icon-option, .device-expand, .legend-more { min-width: 24px; min-height: 24px; }
+.skip-link {
+    position: fixed;
+    top: 0.5rem;
+    left: 0.5rem;
+    z-index: 1000000;
+    transform: translateY(-200%);
+    padding: 0.65rem 1rem;
+    background: #fff;
+    color: #042250;
+    border: 2px solid #042250;
+    border-radius: 6px;
+}
+.skip-link:focus { transform: none; }
+.form-errors {
+    border-left: 3px solid #b32121;
+    background: #fff4f3;
+    color: #7d1c1c;
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.65rem;
+    font-size: 0.8rem;
+    max-height: 7rem;
+    overflow: auto;
+}
+.form-errors ul { margin: 0.25rem 0 0; padding-left: 1.25rem; }
+.form-errors a { color: #7d1c1c; text-decoration: underline; }
+.category-help { font-size: 0.8rem; margin-bottom: 0.5rem; }
+.category-help summary { min-height: 24px; color: #0a66c3; }
+.category-help p { margin: 0.35rem 0; }
+.co2-bar-fill { box-shadow: inset 0 0 0 1px #504c46; }
+[data-chart-point]:focus-visible { outline-offset: 1px; }
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation: none !important;
+        transition: none !important;
+        scroll-behavior: auto !important;
+    }
+}
+@media (forced-colors: active) {
+    .price-bar, .plan-fill, .co2-bar-fill, .history-chart-bar { background: CanvasText !important; border: 1px solid CanvasText; }
+    .price-bar-predicted { border: 2px dashed Highlight; outline-color: Highlight; }
+    [aria-pressed="true"], [aria-selected="true"], [aria-checked="true"] { outline: 2px solid Highlight; }
+}
+
+
+    .chart-data-button {
+        background: transparent;
+        border: 0;
+        color: #0a66c3;
+        font: inherit;
+        font-size: 0.75rem;
+        padding: 0.2rem 0;
+        min-height: 24px;
+        text-decoration: underline;
+        text-underline-offset: 0.15em;
+    }
+    .data-dialog {
+        background: #fff;
+        border: 1px solid var(--smarthome-border);
+        border-radius: 12px;
+        color: var(--smarthome-text);
+        max-width: min(56rem, calc(100vw - 2rem));
+        width: 100%;
+        max-height: calc(100dvh - 2rem);
+        overflow: auto;
+        padding: 1.25rem;
+    }
+    .data-dialog::backdrop { background: rgb(4 34 80 / 55%); }
+    .data-dialog-heading { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+    .data-dialog h2 { font-size: 1.1rem; margin: 0; }
+    .data-dialog caption { caption-side: top; color: var(--smarthome-muted); }
+    .data-dialog table { width: 100%; font-size: 0.875rem; overflow-wrap: anywhere; }
+    .data-dialog th, .data-dialog td { padding: 0.5rem; vertical-align: top; }
+    .data-dialog th { text-align: left; }
+
+[hidden] { display: none !important; }

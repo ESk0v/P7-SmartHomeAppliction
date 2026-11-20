@@ -111,6 +111,29 @@ public class PlanRepository : IPlanRepository
         return await ToPlanDtoAsync(plan);
     }
 
+    // Keep entities tracked so link updates and deletions are persisted together.
+    public Task<List<Plan>> GetUserPlansAsync(string userId) =>
+        _db.Plan
+            .Where(plan => plan.UserDevice.UserId == userId)
+            .ToListAsync();
+
+    public async Task DeletePlansAsync(IEnumerable<Plan> plans)
+    {
+        _db.Plan.RemoveRange(plans);
+        await _db.SaveChangesAsync();
+    }
+
+    public Task<DevicePreset?> GetPresetForSaveAsync(int presetId) =>
+        _db.Preset.AsNoTracking().FirstOrDefaultAsync(preset => preset.Id == presetId);
+
+    public async Task SavePlansAsync(IEnumerable<Plan> removed, IEnumerable<Plan> added)
+    {
+        _db.Plan.RemoveRange(removed);
+        _db.Plan.AddRange(added);
+        // One SaveChanges transaction persists the new chain, removals, and repaired links together.
+        await _db.SaveChangesAsync();
+    }
+
     private async Task<PlanDTO> ToPlanDtoAsync(Plan plan)
     {
         decimal? batteryCapacity = await _db.Preset

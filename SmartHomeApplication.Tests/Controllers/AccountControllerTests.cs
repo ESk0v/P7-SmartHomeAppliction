@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Net;
 using System.Security.Claims;
+using Utilities.Security;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
@@ -40,7 +41,7 @@ namespace SmartHomeApplication.Tests.Controllers
                 Email = "test@test.com",
                 Password = "SecurePassword123!",
                 PasswordConfirm = "SecurePassword123!",
-                DisplayName = "LasseDisplay"
+                DisplayName = "LasseDisplay", PriceArea = "DK1"
             };
 
             // Act
@@ -64,7 +65,7 @@ namespace SmartHomeApplication.Tests.Controllers
                 Email = "test@test.com",
                 Password = "SecurePassword123!",
                 PasswordConfirm = "SecurePassword123!",
-                DisplayName = "LasseDisplay"
+                DisplayName = "LasseDisplay", PriceArea = "DK1"
             };
 
             // Act
@@ -88,7 +89,7 @@ namespace SmartHomeApplication.Tests.Controllers
                 Email = "test@test.com",
                 Password = "SecurePassword123!",
                 PasswordConfirm = "SecurePassword123!",
-                DisplayName = "LasseDisplay"
+                DisplayName = "LasseDisplay", PriceArea = "DK1"
             };
 
             // Act
@@ -158,7 +159,7 @@ namespace SmartHomeApplication.Tests.Controllers
         public async Task Login_WhenSuccessful_RedirectsToDashboard()
         {
             // Arrange
-            var authModel = new AuthRespModel("123", "LasseUser", "LasseDisplay", new[] {"User"});
+            var authModel = new AuthRespModel("123", "LasseUser", "LasseDisplay", new[] {"User"}, "DK2");
             var jsonPayload = JsonSerializer.Serialize(authModel);
 
             var (mockClient, _) = HttpClientTestHelper.CreateMockHttpClient(HttpStatusCode.OK, jsonPayload);
@@ -199,7 +200,7 @@ namespace SmartHomeApplication.Tests.Controllers
             mockAuthService.Verify(a => a.SignInAsync(
                 It.IsAny<HttpContext>(),
                 Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme,
-                It.Is<ClaimsPrincipal>(cp => cp.Identity!.Name == "LasseUser"),
+                It.Is<ClaimsPrincipal>(cp => cp.Identity!.Name == "LasseUser" && cp.FindFirst(CustomClaimTypes.PriceArea)!.Value == "DK2"),
                 It.IsAny<AuthenticationProperties>()
             ), Times.Once);
         }

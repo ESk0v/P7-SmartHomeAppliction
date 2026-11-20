@@ -1,4 +1,5 @@
 using Utilities.Models;
+using SmartHomeApplicationAPI.Infrastructure.Models;
 
 namespace SmartHomeApplicationAPI.Repository;
 
@@ -13,4 +14,12 @@ public interface IPlanRepository
     Task<bool> PresetBelongsToDeviceAsync(int presetId, int deviceId);
 
     Task<PlanDTO?> UpdatePlanAsync(string userId, int planId, PlanDTO update);
+
+    Task<List<Plan>> GetUserPlansAsync(string userId);
+
+    Task DeletePlansAsync(IEnumerable<Plan> plans);
+
+    Task<DevicePreset?> GetPresetForSaveAsync(int presetId);
+
+    Task SavePlansAsync(IEnumerable<Plan> removed, IEnumerable<Plan> added);
 }

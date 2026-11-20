@@ -1,0 +1,62 @@
+@implements IDisposable
+@inject IJSRuntime JS
+
+<dialog @ref="dialog" class="data-dialog confirmation-dialog" aria-labelledby="@titleId" aria-describedby="@messageId" @onclose="Closed">
+    <h2 id="@titleId">@title</h2>
+    <p id="@messageId">@message</p>
+    <div class="d-flex justify-content-end gap-2 flex-wrap">
+        <button type="button" class="btn btn-outline-secondary" autofocus @onclick="() => Complete(false)">Cancel</button>
+        <button type="button" class="btn btn-danger" @onclick="() => Complete(true)">@confirmText</button>
+    </div>
+</dialog>
+
+@code {
+    private readonly string titleId = $"confirmation-title-{Guid.NewGuid():N}";
+    private readonly string messageId = $"confirmation-message-{Guid.NewGuid():N}";
+    private ElementReference dialog;
+    private string title = "", message = "", confirmText = "Delete";
+    private TaskCompletionSource<bool>? pending;
+    private bool openRequested;
+
+    public Task<bool> ShowAsync(string title, string message, string confirmText)
+    {
+        if (pending is not null) return Task.FromResult(false);
+        this.title = title;
+        this.message = message;
+        this.confirmText = confirmText;
+        pending = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        openRequested = true;
+        StateHasChanged();
+        return pending.Task;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!openRequested) return;
+        openRequested = false;
+        await JS.InvokeVoidAsync("smartHomeAccessibility.openDialog", dialog);
+    }
+
+    private async Task Complete(bool confirmed)
+    {
+        TaskCompletionSource<bool>? completion = pending;
+        pending = null;
+        await JS.InvokeVoidAsync("smartHomeAccessibility.closeDialog", dialog);
+        completion?.TrySetResult(confirmed);
+    }
+
+    private void Closed()
+    {
+        pending?.TrySetResult(false);
+        pending = null;
+    }
+
+    public void Dispose() => Closed();
+}
+
+<style>
+    .confirmation-dialog { max-width: min(30rem, calc(100vw - 2rem)); }
+    .confirmation-dialog h2 { margin-bottom: 0.75rem; }
+    .confirmation-dialog p { margin-bottom: 1.25rem; overflow-wrap: anywhere; }
+    .confirmation-dialog .btn { min-height: 44px; }
+</style>

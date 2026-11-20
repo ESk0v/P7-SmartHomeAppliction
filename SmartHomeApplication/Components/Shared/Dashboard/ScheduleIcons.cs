@@ -6,7 +6,7 @@ public static class ScheduleIcons
 {
     private static readonly Dictionary<DeviceIcon, string> Icons = new()
     {
-        [DeviceIcon.default_icon]   = "bi-x-circle-fill text-danger",
+        [DeviceIcon.default_icon]   = "bi-plug-fill",
         [DeviceIcon.Dishwasher]     = "bi-droplet-fill",
         [DeviceIcon.WashingMachine] = "bi-bucket-fill",
         [DeviceIcon.Dryer]          = "bi-wind",

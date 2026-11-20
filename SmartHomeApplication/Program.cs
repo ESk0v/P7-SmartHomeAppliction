@@ -42,6 +42,11 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         settings.Cookie.SameSite = SameSiteMode.Lax;
         settings.ExpireTimeSpan = TimeSpan.FromMinutes(30);
         settings.SlidingExpiration = true;
+        settings.Events.OnCheckSlidingExpiration = context =>
+        {
+            if (context.Request.Path == "/account/session") context.ShouldRenew = false;
+            return Task.CompletedTask;
+        };
     });
 builder.Services.AddAuthorizationCore();
 builder.Services.AddCascadingAuthenticationState();

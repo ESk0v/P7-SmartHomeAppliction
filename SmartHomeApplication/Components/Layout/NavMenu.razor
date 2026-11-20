@@ -1,14 +1,18 @@
-﻿<div class="app-navigation">
+﻿@using System.Security.Claims
+@using Utilities.Security
+
+<div class="app-navigation" @onkeydown="HandleNavigationKey">
     <div class="top-row ps-3 navbar navbar-dark">
         <div class="container-fluid">
             <a class="navbar-brand" href="">SmartHomeApplication</a>
         </div>
     </div>
 
-    <input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+    <button type="button" class="navbar-toggler" @ref="menuToggle" aria-label="Navigation menu"
+            aria-expanded="@(navOpen ? "true" : "false")" aria-controls="main-navigation" @onclick="() => navOpen = !navOpen"></button>
 
-    <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-        <nav class="nav flex-column">
+    <div id="main-navigation" class="nav-scrollable @(navOpen ? "nav-open" : null)" @onclick="() => navOpen = false">
+        <nav class="nav flex-column" aria-label="Main navigation">
             <!-- OUT COMMENTED FOR NOW. SHOULD BE DELETED LATER ARE THE OLD NAVMENU ENTRIES
             <div class="nav-item px-3">
                 <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
@@ -64,7 +68,21 @@
                     <NotAuthorized>
                         <a href="/login">Login</a>
                     </NotAuthorized>
-                    <Authorized>
+                    <Authorized Context="auth">
+                        @{
+                            string username = auth.User.Identity?.Name ?? "User";
+                            string? displayName = auth.User.FindFirstValue(CustomClaimTypes.DisplayName);
+                            if (string.IsNullOrWhiteSpace(displayName)) displayName = username;
+                            string area = auth.User.FindFirstValue(CustomClaimTypes.PriceArea) ?? "DK1";
+                        }
+                        <div class="nav-user">
+                            <span class="nav-user-avatar" aria-hidden="true">@GetInitials(displayName)</span>
+                            <div class="nav-user-details">
+                                <span class="visually-hidden">Signed in as </span>
+                                <strong class="nav-user-name">@displayName</strong>
+                                <span class="nav-user-meta">@($"@{username} · {area}")</span>
+                            </div>
+                        </div>
                         <form method="post" action="/account/logout" data-enhance="false" @onclick:stopPropagation="true">
                             <AntiforgeryToken />
                             <button type="submit" class="btn btn-primary">Logout</button>
@@ -76,6 +94,21 @@
         </nav>
     </div>
 </div>
+
+@code {
+    private bool navOpen;
+    private ElementReference menuToggle;
+    private static string GetInitials(string name) => string.Concat(name
+        .Split(' ', StringSplitOptions.RemoveEmptyEntries).Take(2)
+        .Select(part => char.ToUpperInvariant(part[0])));
+
+    private async Task HandleNavigationKey(KeyboardEventArgs e)
+    {
+        if (e.Key != "Escape" || !navOpen) return;
+        navOpen = false;
+        await menuToggle.FocusAsync();
+    }
+}
 
 <style>
     .app-navigation .navbar-toggler {
@@ -92,7 +125,7 @@
         background: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.55%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") no-repeat center/1.75rem rgba(255, 255, 255, 0.1);
     }
 
-    .app-navigation .navbar-toggler:checked {
+    .app-navigation .navbar-toggler[aria-expanded="true"] {
         background-color: rgba(255, 255, 255, 0.5);
     }
 
@@ -213,12 +246,51 @@
         text-decoration: none;
     }
 
+    .app-navigation .nav-user {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 1rem 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.2);
+        color: #fff;
+    }
+
+    .app-navigation .nav-user-avatar {
+        display: grid;
+        place-items: center;
+        flex: 0 0 2.5rem;
+        height: 2.5rem;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.15);
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    .app-navigation .nav-user-details {
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+
+    .app-navigation .nav-user-name {
+        display: block;
+        font-size: 0.875rem;
+        line-height: 1.4;
+    }
+
+    .app-navigation .nav-user-meta {
+        display: block;
+        margin-top: 0.2rem;
+        color: rgba(255, 255, 255, 0.85);
+        font-size: 0.75rem;
+        line-height: 1.4;
+    }
+
     .app-navigation .nav-footer a:hover {
         color: white;
         text-decoration: underline;
     }
 
-    .app-navigation .navbar-toggler:checked ~ .nav-scrollable {
+    .app-navigation .nav-scrollable.nav-open {
         display: block;
     }
 

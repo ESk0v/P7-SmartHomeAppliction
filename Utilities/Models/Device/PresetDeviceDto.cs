@@ -12,10 +12,10 @@ namespace Utilities.Models
         [StringLength(10)]
         public string PresetName { get; set; } = "";
 
-        [Range(0.01, 2000.0)]
+        [Range(0.01, 10.0, ErrorMessage = "Consumption must be between {1} and {2} kWh per cycle.")]
         public decimal ConsumptionInKwh { get; set; }
 
-        [Range(0.01, 1000000.0)]
+        [Range(0.01, 999.0)]
         public decimal? BatteryCapacityInKwh { get; set; }
 
         [Range(1, 1440)]

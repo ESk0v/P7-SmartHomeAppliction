@@ -59,7 +59,7 @@ namespace SmartHomeApplicationAPI.Tests.Controller
                 Email = "test@test.com",
                 Password = "password123",
                 PasswordConfirm = "password123",
-                DisplayName = "LasseTest"
+                DisplayName = "LasseTest", PriceArea = "DK1"
             };
 
             _mockUserManager.Setup(u => u.FindByNameAsync(request.Username)).ReturnsAsync(new User { UserName = request.Username});
@@ -82,7 +82,7 @@ namespace SmartHomeApplicationAPI.Tests.Controller
                 Email = "test@test.com",
                 Password = "password123",
                 PasswordConfirm = "password123",
-                DisplayName = "LasseTest"
+                DisplayName = "LasseTest", PriceArea = "DK1"
             };
             var user = new User { DisplayName = request.Username };
 
@@ -97,8 +97,10 @@ namespace SmartHomeApplicationAPI.Tests.Controller
         }
 
 
-        [Fact]
-        public async Task Register_WhenValidRequest_CreatesUserAndReturnsOk()
+        [Theory]
+        [InlineData("DK1")]
+        [InlineData("DK2")]
+        public async Task Register_WhenValidRequest_CreatesUserAndReturnsOk(string area)
         {
             // Arrange
             var request = new RegisterReqDTO
@@ -107,7 +109,7 @@ namespace SmartHomeApplicationAPI.Tests.Controller
                 Email = "test@test.com",
                 Password = "password123",
                 PasswordConfirm = "password123",
-                DisplayName = "LasseTest"
+                DisplayName = "LasseTest", PriceArea = area
             };
             var expectedRoles = new[] { "User" };
 
@@ -126,6 +128,9 @@ namespace SmartHomeApplicationAPI.Tests.Controller
             Assert.Equal(request.Username, responseData.Username);
             Assert.Equal(request.DisplayName, responseData.DisplayName);
             Assert.Contains("User", responseData.Roles);
+            Assert.Equal(area, responseData.PriceArea);
+            _mockUserManager.Verify(manager => manager.CreateAsync(
+                It.Is<User>(user => user.PriceArea == area), request.Password), Times.Once);
         }
 
         [Fact]
@@ -195,8 +200,10 @@ namespace SmartHomeApplicationAPI.Tests.Controller
             Assert.Equal(StatusCodes.Status401Unauthorized, statusresult.StatusCode);
         }
 
-        [Fact]
-        public async Task Login_WhenUserIsAuthorized_ReturnsOk()
+        [Theory]
+        [InlineData("DK1")]
+        [InlineData("DK2")]
+        public async Task Login_WhenUserIsAuthorized_ReturnsOk(string area)
         {
             // Arrange
             var request = new LoginReqDTO
@@ -204,7 +211,7 @@ namespace SmartHomeApplicationAPI.Tests.Controller
                 Username = "Success",
                 Password = "YeahYeah1"
             };
-            var user = new User { DisplayName = request.Username };
+            var user = new User { DisplayName = request.Username, PriceArea = area };
             var role = new[] { "User" };
 
             // Mocker all kald der sker inde i controller inden happy path nåes
@@ -223,6 +230,7 @@ namespace SmartHomeApplicationAPI.Tests.Controller
             Assert.Equal(user.UserName, response.Username);
             Assert.Equal(user.DisplayName, response.DisplayName);
             Assert.Equal(role, response.Roles);
+            Assert.Equal(area, response.PriceArea);
         }
 
         [Fact]
@@ -235,7 +243,7 @@ namespace SmartHomeApplicationAPI.Tests.Controller
                 Email = "test@test.com",
                 Password = "password123",
                 PasswordConfirm = "password123",
-                DisplayName = "LasseTest"
+                DisplayName = "LasseTest", PriceArea = "DK1"
             };
 
             _mockUserManager

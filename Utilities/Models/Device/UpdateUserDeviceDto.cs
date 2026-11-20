@@ -22,7 +22,7 @@ namespace Utilities.Models
 
         public bool IsFavorite { get; set; }
 
-        [Range(0.01, 1000000.0)]
+        [Range(0.01, 999.0)]
         public decimal? BatteryCapacityInKwh { get; set; }
 
         [Range(0.01, 2000.0)]
@@ -30,6 +30,9 @@ namespace Utilities.Models
 
         public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
+            if (Category == "Non-Interruptible" && ConsumptionInKwh > 10m)
+                yield return new ValidationResult("Consumption cannot exceed 10 kWh per cycle.", [nameof(ConsumptionInKwh)]);
+
             if (Category != "Interruptible") yield break;
 
             if (BatteryCapacityInKwh is null)

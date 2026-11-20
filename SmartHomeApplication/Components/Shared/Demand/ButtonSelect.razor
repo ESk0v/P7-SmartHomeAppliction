@@ -1,25 +1,37 @@
 
-<div class="plan-picker @CssClass" tabindex="0" @onfocusout="@((e) => onFocusOut(e))">
-    <button id="@Id" type="button" class="plan-picker-trigger" @onclick="() => open = !open">
+@inject IJSRuntime JS
+@implements IDisposable
+
+<div class="plan-picker @CssClass" data-picker @ref="picker">
+    <button id="@ControlId" @ref="trigger" type="button" class="plan-picker-trigger"
+            aria-haspopup="listbox" aria-expanded="@(open ? "true" : "false")" aria-controls="@(open ? ControlId + "-options" : null)"
+            aria-label="@(Label is null ? null : $"{Label}: {Options.FirstOrDefault(option => option.Value == Value).Text ?? Placeholder}")" aria-describedby="@DescribedBy" aria-invalid="@(HasError ? "true" : null)" @onclick="Toggle">
         <span class="@(Options.Any(option => option.Value == Value) ? null : "plan-picker-placeholder")">
-            @(Options.FirstOrDefault(x => x.Value == Value).Text ?? Placeholder)
+            @if (OptionContent is not null && Options.Any(option => option.Value == Value))
+            {
+                @OptionContent(Options.First(option => option.Value == Value))
+            }
+            else
+            {
+                @(Options.FirstOrDefault(x => x.Value == Value).Text ?? Placeholder)
+            }
         </span>
-        <span class="plan-picker-chevron @(open ? "plan-picker-chevron-open" : "")"></span>
+        <span aria-hidden="true" class="plan-picker-chevron @(open ? "plan-picker-chevron-open" : "")"></span>
     </button>
 
     @if (open)
     {
-        <div class="plan-picker-menu">
+        <div id="@(ControlId + "-options")" class="plan-picker-menu" role="listbox" aria-label="@(Label ?? Placeholder)">
             @foreach (var option in Options)
             {
                 <button type="button"
-                        data-value="@option.Value"
+                        data-value="@option.Value" role="option" tabindex="-1" aria-selected="@(option.Value == Value ? "true" : "false")"
                         class="plan-picker-option @(option.Value == Value ? "plan-picker-option-selected" : "")"
-                        @onclick="async () => { await ValueChanged.InvokeAsync(option.Value); open = false; }">
-                    @option.Text
+                        @onclick="() => Select(option.Value)">
+                    @if (OptionContent is not null) { @OptionContent(option) } else { @option.Text }
                     @if (option.Value == Value)
                     {
-                        <span class="plan-picker-check">✓</span>
+                        <span class="plan-picker-check" aria-hidden="true">✓</span>
                     }
                 </button>
             }
@@ -35,12 +47,60 @@
     [Parameter] public string CssClass { get; set; } = "";
     [Parameter] public string? Id { get; set; }
 
-    private bool open;
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public string? DescribedBy { get; set; }
+    [Parameter] public bool Invalid { get; set; }
+    [Parameter] public RenderFragment<(string Value, string Text)>? OptionContent { get; set; }
+    [Parameter] public string? FieldName { get; set; }
+    [CascadingParameter] private EditContext? FormContext { get; set; }
+    private EditContext? subscribedContext;
+    private bool HasError => Invalid || (FieldName is not null && FormContext?.GetValidationMessages(new FieldIdentifier(FormContext.Model, FieldName)).Any() == true);
 
-    private async Task onFocusOut(FocusEventArgs e)
+    protected override void OnParametersSet()
     {
-        await Task.Delay(200);
+        if (subscribedContext == FormContext) return;
+        Dispose();
+        subscribedContext = FormContext;
+        if (subscribedContext is not null) subscribedContext.OnValidationStateChanged += ValidationChanged;
+    }
+    private void ValidationChanged(object? sender, ValidationStateChangedEventArgs e) => _ = InvokeAsync(StateHasChanged);
+    public void Dispose()
+    {
+        if (subscribedContext is not null) subscribedContext.OnValidationStateChanged -= ValidationChanged;
+    }
+
+    private readonly string generatedId = $"picker-{Guid.NewGuid():N}";
+    private string ControlId => Id ?? generatedId;
+    private ElementReference picker, trigger;
+    private bool open, focusMenu, restoreFocus;
+
+    private void Toggle()
+    {
+        open = !open;
+        focusMenu = open;
+    }
+
+    private async Task Select(string value)
+    {
         open = false;
+        restoreFocus = true;
+        await ValueChanged.InvokeAsync(value);
+        if (FormContext is not null && FieldName is not null)
+            FormContext.NotifyFieldChanged(new FieldIdentifier(FormContext.Model, FieldName));
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (focusMenu && open)
+        {
+            focusMenu = false;
+            await JS.InvokeVoidAsync("smartHomeAccessibility.focusSelectedOption", picker);
+        }
+        if (restoreFocus)
+        {
+            restoreFocus = false;
+            await JS.InvokeVoidAsync("smartHomeAccessibility.focus", trigger);
+        }
     }
 }
 
@@ -69,10 +129,14 @@
         transition: background-color 150ms ease, box-shadow 150ms ease;
     }
 
-    .plan-picker-trigger:hover,
+    .plan-picker-trigger:hover {
+        background: #f5f9fd;
+    }
+
     .plan-picker-trigger:focus-visible {
         background: #f5f9fd;
-        outline: none;
+        outline: 2px solid #0a66c3;
+        outline-offset: 2px;
     }
 
     .plan-picker-icon {
@@ -134,10 +198,14 @@
         width: 100%;
     }
 
-    .plan-picker-option:hover,
+    .plan-picker-option:hover {
+        background: #edf5fd;
+    }
+
     .plan-picker-option:focus-visible {
         background: #edf5fd;
-        outline: none;
+        outline: 2px solid #0a66c3;
+        outline-offset: 2px;
     }
 
     .plan-picker-option-selected {

@@ -1,3 +1,4 @@
+using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using Utilities.Models;
 using SmartHomeApplicationAPI.Service;
@@ -84,7 +85,14 @@ public class CreatePlanController : ControllerBase
     public async Task<ActionResult<List<OptimizationResultDTO>>> Optimize(
         [FromBody] OptimizationRequestDTO request)
     {
-        var results = await _service.OptimizeAsync(request);
-        return Ok(results);
+        try
+        {
+            var results = await _service.OptimizeAsync(request);
+            return Ok(results);
+        }
+        catch (ValidationException exception)
+        {
+            return UnprocessableEntity(exception.Message);
+        }
     }
 }

@@ -59,6 +59,7 @@ namespace SmartHomeApplicationAPI.Controller
                 UserName = username,
                 Email = email,
                 DisplayName = request.DisplayName,
+                PriceArea = request.PriceArea,
                 EmailConfirmed = false
             };
 
@@ -78,7 +79,8 @@ namespace SmartHomeApplicationAPI.Controller
             _logger.LogInformation("Registration finished");
             stopwatch.Stop();
 
-            return Ok(new AuthRespDTO(user.Id, user.UserName, user.DisplayName, roles.ToArray()));
+            return Ok(new AuthRespDTO(user.Id, user.UserName, user.DisplayName, roles.ToArray(),
+                user.PriceArea));
         }
 
         [HttpPost("login")]
@@ -113,7 +115,8 @@ namespace SmartHomeApplicationAPI.Controller
             var roles = await _userManager.GetRolesAsync(user);
 
             _logger.LogInformation("Login finished successfully");
-            return Ok(new AuthRespDTO(user.Id, user.UserName!, user.DisplayName, roles.ToArray()));
+            return Ok(new AuthRespDTO(user.Id, user.UserName!, user.DisplayName, roles.ToArray(),
+                user.PriceArea));
         }
     }
 }

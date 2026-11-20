@@ -124,7 +124,7 @@ public class DeviceService : IDeviceService
             UserId = dto.UserId,
             Nickname = dto.Model,
             Icon = "default_icon",
-            Color = "#ea580b",
+            Color = "#ef4444",
             IsFavorite = false
         };
 

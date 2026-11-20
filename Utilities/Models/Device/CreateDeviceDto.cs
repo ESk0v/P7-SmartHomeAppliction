@@ -14,7 +14,7 @@ namespace Utilities.Models
 		[StringLength(20)]
 		public string Category { get; set; } = string.Empty;
 
-		[Range(0.01, 1000000.0)]
+		[Range(0.01, 999.0)]
 		public decimal? BatteryCapacityInKwh { get; set; }
 
 		[Required]
@@ -32,6 +32,9 @@ namespace Utilities.Models
 
 		public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
 		{
+			if (Category == "Non-Interruptible" && ConsumptionInKwh > 10m)
+				yield return new ValidationResult("Consumption cannot exceed 10 kWh per cycle.", [nameof(ConsumptionInKwh)]);
+
 			if (!string.IsNullOrEmpty(Category) && Category is not ("Interruptible" or "Non-Interruptible"))
 			{
 				yield return new ValidationResult("Select a valid category.", [nameof(Category)]);
