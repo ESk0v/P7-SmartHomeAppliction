@@ -4,36 +4,39 @@
 @using Microsoft.AspNetCore
 
 
-<PageTitle>Login</PageTitle>
+<PageTitle>@(HasError || HasLockout ? "Error: Login" : "Login")</PageTitle>
 
 <div class="row">
     <div class="col-lg-4 offset-lg-4 pt-4 pb-4 border">
-        <form method="post" action="/account/login" data-enhance="false">
+        <form data-account-form method="post" action="/account/login" data-enhance="false">
             <AntiforgeryToken />
+            <div class="form-errors" data-native-errors tabindex="-1" hidden aria-label="Please correct the following errors">
+                <strong>Please correct the following:</strong><ul></ul>
+            </div>
             <div class="mb-3 text-center flex-column">
-                <h3>LOGIN</h3>
+                <h1>Login</h1>
             </div>
 
             @if (HasError)
             {
-                <div class="alert alert-danger">
+                <div id="account-error" class="alert alert-danger" role="alert">
                     Invalid username or password
                 </div>
             }
             @if (HasLockout)
             {
-                <div class="alert alert-danger">
+                <div id="account-error" class="alert alert-danger" role="alert">
                     Too many failed attempts. Locked out until @LockoutFinish()
                 </div>
             }
 
             <div class="mb-3">
                 <label for="username">Username</label>
-                <input id="username" name="username" type="text" class="form-control" autocomplete="username" required />
+                <input id="username" name="username" type="text" class="form-control" autocomplete="username" aria-describedby="@(HasError ? "account-error" : null)" required />
             </div>
             <div class="mb-3">
                 <label for="password">Password</label>
-                <input id="password" name="password" type="password" class="form-control" autocomplete="current-password" required />
+                <input id="password" name="password" type="password" class="form-control" autocomplete="current-password" aria-describedby="@(HasError ? "account-error" : null)" required />
             </div>
             <div class="mb-3 text-center">
                 <span class="text-danger"></span>

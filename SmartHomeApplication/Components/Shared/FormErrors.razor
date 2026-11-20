@@ -1,0 +1,77 @@
+@implements IDisposable
+@inject IJSRuntime JS
+
+@if (submitted && errors.Count > 0)
+{
+    <div class="form-errors" role="alert" tabindex="-1" @ref="summary" aria-label="Please correct the following errors">
+        <strong>Please correct the following:</strong>
+        <ul>
+            @foreach ((string Id, string Message) error in errors)
+            {
+                <li><a href="@($"#{error.Id}")">@error.Message</a></li>
+            }
+        </ul>
+    </div>
+}
+
+@code {
+    [CascadingParameter] private EditContext Context { get; set; } = default!;
+    [Parameter, EditorRequired] public IReadOnlyDictionary<string, string> FieldIds { get; set; } = new Dictionary<string, string>();
+    private readonly List<(string Id, string Message)> errors = new List<(string Id, string Message)>();
+    private EditContext? subscribedContext;
+    private ElementReference summary;
+    private bool submitted, focusSummary;
+
+    protected override void OnParametersSet()
+    {
+        if (subscribedContext == Context)
+        {
+            if (submitted) ReadErrors();
+            return;
+        }
+        Unsubscribe();
+        subscribedContext = Context;
+        submitted = false;
+        errors.Clear();
+        Context.OnValidationRequested += ValidationRequested;
+        Context.OnValidationStateChanged += ValidationChanged;
+    }
+
+    private void ValidationRequested(object? sender, ValidationRequestedEventArgs e)
+    {
+        submitted = true;
+        focusSummary = true;
+        UpdateErrors();
+    }
+
+    private void ValidationChanged(object? sender, ValidationStateChangedEventArgs e) => UpdateErrors();
+
+    private void UpdateErrors()
+    {
+        ReadErrors();
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void ReadErrors()
+    {
+        errors.Clear();
+        foreach (KeyValuePair<string, string> field in FieldIds)
+            errors.AddRange(Context.GetValidationMessages(new FieldIdentifier(Context.Model, field.Key))
+                .Select(message => (field.Value, message)));
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!focusSummary) return;
+        focusSummary = false;
+        if (errors.Count > 0) await JS.InvokeVoidAsync("smartHomeAccessibility.focus", summary);
+    }
+
+    private void Unsubscribe()
+    {
+        if (subscribedContext is null) return;
+        subscribedContext.OnValidationRequested -= ValidationRequested;
+        subscribedContext.OnValidationStateChanged -= ValidationChanged;
+    }
+    public void Dispose() => Unsubscribe();
+}

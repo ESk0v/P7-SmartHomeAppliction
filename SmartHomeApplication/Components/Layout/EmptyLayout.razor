@@ -1,9 +1,10 @@
 @inherits LayoutComponentBase
 
+<a class="skip-link" href="#main-content">Skip to main content</a>
 <div class="empty-layout">    
-    <div class="content px-4">
+    <main id="main-content" class="content px-4" tabindex="-1">
         @Body
-    </div>
+    </main>
 </div>
 
 <style>
@@ -44,7 +45,7 @@
             box-shadow: 0 8px 28px rgba(43, 35, 25, 0.06);
         }
 
-        .empty-layout h3 {
+        .empty-layout h1 {
             font-size: 1.4rem;
             font-weight: 650;
             letter-spacing: -0.025em;

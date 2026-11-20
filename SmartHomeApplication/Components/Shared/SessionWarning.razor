@@ -1,0 +1,41 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<AuthorizeView>
+    <Authorized>
+        <dialog @ref="dialog" class="data-dialog session-warning" aria-labelledby="session-warning-title" aria-describedby="session-warning-message">
+            <h2 id="session-warning-title">Your session is about to expire</h2>
+            <p id="session-warning-message" aria-live="polite">Continue your session to keep working without signing in again.</p>
+            <AntiforgeryToken />
+            <div class="d-flex gap-2 flex-wrap">
+                <button type="button" class="btn btn-primary" data-session-continue autofocus>Continue session</button>
+                <button type="button" class="btn btn-outline-secondary" data-session-dismiss>Not now</button>
+                <a href="/login" class="btn btn-primary" data-session-login hidden>Sign in again</a>
+            </div>
+        </dialog>
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    private ElementReference dialog;
+    private bool started;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (started || dialog.Context is null) return;
+        started = true;
+        await JS.InvokeVoidAsync("smartHomeAccessibility.watchSession", dialog);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (!started) return;
+        try { await JS.InvokeVoidAsync("smartHomeAccessibility.stopSessionWatch", dialog); }
+        catch (JSDisconnectedException) { }
+    }
+}
+
+<style>
+    .session-warning { max-width: min(30rem, calc(100vw - 2rem)); }
+    .session-warning h2 { margin-bottom: 0.75rem; }
+</style>

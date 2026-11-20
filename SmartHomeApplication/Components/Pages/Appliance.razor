@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @inject SmartHomeApplication.Service.IDeviceService DeviceService
 @inject INotificationService NotificationService
+@inject IJSRuntime JS
 @using Utilities.Models
 @using global::Shared.Dashboard
 
@@ -15,11 +16,9 @@
         </div>
 
         <div class="header-actions">
-            <NavLink class="nav-link" href="add-device" Match="NavLinkMatch.All">
-                <PrimaryButton>
+            <PrimaryButton Href="add-device">
                 New device
                 </PrimaryButton>
-            </NavLink>
         </div>
     </div>
 
@@ -38,9 +37,13 @@
 
     <div class="device-group">
         <div class="device-item @(selected?.Id == device.Id ? "active" : "")">
-            <button type="button" class="device-main" @onclick="() => SelectDevice(device)">
+            <button type="button" class="device-main" aria-pressed="@(selected?.Id == device.Id ? "true" : "false")"
+                    aria-label="@(device.Category != "Interruptible" ? $"{device.Nickname}, {device.Presets.Count} presets" : null)"
+                    aria-expanded="@(device.Category != "Interruptible" ? (isExpanded ? "true" : "false") : null)"
+                    aria-controls="@(isExpanded && device.Category != "Interruptible" ? $"presets-{device.Id}" : null)"
+                    @onclick="() => SelectDevice(device)">
                 <div class="device-icon" style="color: @device.Color;">
-                    <i class="bi @ScheduleIcons.Get(device.Icon)"></i>
+                    <i aria-hidden="true" class="bi @ScheduleIcons.Get(device.Icon)"></i>
                 </div>
                 <div class="device-name">@device.Nickname</div>
             </button>
@@ -49,24 +52,25 @@
             {
                 <div class="device-expand" aria-hidden="true">
                     <span class="preset-count">@device.Presets.Count</span>
-                    <i class="bi @(isExpanded ? "bi-chevron-up" : "bi-chevron-down")"></i>
+                    <i aria-hidden="true" class="bi @(isExpanded ? "bi-chevron-up" : "bi-chevron-down")"></i>
                 </div>
             }
         </div>
 
         @if (isExpanded && device.Category != "Interruptible")
         {
-            <div class="preset-list">
+            <div id="@($"presets-{device.Id}")" class="preset-list">
                 @foreach (PresetDeviceDto preset in device.Presets)
                 {
                     <button type="button"
+                            aria-pressed="@(selected?.Id == device.Id && editPreset?.Id == preset.Id && !isAddingPreset ? "true" : "false")"
                             class="preset-item @(selected?.Id == device.Id && editPreset?.Id == preset.Id && !isAddingPreset ? "active" : "")"
                             @onclick="() => OpenPreset(device, preset)">
                         <span>@preset.PresetName</span>
                     </button>
                 }
                 <button type="button" class="preset-add" @onclick="() => OpenAddPreset(device)">
-                    <i class="bi bi-plus"></i> Add preset
+                    <i aria-hidden="true" class="bi bi-plus"></i> Add preset
                 </button>
             </div>
         }
@@ -85,28 +89,22 @@
             <EditForm Model="editPreset" OnValidSubmit="SavePreset">
                 <AntiforgeryToken />
                 <DataAnnotationsValidator />
+                <FormErrors FieldIds='@(new Dictionary<string, string> { [nameof(editPreset.PresetName)] = "presetName", [nameof(editPreset.ConsumptionInKwh)] = "presetConsumption", [nameof(editPreset.DurationInMinutes)] = "presetDuration" })' />
 
-                @if (isAddingPreset)
-                {
-                    <div class="mb-3">
+                <div class="mb-3">
                         <label class="form-label" for="presetName">Preset name</label>
-                        <InputText id="presetName" class="form-control" @bind-Value="editPreset.PresetName" />
-                        <ValidationMessage For="() => editPreset.PresetName" class="text-danger" />
-                    </div>
-                }
-                else
-                {
-                    <p class="text-muted">Preset: @editPreset.PresetName</p>
-                }
+                        <InputText readonly="@(!isAddingPreset)" id="presetName" aria-describedby="presetName-error" class="form-control" @bind-Value="editPreset.PresetName" />
+                        <ValidationMessage For="() => editPreset.PresetName" class="text-danger" id="presetName-error" />
+                </div>
                 <div class="mb-3">
                     <label class="form-label" for="presetConsumption">Consumption (kWh)</label>
-                    <InputNumber id="presetConsumption" class="form-control" @bind-Value="editPreset.ConsumptionInKwh" />
-                    <ValidationMessage For="() => editPreset.ConsumptionInKwh" class="text-danger" />
+                    <InputNumber id="presetConsumption" aria-describedby="presetConsumption-error" class="form-control" @bind-Value="editPreset.ConsumptionInKwh" />
+                    <ValidationMessage For="() => editPreset.ConsumptionInKwh" class="text-danger" id="presetConsumption-error" />
                 </div>
                 <div class="mb-3">
                     <label class="form-label" for="presetDuration">Duration (minutes)</label>
-                    <InputNumber id="presetDuration" class="form-control" @bind-Value="editPreset.DurationInMinutes" />
-                    <ValidationMessage For="() => editPreset.DurationInMinutes" class="text-danger" />
+                    <InputNumber id="presetDuration" aria-describedby="presetDuration-error" class="form-control" @bind-Value="editPreset.DurationInMinutes" />
+                    <ValidationMessage For="() => editPreset.DurationInMinutes" class="text-danger" id="presetDuration-error" />
                 </div>
                 <div class="mt-4">
                     <button type="submit" class="btn btn-primary">@(isAddingPreset ? "Add preset" : "Save preset")</button>
@@ -119,29 +117,30 @@
             <EditForm Model="editDevice" OnValidSubmit="SaveChanges">
                 <AntiforgeryToken />
                 <DataAnnotationsValidator />
+                <FormErrors FieldIds='@(new Dictionary<string, string> { [nameof(editDevice.Nickname)] = "name", [nameof(editDevice.BatteryCapacityInKwh)] = "batteryCapacity", [nameof(editDevice.ConsumptionInKwh)] = "deviceConsumption", [nameof(editDevice.Color)] = "deviceColor", [nameof(editDevice.Icon)] = "deviceIcon" })' />
                     <div class="mb-3">
                         <label class="form-label" for="name">Nickname</label>
-                        <InputText id="name" class="form-control" @bind-Value="editDevice.Nickname" />
-                        <ValidationMessage For="() => editDevice.Nickname" class="text-danger" />
+                        <InputText id="name" aria-describedby="name-error" class="form-control" @bind-Value="editDevice.Nickname" />
+                        <ValidationMessage For="() => editDevice.Nickname" class="text-danger" id="name-error" />
                     </div>
                     <div class="row g-4 mb-3">
                         <div class="col-12 col-sm">
-                            <label class="form-label">Icon</label>
-                            <div class="icon-picker">
+                            <span id="device-icon-label" class="form-label">Icon</span>
+                            <div id="deviceIcon" class="icon-picker" role="group" aria-labelledby="device-icon-label">
                                 @foreach (var name in iconOptions)
                                 {
                                     <button type="button"
                                             class="icon-option @(editDevice.Icon == name ? "selected" : "")"
-                                            title="@name"
+                                            aria-label="@name" aria-pressed="@(editDevice.Icon == name ? "true" : "false")" title="@name"
                                             @onclick="() => editDevice.Icon = name">
-                                        <i class="bi @ScheduleIcons.Get(name)"></i>
+                                        <i aria-hidden="true" class="bi @ScheduleIcons.Get(name)"></i>
                                     </button>
                                 }
                             </div>
                         </div>
                         <div class="col-auto">
                             <label class="form-label d-block" for="deviceColor">Color</label>
-                            <InputText id="deviceColor" type="color" list="deviceColorSuggestions" class="form-control form-control-color" @bind-Value="editDevice.Color" />
+                            <InputText id="deviceColor" aria-describedby="deviceColor-error" type="color" list="deviceColorSuggestions" class="form-control form-control-color" @bind-Value="editDevice.Color" />
                             <datalist id="deviceColorSuggestions">
                                 <option value="#7569e8" label="Indigo"></option>
                                 <option value="#3b82f6" label="Blue"></option>
@@ -160,25 +159,25 @@
                         </div>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Model</label>
-                        <input class="form-control" value="@selected!.Model" disabled />
+                        <label class="form-label" for="readonlyModel">Model</label>
+                        <input id="readonlyModel" class="form-control" value="@selected!.Model" disabled />
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Category</label>
-                        <input class="form-control" value="@selected!.Category" disabled />
+                        <label class="form-label" for="readonlyCategory">Category</label>
+                        <input id="readonlyCategory" class="form-control" value="@selected!.Category" disabled />
                     </div>
                     @if (selected.Category == "Interruptible")
                     {
                         <div class="mb-3">
                             <label class="form-label" for="batteryCapacity">Battery capacity (kWh)</label>
-                            <InputNumber id="batteryCapacity" class="form-control" @bind-Value="editDevice.BatteryCapacityInKwh" />
-                            <ValidationMessage For="() => editDevice.BatteryCapacityInKwh" class="text-danger" />
+                            <InputNumber id="batteryCapacity" aria-describedby="batteryCapacity-error" class="form-control" @bind-Value="editDevice.BatteryCapacityInKwh" />
+                            <ValidationMessage For="() => editDevice.BatteryCapacityInKwh" class="text-danger" id="batteryCapacity-error" />
                             <small class="text-muted">Shared by devices with the same model.</small>
                         </div>
                         <div class="mb-3">
                             <label class="form-label" for="deviceConsumption">Consumption (kWh)</label>
-                            <InputNumber id="deviceConsumption" class="form-control" @bind-Value="editDevice.ConsumptionInKwh" />
-                            <ValidationMessage For="() => editDevice.ConsumptionInKwh" class="text-danger" />
+                            <InputNumber id="deviceConsumption" aria-describedby="deviceConsumption-error" class="form-control" @bind-Value="editDevice.ConsumptionInKwh" />
+                            <ValidationMessage For="() => editDevice.ConsumptionInKwh" class="text-danger" id="deviceConsumption-error" />
                         </div>
                     }
                 <div class="mt-4 d-flex align-items-center">
@@ -311,7 +310,7 @@
         {
             if (isAddingPreset)
             {
-                var selectedDeviceId = selected.Id;
+                int selectedDeviceId = selected.Id;
                 await DeviceService.CreatePresetAsync(selectedDeviceId, editPreset);
                 userdevices = (await DeviceService.GetUserDevicesAsync()).ToList();
                 selected = userdevices.FirstOrDefault(device => device.Id == selectedDeviceId);
@@ -320,7 +319,7 @@
             else
             {
                 await DeviceService.UpdatePresetAsync(selected.Id, editPreset);
-                var existingPreset = selected.Presets.First(preset => preset.Id == editPreset.Id);
+                PresetDeviceDto? existingPreset = selected.Presets.First(preset => preset.Id == editPreset.Id);
                 existingPreset.ConsumptionInKwh = editPreset.ConsumptionInKwh;
                 existingPreset.DurationInMinutes = editPreset.DurationInMinutes;
                 NotificationService.SuccessNotification($"Preset: \"{editPreset.PresetName}\" updated successfully for device: \"{selected.Nickname}\".");
@@ -336,6 +335,7 @@
 
     private async Task DeleteUserDevice(int userDeviceId)
     {
+        if (!await JS.InvokeAsync<bool>("confirm", $"Delete device \"{selected?.Nickname}\"? This cannot be undone.")) return;
         try
         {
             previouslySelectedDeviceName = selected?.Nickname ?? string.Empty;
@@ -389,7 +389,7 @@
     }
 
     .heading p {
-        color: #999;
+        color: var(--smarthome-muted);
         font-size: 0.70rem;
         line-height: 0.75;
         margin: 0;
@@ -492,7 +492,7 @@
         padding: 0 1rem;
         background: none;
         border: 0;
-        color: #888;
+        color: var(--smarthome-muted);
     }
     .device-expand:hover { color: #0a66c3; }
 
@@ -532,7 +532,7 @@
             min-width: 0;
             min-height: 0;
             overflow-y: auto;
-            padding: 1.75rem;
+            padding: 1.25rem;
             box-shadow: var(--smarthome-card-shadow);
         }
 
@@ -549,7 +549,7 @@
             display: flex;
             flex-wrap: wrap;
             gap: 0.65rem;
-            padding-top: 1.25rem;
+            padding-top: 0.75rem;
             border-top: 1px solid #eeeae5;
         }
 

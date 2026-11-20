@@ -18,11 +18,9 @@
         </div>
 
         <div class="header-actions">
-            <NavLink class="nav-link" href="device" Match="NavLinkMatch.All">
-                <PrimaryButton ShowPlusIcon="false">
+            <PrimaryButton Href="device" ShowPlusIcon="false">
                 Go back
                 </PrimaryButton>
-            </NavLink>
         </div>
     </div>
 </SectionContent>
@@ -33,89 +31,85 @@
             <h2 class="h5 mb-4">Add a new device</h2>
                     <EditForm @ref="editForm" Method="post" Model="CreateDeviceDto" OnValidSubmit="CreateDevice" FormName="AddDeviceForm" data-enhance="false">
                         <AntiforgeryToken/>
-                        <DataAnnotationsValidator />   
+                        <DataAnnotationsValidator />
+                <FormErrors FieldIds='@(new Dictionary<string, string> { [nameof(CreateDeviceDto.Model)] = "deviceModel", [nameof(CreateDeviceDto.Category)] = "deviceCategory", [nameof(CreateDeviceDto.BatteryCapacityInKwh)] = "deviceBatteryCapacity", [nameof(CreateDeviceDto.ConsumptionInKwh)] = string.IsNullOrEmpty(CreateDeviceDto.Category) ? "deviceCategory" : "deviceConsumption", [nameof(CreateDeviceDto.Preset)] = string.IsNullOrEmpty(CreateDeviceDto.Category) ? "deviceCategory" : IsCustomPreset ? "customPresetName" : "devicePreset", [nameof(CreateDeviceDto.DurationInMinutes)] = "deviceDuration" })' />
                         <div class="mb-3">
                             <label for="deviceModel" class="form-label">Device Model</label>
-                            <InputText id="deviceModel"
+                            <InputText id="deviceModel" aria-describedby="deviceModel-error"
                                class="form-control"
                                Value="@CreateDeviceDto.Model"
                                ValueChanged="@((string? v) => CreateDeviceDto.Model = v ?? "")"
                                ValueExpression="@(() => CreateDeviceDto.Model)"
                                @oninput="e => CreateDeviceDto.Model = e.Value?.ToString() ?? string.Empty" />
-                            <ValidationMessage For="() => CreateDeviceDto.Model" class="text-danger" />
+                            <ValidationMessage For="() => CreateDeviceDto.Model" class="text-danger" id="deviceModel-error" />
                         </div> 
                         <div class="mb-3">
-                            <label for="deviceCategory" class="form-label">Device Category
-                                <div class="info-tooltip">
-                                    <p class="bi bi-info-circle-fill"> </p>
-                                    <span class="info-tooltiptext">
-                                        Interruptible devices can be paused. This is devices such as an EV-Charger or Robot vacuum.<br><br>
-                                        Non-Interruptible devices cannot be paused. This is devices such as a washing machine or a dryer.
-                                    </span>
-                                </div>
-                            </label>
-                            
-                            <ButtonSelect Id="deviceCategory"
+                            <label for="deviceCategory" class="form-label">Device Category</label>
+                            <details class="category-help">
+                                <summary>About device categories</summary>
+                                <p id="category-help">Interruptible devices, such as EV chargers, can be paused. Non-interruptible devices, such as washing machines, must finish their cycle without pausing.</p>
+                            </details>
+                            <ButtonSelect Id="deviceCategory" Label="Device category" FieldName="Category" DescribedBy="deviceCategory-error category-help"
                                           Options="@(categories.Select(category => (Value: category, Text: category)))"
                                           @bind-Value="CreateDeviceDto.Category"
                                           @bind-Value:after="CategoryChanged"
                                           Placeholder="Select a category" />
-                            <ValidationMessage For="() => CreateDeviceDto.Category" class="text-danger" /> 
+                            <ValidationMessage For="() => CreateDeviceDto.Category" class="text-danger" id="deviceCategory-error" />
                         </div>
                         @if (IsInterruptible && CreateDeviceDto.Category != "")
                         {
                             <div class="mb-3">
                                 <label for="deviceBatteryCapacity" class="form-label">Battery Capacity (kWh)</label>
-                                <InputNumber id="deviceBatteryCapacity" class="form-control" @bind-Value="CreateDeviceDto.BatteryCapacityInKwh" />
-                                <ValidationMessage For="() => CreateDeviceDto.BatteryCapacityInKwh" class="text-danger" />
+                                <InputNumber id="deviceBatteryCapacity" aria-describedby="deviceBatteryCapacity-error" class="form-control" @bind-Value="CreateDeviceDto.BatteryCapacityInKwh" />
+                                <ValidationMessage For="() => CreateDeviceDto.BatteryCapacityInKwh" class="text-danger" id="deviceBatteryCapacity-error" />
                             </div>
                             <div class="mb-3">
                                 <label for="deviceConsumption" class="form-label">Charging Speed (kWh)</label>
-                                <InputNumber id="deviceConsumption" class="form-control" @bind-Value="CreateDeviceDto.ConsumptionInKwh" />
-                                <ValidationMessage For="() => CreateDeviceDto.ConsumptionInKwh" class="text-danger" /> 
+                                <InputNumber id="deviceConsumption" aria-describedby="deviceConsumption-error" class="form-control" @bind-Value="CreateDeviceDto.ConsumptionInKwh" />
+                                <ValidationMessage For="() => CreateDeviceDto.ConsumptionInKwh" class="text-danger" id="deviceConsumption-error" />
                             </div>
                         }
                         else if (!IsInterruptible && CreateDeviceDto.Category != "")
                         {
                           <div class="mb-3">
                                 <label for="devicePreset" class="form-label">Preset</label>
-                                <ButtonSelect Id="devicePreset"
+                                <ButtonSelect Id="devicePreset" Label="Preset" FieldName="Preset" DescribedBy="devicePreset-error"
                                               Options="@(CreateDeviceDto.Presets.Select(preset => (Value: preset.PresetName, Text: preset.PresetName))
                                                   .Append((CustomPresetOption, "+ Create a new preset")))"
                                               @bind-Value="selectedPresetOption"
                                               @bind-Value:after="PresetSelectionChanged"
                                               Placeholder="Select a preset" />
-                                <ValidationMessage For="() => CreateDeviceDto.Preset" class="text-danger" /> 
+                                <ValidationMessage For="() => CreateDeviceDto.Preset" class="text-danger" id="devicePreset-error" />
                             </div>
                             @if (IsCustomPreset)
                             {
                                 <div class="mb-3">
                                     <label for="customPresetName" class="form-label">Preset name</label>
-                                    <InputText id="customPresetName" class="form-control" @bind-Value="CreateDeviceDto.Preset" />
-                                    <ValidationMessage For="() => CreateDeviceDto.Preset" class="text-danger" />
+                                    <InputText id="customPresetName" aria-describedby="customPresetName-error" class="form-control" @bind-Value="CreateDeviceDto.Preset" />
+                                    <ValidationMessage For="() => CreateDeviceDto.Preset" class="text-danger" id="customPresetName-error" />
                                 </div>
                                 <div class="mb-3">
                                     <label for="deviceConsumption" class="form-label">Consumption (kWh)</label>
-                                    <InputNumber id="deviceConsumption" class="form-control" @bind-Value="CreateDeviceDto.ConsumptionInKwh" />
-                                    <ValidationMessage For="() => CreateDeviceDto.ConsumptionInKwh" class="text-danger" /> 
+                                    <InputNumber id="deviceConsumption" aria-describedby="deviceConsumption-error" class="form-control" @bind-Value="CreateDeviceDto.ConsumptionInKwh" />
+                                    <ValidationMessage For="() => CreateDeviceDto.ConsumptionInKwh" class="text-danger" id="deviceConsumption-error" />
                                 </div>
                                 <div class="mb-3">
                                     <label for="deviceDuration" class="form-label">Duration (minutes)</label>
-                                    <InputNumber id="deviceDuration" class="form-control" @bind-Value="CreateDeviceDto.DurationInMinutes" />
-                                    <ValidationMessage For="() => CreateDeviceDto.DurationInMinutes" class="text-danger" />
+                                    <InputNumber id="deviceDuration" aria-describedby="deviceDuration-error" class="form-control" @bind-Value="CreateDeviceDto.DurationInMinutes" />
+                                    <ValidationMessage For="() => CreateDeviceDto.DurationInMinutes" class="text-danger" id="deviceDuration-error" />
                                 </div>
                             }
                             else 
                             {
                                 <div class="mb-3">
                                     <label for="deviceConsumption" class="form-label">Consumption (kWh)</label>
-                                    <InputNumber id="deviceConsumption" class="form-control" @bind-Value="CreateDeviceDto.ConsumptionInKwh" disabled/>
-                                    <ValidationMessage For="() => CreateDeviceDto.ConsumptionInKwh" class="text-danger" /> 
+                                    <InputNumber id="deviceConsumption" aria-describedby="deviceConsumption-error" class="form-control" @bind-Value="CreateDeviceDto.ConsumptionInKwh" disabled/>
+                                    <ValidationMessage For="() => CreateDeviceDto.ConsumptionInKwh" class="text-danger" id="deviceConsumption-error" />
                                 </div>
                                 <div class="mb-3">
                                     <label for="deviceDuration" class="form-label">Duration (minutes)</label>
-                                    <InputNumber id="deviceDuration" class="form-control" @bind-Value="CreateDeviceDto.DurationInMinutes" disabled />
-                                    <ValidationMessage For="() => CreateDeviceDto.DurationInMinutes" class="text-danger" />
+                                    <InputNumber id="deviceDuration" aria-describedby="deviceDuration-error" class="form-control" @bind-Value="CreateDeviceDto.DurationInMinutes" disabled />
+                                    <ValidationMessage For="() => CreateDeviceDto.DurationInMinutes" class="text-danger" id="deviceDuration-error" />
                                 </div>
                             }
                         }
@@ -187,7 +181,7 @@
             return;
         }
 
-        var preset = CreateDeviceDto.Presets.FirstOrDefault(p => p.PresetName == selectedPresetOption);
+        PresetDeviceDto? preset = CreateDeviceDto.Presets.FirstOrDefault(p => p.PresetName == selectedPresetOption);
         if (preset is null)
         {
             CreateDeviceDto.Preset = string.Empty;
@@ -261,9 +255,9 @@
         CreateDeviceDto.Category = device.Category;
         CreateDeviceDto.Presets = device.Presets;
 
-        var isInterruptible = IsInterruptible;
-        var presetName = isInterruptible ? "Info" : device.Preset;
-        var preset = CreateDeviceDto.Presets.FirstOrDefault(p => p.PresetName == presetName)
+        bool isInterruptible = IsInterruptible;
+        string? presetName = isInterruptible ? "Info" : device.Preset;
+        PresetDeviceDto? preset = CreateDeviceDto.Presets.FirstOrDefault(p => p.PresetName == presetName)
             ?? (isInterruptible ? CreateDeviceDto.Presets.FirstOrDefault() : null);
 
         if (preset is not null)
@@ -324,7 +318,7 @@
     }
 
     .add-appliance-layout .plan-picker-placeholder {
-        color: #857f78;
+        color: var(--smarthome-muted);
     }
 
     .add-appliance-layout .plan-picker-option[data-value="__custom_preset__"] {
@@ -360,7 +354,7 @@
     }
 
     .heading p {
-        color: #999;
+        color: var(--smarthome-muted);
         font-size: 0.70rem;
         line-height: 0.75;
         margin: 0;
