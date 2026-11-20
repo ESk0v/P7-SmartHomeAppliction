@@ -10,29 +10,6 @@
         <div class="chart-header">
             <div class="chart-title-group">
                 <h2 class="chart-title">Price forecast and schedule</h2>
-                <DataDialog Title="Price forecast and schedule">
-                    <p>Hourly electricity prices in kr/kWh. The chart displays up to 7 kr/kWh; exact values, including negative and higher prices, are listed here.</p>
-                    <table class="table">
-                        <caption>Prices and schedules for the displayed hours</caption>
-                        <thead><tr><th scope="col">Date and time</th><th scope="col">Price (kr/kWh)</th><th scope="col">Source</th><th scope="col">Schedules</th></tr></thead>
-                        <tbody>
-                            @foreach (HourPriceDto price in prices)
-                            {
-                                <tr><th scope="row">@price.Hour.ToString("ddd d MMM yyyy HH:mm")</th><td>@price.Price.ToString("0.####")</td><td>@(price.IsPredicted ? "Predicted" : "Published")</td><td>@string.Join(", ", GetSchedulesForHour(price.Hour).Select(plan => plan.planName).Distinct())</td></tr>
-                            }
-                        </tbody>
-                    </table>
-                    <table class="table">
-                        <caption>All schedule blocks, including linked intervals</caption>
-                        <thead><tr><th scope="col">Plan</th><th scope="col">Device</th><th scope="col">Start</th><th scope="col">End</th></tr></thead>
-                        <tbody>
-                            @foreach (PlanDto plan in activeSchedules.OrderBy(plan => plan.startTime))
-                            {
-                                <tr><th scope="row">@plan.planName</th><td>@plan.deviceName</td><td>@plan.startTime.ToString("d MMM yyyy HH:mm")</td><td>@plan.endTime.ToString("d MMM yyyy HH:mm")</td></tr>
-                            }
-                        </tbody>
-                    </table>
-                </DataDialog>
             </div>
             <div class="legend-container" @onkeydown="@(e => { if (e.Key == "Escape") isLegendExpanded = false; })">
                 <div class="legend">
