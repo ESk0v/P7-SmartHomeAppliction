@@ -379,6 +379,11 @@ namespace SmartHomeApplicationAPI.Migrations
                     b.Property<bool>("PhoneNumberConfirmed")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("PriceArea")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
+
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("text");
 

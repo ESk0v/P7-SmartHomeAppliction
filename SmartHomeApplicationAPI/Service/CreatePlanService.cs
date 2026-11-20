@@ -1,3 +1,4 @@
+using FluentValidation;
 using Utilities.Models;
 using SmartHomeApplicationAPI.Repository;
 using SmartHomeApplicationAPI.DTOs.Optimization;
@@ -80,6 +81,8 @@ public class CreatePlanService : ICreatePlanService
         }
 
         var loads = new List<SolverLoadDTO>();
+        int requestedEvIndex = -1;
+        SolverLoadDTO? requestedLoad = null;
 
         foreach (var group in devicePresets.GroupBy(x => x.Device.id))
         {
@@ -110,6 +113,8 @@ public class CreatePlanService : ICreatePlanService
 
             if (isEv)
             {
+                // Python returns EV results in the same order as the EV loads in the request.
+                if (isRequested) requestedEvIndex = loads.Count(existing => existing.Type == "ev");
                 load.MaxEnergy = (double?)preset.BatteryCapacityInKwh;            // E_max, kWh
                 load.MaxChargingPower = (double)preset.ConsumptionInKwh;          // P_ev_max, kW
                 load.InitialEnergy = 0.2 * (load.MaxEnergy ?? 0);                 // hardcoded 20%
@@ -144,6 +149,9 @@ public class CreatePlanService : ICreatePlanService
                 }
             }
 
+            if (isRequested)
+                requestedLoad = load;
+
             loads.Add(load);
         }
 
@@ -164,12 +172,30 @@ public class CreatePlanService : ICreatePlanService
             System.Text.Json.JsonSerializer.Serialize(solverReq));
         #endregion
 
+        // A program whose own power is above what the fuse allows can never be planned
+        if (requestedLoad?.PowerProfile is { Count: > 0 } profile)
+        {
+            var programKw = profile.Max() / 0.25;                                     // kWh per step -> kW
+            var availableKw = solverReq.FuseLimit - solverReq.BaseLoad.DefaultIfEmpty(0).Max();
+            if (programKw > availableKw)
+                throw new ValidationException(
+                    $"The selected program uses {programKw:0.#} kW, but only {availableKw:0.#} kW is available " +
+                    $"under the fuse limit of {solverReq.FuseLimit} kW. Choose another preset.");
+        }
+
         var response = await _http.PostAsJsonAsync("/run", solverReq, _solverJson);
         var body = await response.Content.ReadAsStringAsync();
 
         if (!response.IsSuccessStatusCode)
         {
             _logger.LogError("Optimisation failed ({Status}): {Body}", (int)response.StatusCode, body);
+
+            // Infeasibility can come from the time window, charging demand, or combined power limits.
+            if (response.StatusCode == System.Net.HttpStatusCode.UnprocessableEntity && body.Contains("Infeasible"))
+                throw new ValidationException(
+                    "The plan cannot fit within the selected time window and power limits together with your other plans. " +
+                    "Choose a longer time window, another time, or a lower energy demand.");
+
             throw new InvalidOperationException($"Optimisation failed: {body}");
         }
 
@@ -203,13 +229,13 @@ public class CreatePlanService : ICreatePlanService
         // EV
         var evs = root.GetProperty("evs");
 
-        if (evs.GetArrayLength() == 0)
+        if (requestedEvIndex < 0 || requestedEvIndex >= evs.GetArrayLength())
         {
             throw new InvalidOperationException(
                 "Solver returned no optimizable appliance or EV.");
         }
 
-        var ev = evs[0];
+        var ev = evs[requestedEvIndex];
 
         var powers = ev.GetProperty("power_kw")
             .EnumerateArray()

@@ -1,7 +1,7 @@
 @inject IJSRuntime JS
 
-<button type="button" class="chart-data-button" @onclick="Open">View chart data<span class="visually-hidden">: @Title</span></button>
-<dialog @ref="dialog" class="data-dialog" aria-labelledby="@titleId">
+<button type="button" class="chart-data-button" @onclick="Open">@ButtonText@if (ButtonText != Title) { <span class="visually-hidden">: @Title</span> }</button>
+<dialog @ref="dialog" class="data-dialog" style="@(Width is null ? null : $"width:{Width};max-width:calc(100vw - 2rem)")" aria-labelledby="@titleId">
     <div class="data-dialog-heading">
         <h2 id="@titleId">@Title</h2>
         <button type="button" class="btn btn-outline-secondary" autofocus @onclick="Close">Close</button>
@@ -11,6 +11,8 @@
 
 @code {
     [Parameter, EditorRequired] public string Title { get; set; } = "Chart data";
+    [Parameter] public string ButtonText { get; set; } = "View chart data";
+    [Parameter] public string? Width { get; set; }
     [Parameter] public RenderFragment? ChildContent { get; set; }
     private readonly string titleId = $"chart-data-{Guid.NewGuid():N}";
     private ElementReference dialog;

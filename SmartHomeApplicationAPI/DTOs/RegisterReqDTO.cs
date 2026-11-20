@@ -23,5 +23,8 @@ namespace SmartHomeApplicationAPI.DTOs
         [Required]
         [Length(2, 30)]
         public string DisplayName {  get; set; } = string.Empty;
+
+        [Required, RegularExpression("^(DK1|DK2)$", ErrorMessage = "Select DK1 or DK2.")]
+        public string PriceArea { get; set; } = string.Empty;
     }
 }

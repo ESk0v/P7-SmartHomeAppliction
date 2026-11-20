@@ -36,6 +36,15 @@ public class PlanController : ControllerBase
         return plan is null ? NotFound() : Ok(plan);
     }
 
+    [HttpDelete("delete-plan/{planId:int}")]
+    public async Task<IActionResult> DeletePlan(int planId, [FromHeader(Name = "UserId")] string userId)
+    {
+        if (string.IsNullOrWhiteSpace(userId)) return Unauthorized();
+        if (planId <= 0) return BadRequest("Select a valid plan.");
+
+        return await _service.DeletePlanAsync(userId, planId) ? NoContent() : NotFound();
+    }
+
     [HttpPut("update-plan/{planId:int}")]
     public async Task<ActionResult<PlanDTO>> UpdatePlan(
         int planId, [FromHeader(Name = "UserId")] string userId, [FromBody] PlanDTO update)
@@ -54,6 +63,22 @@ public class PlanController : ControllerBase
         catch (ValidationException exception)
         {
             return BadRequest(string.Join(" ", exception.Errors.Select(error => error.ErrorMessage)));
+        }
+    }
+
+    [HttpPost("save-generated-plan")]
+    public async Task<ActionResult<PlanDTO>> SaveGeneratedPlan(
+        [FromHeader(Name = "UserId")] string userId, [FromBody] SaveGeneratedPlanRequestDto request)
+    {
+        if (string.IsNullOrWhiteSpace(userId)) return Unauthorized();
+        try
+        {
+            var saved = await _service.SaveGeneratedPlanAsync(userId, request);
+            return saved is null ? NotFound() : Ok(saved);
+        }
+        catch (ValidationException exception)
+        {
+            return BadRequest(exception.Message);
         }
     }
 }
