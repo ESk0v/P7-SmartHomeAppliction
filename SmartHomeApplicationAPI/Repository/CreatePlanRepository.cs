@@ -130,10 +130,7 @@ public class CreatePlanRepository : ICreatePlanRepository
             .ToListAsync();
     }
 
-    public async Task<List<double>> GetCo2EmissionsAsync(
-        string area,
-        DateTime from,
-        DateTime to)
+    public async Task<List<double>> GetCo2EmissionsAsync(string area, DateTime from, DateTime to)
     {
         var fromUnspecified = DateTime.SpecifyKind(
             from, DateTimeKind.Unspecified);
