@@ -130,6 +130,29 @@ public class CreatePlanRepository : ICreatePlanRepository
             .ToListAsync();
     }
 
+    public async Task<List<double>> GetCo2EmissionsAsync(
+        string area,
+        DateTime from,
+        DateTime to)
+    {
+        var fromUnspecified = DateTime.SpecifyKind(
+            from, DateTimeKind.Unspecified);
+
+        var toUnspecified = DateTime.SpecifyKind(
+            to, DateTimeKind.Unspecified);
+
+        return await _db.Electricity
+            .AsNoTracking()
+            .Where(p =>
+                p.PriceArea == area &&
+                p.Time >= fromUnspecified &&
+                p.Time < toUnspecified &&
+                p.Co2EmissionGramsPerKwh.HasValue)
+            .OrderBy(p => p.Time)
+            .Select(p => (double)p.Co2EmissionGramsPerKwh!.Value)
+            .ToListAsync();
+    }
+
     // All devices of the user who owns the given UserDevice (one query, no userId needed)
     public async Task<List<PlanUserDeviceDto>> GetUserDevicesByUserDeviceIdAsync(
         int userDeviceId)
