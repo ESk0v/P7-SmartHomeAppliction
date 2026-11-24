@@ -65,7 +65,24 @@ public class CreatePlanService : ICreatePlanService
 
         var end = request.EndWindow.ToUniversalTime();
 
-        var prices = await _repository.GetElectricityPricesAsync(request.Area, start, end);
+        List<double> prices;
+
+        if (string.Equals(
+            request.Priority,
+            "Greenest",
+            StringComparison.OrdinalIgnoreCase))
+        {
+            // Temporary: Use prices until CO2 repository method is ready
+            prices = await _repository.GetCo2EmissionsAsync(
+                request.Area, start, end);
+        }
+        else
+        {
+            prices = await _repository.GetElectricityPricesAsync(
+                request.Area, start, end);
+        }
+
+        //var prices = await _repository.GetElectricityPricesAsync(request.Area, start, end);
 
         var devicePresets = await _repository.GetDevicesWithPresetsAsync(request.UserDeviceId);
         var userDeviceIds = devicePresets.Select(x => x.Device.id).Distinct().ToList();

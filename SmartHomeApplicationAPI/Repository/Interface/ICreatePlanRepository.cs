@@ -13,6 +13,7 @@ public interface ICreatePlanRepository
 
 #region Optimization
     Task<List<double>> GetElectricityPricesAsync(string area, DateTime from, DateTime to);
+    Task<List<double>> GetCo2EmissionsAsync(string area, DateTime from, DateTime to);
     Task<List<(PlanUserDeviceDto Device, DevicePreset Preset)>> GetDevicesWithPresetsAsync(int userDeviceId);
     Task<List<Plan>> GetActivePlansAsync(IReadOnlyCollection<int> userDeviceIds, DateTime from);
 
