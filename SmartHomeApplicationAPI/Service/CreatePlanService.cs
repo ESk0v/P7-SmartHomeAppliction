@@ -72,9 +72,10 @@ public class CreatePlanService : ICreatePlanService
             "Greenest",
             StringComparison.OrdinalIgnoreCase))
         {
-            // Temporary: Use prices until CO2 repository method is ready
+            // Temporary CO2 objective scaling for the solver's current missing-energy penalty.
             prices = await _repository.GetCo2EmissionsAsync(
                 request.Area, start, end);
+            prices = prices.Select(emission => emission / 100d).ToList();
         }
         else
         {

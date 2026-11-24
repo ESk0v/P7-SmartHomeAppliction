@@ -14,9 +14,12 @@ namespace SmartHomeApplicationAPI.Tests.Service;
 public class OptimizationDeviceSelectionTests
 {
     [Theory]
-    [InlineData(1, 0, 1)]
-    [InlineData(2, 4, 2)]
-    public async Task Optimize_ReturnsTheRequestedEvsSchedule_EvenWhenNicknamesMatch(int deviceId, int startStep, decimal cost)
+    [InlineData(1, 0, 1, "Cheapest")]
+    [InlineData(2, 4, 2, "Cheapest")]
+    [InlineData(1, 0, 1, "Greenest")]
+    [InlineData(2, 4, 2, "Greenest")]
+    public async Task Optimize_ReturnsTheRequestedEvsSchedule_EvenWhenNicknamesMatch(
+        int deviceId, int startStep, decimal cost, string priority)
     {
         var repository = new Mock<ICreatePlanRepository>();
         var preset = new DevicePreset { Id = 9, BatteryCapacityInKwh = 80m, ConsumptionInKwh = 11m };
@@ -25,6 +28,8 @@ public class OptimizationDeviceSelectionTests
         repository.Setup(repo => repo.GetDevicesWithPresetsAsync(deviceId)).ReturnsAsync(rows);
         repository.Setup(repo => repo.GetElectricityPricesAsync("DK1", It.IsAny<DateTime>(), It.IsAny<DateTime>()))
             .ReturnsAsync(Enumerable.Repeat(1d, 8).ToList());
+        repository.Setup(repo => repo.GetCo2EmissionsAsync("DK1", It.IsAny<DateTime>(), It.IsAny<DateTime>()))
+            .ReturnsAsync(Enumerable.Repeat(100d, 8).ToList());
         repository.Setup(repo => repo.GetActivePlansAsync(It.IsAny<IReadOnlyCollection<int>>(), It.IsAny<DateTime>()))
             .ReturnsAsync(Enumerable.Range(1, 2).Select(id => new Plan
             {
@@ -36,6 +41,7 @@ public class OptimizationDeviceSelectionTests
         {
             var solver = (await request.Content!.ReadFromJsonAsync<SolverReqDTO>())!;
             solverStart = solver.StartTime;
+            Assert.All(solver.Prices, value => Assert.Equal(1d, value));
             Assert.Equal(2, solver.Loads.Count);
             return new HttpResponseMessage(HttpStatusCode.OK)
             {
@@ -56,7 +62,7 @@ public class OptimizationDeviceSelectionTests
 
         var result = await service.OptimizeAsync(new OptimizationRequestDTO
         {
-            Area = "DK1", UserDeviceId = deviceId, DevicePresetId = 9, ChargeStopPercentage = 80,
+            Area = "DK1", UserDeviceId = deviceId, DevicePresetId = 9, ChargeStopPercentage = 80, Priority = priority,
             StartWindow = DateTime.UtcNow.AddHours(deviceId == 2 ? 1 : 0), EndWindow = DateTime.UtcNow.AddHours(2)
         });
 
