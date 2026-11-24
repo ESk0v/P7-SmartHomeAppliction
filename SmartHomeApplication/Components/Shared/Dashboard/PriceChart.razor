@@ -1,6 +1,7 @@
 @inject ILogger<PriceChart> Logger
 @inject HttpClient Http
 @inject AuthenticationStateProvider AuthProvider
+@inject SmartHomeApplication.State.ChartMetricPreference MetricPreference
 
 @using Utilities.Models
 @using System.Globalization
@@ -16,7 +17,7 @@
                 <button type="button" class="chart-metric-toggle" role="switch"
                         aria-label="Show CO₂ emissions instead of electricity prices" aria-checked="@(showCo2 ? "true" : "false")"
                         title="@(showCo2 ? "Switch to electricity prices" : "Switch to CO₂ emissions")"
-                        @onclick="() => showCo2 = !showCo2">
+                        @onclick="ToggleMetric">
                     <span class="chart-metric-indicator" aria-hidden="true"></span>
                     <span class="chart-metric-icon chart-metric-price" aria-hidden="true"><i class="bi @ScheduleIcons.Price"></i></span>
                     <span class="chart-metric-icon chart-metric-co2" aria-hidden="true"><i class="bi @ScheduleIcons.Co2"></i></span>
@@ -151,9 +152,31 @@
 @code {
     [Parameter] public List<PlanDto> activeSchedules { get; set; } = new List<PlanDto>();
     [Parameter] public int MaxDisplayedPrices { get; set; } = 0;
+    [Parameter] public PlanDto? SelectedPlan { get; set; }
 
     private List<HourPriceDto> prices = new List<HourPriceDto>();
     private bool showCo2;
+    private bool preferredShowCo2;
+    private string userId = "anonymous";
+    private int? metricPlanId;
+
+    private async Task ToggleMetric()
+    {
+        preferredShowCo2 = showCo2 = !showCo2;
+        await MetricPreference.SetAsync(userId, showCo2);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        preferredShowCo2 = await MetricPreference.GetAsync(userId);
+        if (SelectedPlan is null)
+        {
+            showCo2 = preferredShowCo2;
+            StateHasChanged();
+        }
+    }
     private string ChartTitle => showCo2 ? "CO₂ forecast and schedule" : "Price forecast and schedule";
     private string Unit => showCo2 ? "g CO₂/kWh" : "kr/kWh";
     private decimal? GetValue(HourPriceDto point) => showCo2 ? point.Co2EmissionGramsPerKwh : point.Price;
@@ -198,6 +221,7 @@
         try
         {
             AuthenticationState? state = await AuthProvider.GetAuthenticationStateAsync();
+            userId = state.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "anonymous";
             string area = state.User.FindFirstValue(CustomClaimTypes.PriceArea) ?? "DK1";
             prices = await Http.GetFromJsonAsync<List<HourPriceDto>>(
                 $"api/electricity-price-controller/dashboard-showcase?areaCode={area}") ?? new List<HourPriceDto>();
@@ -222,6 +246,14 @@
 
 protected override void OnParametersSet()
 {
+    // Reapply the objective only when selecting another plan, allowing manual overrides.
+    if (SelectedPlan?.planId != metricPlanId)
+    {
+        metricPlanId = SelectedPlan?.planId;
+        showCo2 = SelectedPlan is null ? preferredShowCo2
+            : string.Equals(SelectedPlan.optimizationObjective, "Greenest", StringComparison.OrdinalIgnoreCase);
+    }
+
     Dictionary<int, PlanDto>? byId = activeSchedules.ToDictionary(p => p.planId);
     HashSet<int>? followers = activeSchedules
         .Where(p => p.nextPlanId.HasValue)

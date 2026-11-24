@@ -1,5 +1,8 @@
 using System.Reflection;
+using Microsoft.JSInterop;
+using Moq;
 using Shared.Dashboard;
+using SmartHomeApplication.State;
 using Utilities.Models;
 
 namespace SmartHomeApplication.Tests.Components;
@@ -8,6 +11,46 @@ public class PriceChartTests
 {
     private static readonly DateTime Hour = new(2026, 11, 20, 12, 0, 0);
     private const BindingFlags Flags = BindingFlags.Instance | BindingFlags.NonPublic;
+
+    [Fact]
+    public async Task PlanSelection_OverridesTheMetricWithoutSaving_AndAllowsManualChanges()
+    {
+        var js = new Mock<IJSRuntime>();
+        var preference = new ChartMetricPreference(js.Object);
+        var chart = new PriceChart();
+        typeof(PriceChart).GetProperty("MetricPreference", Flags)!.SetValue(chart, preference);
+
+        SelectPlan(chart, 1, "Greenest");
+        Call<object?>(chart, "OnParametersSet");
+        Assert.Equal("g CO₂/kWh", Property<string>(chart, "Unit"));
+        Assert.Empty(js.Invocations);
+
+        await Call<Task>(chart, "ToggleMetric");
+        Call<object?>(chart, "OnParametersSet");
+        Assert.Equal("kr/kWh", Property<string>(chart, "Unit"));
+
+        SelectPlan(chart, 2, "Greenest");
+        Call<object?>(chart, "OnParametersSet");
+        Assert.Equal("g CO₂/kWh", Property<string>(chart, "Unit"));
+
+        SelectPlan(chart, 3, "Cheapest");
+        Call<object?>(chart, "OnParametersSet");
+        Assert.Equal("kr/kWh", Property<string>(chart, "Unit"));
+        await Call<Task>(chart, "ToggleMetric");
+
+        SelectPlan(chart, 4, "Cheapest");
+        Call<object?>(chart, "OnParametersSet");
+        Assert.Equal("kr/kWh", Property<string>(chart, "Unit"));
+        Assert.True(await preference.GetAsync("anonymous"));
+        Assert.Equal(2, js.Invocations.Count);
+    }
+
+    private static PlanDto Plan(int id, string objective) => new(id, null, $"Plan {id}", "", "#0a66c3",
+        "Device", "Interruptible", objective, 80, null, Hour, Hour.AddHours(1),
+        Hour, Hour.AddHours(2), 1m, 10m, 2m, 20m, 80m);
+
+    private static void SelectPlan(PriceChart chart, int id, string objective) =>
+        typeof(PriceChart).GetProperty(nameof(PriceChart.SelectedPlan))!.SetValue(chart, Plan(id, objective));
 
     [Fact]
     public void SwitchingMeasurements_KeepsIndependentFixedScalesAndTheSameHours()
