@@ -5,7 +5,7 @@ from models import SolverReq
 
 DT = 0.25        # h per step
 ETA = 1.0        # charging efficiency
-LAM = 10.0       # DKK per missing kWh at departure
+LAM = 270       # DKK per missing kWh at departure
 
 
 class InfeasibleError(Exception):
