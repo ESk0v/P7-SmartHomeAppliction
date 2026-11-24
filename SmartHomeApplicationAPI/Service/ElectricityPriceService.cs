@@ -23,7 +23,8 @@ public class ElectricityPriceService : IElectricityPriceService
             .Select(g => new HourPriceDto(
                 g.Key,
                 g.Average(r => r.Price),
-                g.Any(r => r.IsPredicted)))
+                g.Any(r => r.IsPredicted),
+                g.Average(r => r.Co2EmissionGramsPerKwh)))
             .OrderBy(r => r.Hour)
             .ToList();
     }

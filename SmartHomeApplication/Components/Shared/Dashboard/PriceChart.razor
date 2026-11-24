@@ -8,15 +8,24 @@
 @using Utilities.Security
 
 @namespace Shared.Dashboard
-<section class="chart-card" style="@ZeroLineStyle" aria-label="Price forecast and schedule">
+<section class="chart-card" style="@ZeroLineStyle" aria-label="@ChartTitle">
     <div class="chart-content">
         <div class="chart-header">
             <div class="chart-title-group">
-                <h2 class="chart-title">Price forecast and schedule</h2>
+                <h2 class="chart-title">@ChartTitle</h2>
+                <button type="button" class="chart-metric-toggle" role="switch"
+                        aria-label="Show CO₂ emissions instead of electricity prices" aria-checked="@(showCo2 ? "true" : "false")"
+                        title="@(showCo2 ? "Switch to electricity prices" : "Switch to CO₂ emissions")"
+                        @onclick="() => showCo2 = !showCo2">
+                    <span class="chart-metric-indicator" aria-hidden="true"></span>
+                    <span class="chart-metric-icon chart-metric-price" aria-hidden="true"><i class="bi @ScheduleIcons.Price"></i></span>
+                    <span class="chart-metric-icon chart-metric-co2" aria-hidden="true"><i class="bi @ScheduleIcons.Co2"></i></span>
+                </button>
+                <span class="chart-unit">@Unit</span>
             </div>
             <div class="legend-container" @onkeydown="@(e => { if (e.Key == "Escape") isLegendExpanded = false; })">
                 <div class="legend">
-                    @if (prices.Any(p => p.IsPredicted))
+                    @if (!showCo2 && prices.Any(p => p.IsPredicted))
                     {
                         <span class="predicted-price-key">
                             <span class="predicted-price-marker" aria-hidden="true"></span>
@@ -54,26 +63,30 @@
 
         @if (error is not null)
         {
-            <p role="alert">Electricity prices could not be loaded. Please reload to try again.</p>
+            <p role="alert">Chart data could not be loaded. Please reload to try again.</p>
         }
         else if (isLoading)
         {
-            <p role="status">Loading electricity prices…</p>
+            <p role="status">Loading chart data…</p>
         }
         else if (prices.Count == 0)
         {
             <p role="status">No electricity prices are available.</p>
         }
-        <div class="chart-uppersection" data-chart role="group" aria-label="Hourly prices. Use arrow keys to move between hours.">
+        else if (showCo2 && prices.All(p => p.Co2EmissionGramsPerKwh is null))
+        {
+            <p class="chart-data-message" role="status">CO₂ data is unavailable for the displayed hours.</p>
+        }
+        <div class="chart-uppersection" data-chart role="group" aria-label="@($"{ChartTitle}, {Unit}. Use arrow keys to move between hours.")">
             @foreach (HourPriceDto p in prices)
             {
-                <div class="price-column" data-chart-point role="img" tabindex="@(p == prices[0] ? 0 : -1)" aria-label="@PriceDescription(p)">
+                <div class="price-column" data-chart-point role="img" tabindex="@(p == prices[0] ? 0 : -1)" aria-label="@PointDescription(p)">
                     <div class="price-tooltip" aria-hidden="true">
                         @{
                             List<PlanDto> overlappingSchedules = GetSchedulesForHour(p.Hour);
                         }
                         <div class="price-tooltip-content">
-                            <span>@p.Hour.Hour:00 - @p.Price.ToString("0.00", CultureInfo.CurrentCulture) kr/kWh@(p.IsPredicted ? " · Predicted price" : null)@(p.Price > MaxPrice ? " · Above chart maximum" : p.Price < MinPrice ? " · Below chart minimum" : null)</span>
+                            <span>@p.Hour.Hour:00 - @ValueDescription(p)</span>
                             @if (overlappingSchedules.Count > 1)
                             {
                                 <span class="price-tooltip-overlap">
@@ -88,21 +101,24 @@
                         </div>
                     </div>
                     <div class="price-bar-area">
-                        @foreach (decimal tick in PriceTicks.Where(tick => tick >= MinPrice))
+                        @foreach (decimal tick in Ticks.Where(tick => tick >= MinValue))
                         {
-                            <span class="price-gridline @(tick == 0 ? "price-gridline-zero" : tick == MaxPrice || tick == MinPrice ? "price-gridline-edge" : null)" style="@GridLineStyle(tick)" aria-hidden="true">
+                            <span class="price-gridline @(tick == 0 ? "price-gridline-zero" : tick == MaxValue || tick == MinValue ? "price-gridline-edge" : null)" style="@GridLineStyle(tick)" aria-hidden="true">
                                 @if (p == prices[0])
                                 {
                                     <span class="price-axis-label">@tick</span>
                                 }
                             </span>
                         }
-                        <div class="price-bar @(p.Price < 0 ? "price-bar-negative" : null) @(p.IsPredicted ? "price-bar-predicted" : null)" style="@BarStyle(p)">
-                            @if (p.Price > MaxPrice || p.Price < MinPrice)
-                            {
-                                <span class="price-overflow-marker @(p.Price > MaxPrice ? "price-overflow-high" : "price-overflow-low")" aria-hidden="true">@(p.Price > MaxPrice ? "↑" : "↓")</span>
-                            }
-                        </div>
+                        @if (GetValue(p) is decimal value)
+                        {
+                            <div class="price-bar @(value < 0 ? "price-bar-negative" : null) @(!showCo2 && p.IsPredicted ? "price-bar-predicted" : null)" style="@BarStyle(p)">
+                                @if (value > MaxValue || value < MinValue)
+                                {
+                                    <span class="price-overflow-marker @(value > MaxValue ? "price-overflow-high" : "price-overflow-low")" aria-hidden="true">@(value > MaxValue ? "↑" : "↓")</span>
+                                }
+                            </div>
+                        }
                     </div>
 
                     <span class="price-label">@p.Hour.Hour</span>
@@ -137,21 +153,32 @@
     [Parameter] public int MaxDisplayedPrices { get; set; } = 0;
 
     private List<HourPriceDto> prices = new List<HourPriceDto>();
-    private decimal MinPrice => prices.Any(p => p.Price < 0) ? -1m : 0m;
-    private const decimal MaxPrice = 7m; // kr/kWh; fixed across days.
+    private bool showCo2;
+    private string ChartTitle => showCo2 ? "CO₂ forecast and schedule" : "Price forecast and schedule";
+    private string Unit => showCo2 ? "g CO₂/kWh" : "kr/kWh";
+    private decimal? GetValue(HourPriceDto point) => showCo2 ? point.Co2EmissionGramsPerKwh : point.Price;
+    private decimal MinValue => !showCo2 && prices.Any(p => p.Price < 0) ? -1m : 0m;
+    private decimal MaxValue => showCo2 ? 400m : 7m; // Fixed scales keep days comparable.
     private static readonly decimal[] PriceTicks = [-1m, 0m, 2m, 4m, 6m];
+    private static readonly decimal[] Co2Ticks = [0m, 100m, 200m, 300m];
+    private IEnumerable<decimal> Ticks => showCo2 ? Co2Ticks : PriceTicks;
     private string ZeroLineStyle => string.Create(CultureInfo.InvariantCulture,
-        $"--price-zero:{MaxPrice / (MaxPrice - MinPrice) * 100:0.##}%");
-    private string GridLineStyle(decimal price) => string.Create(CultureInfo.InvariantCulture,
-        $"top:{(MaxPrice - price) / (MaxPrice - MinPrice) * 100:0.##}%");
+        $"--price-zero:{MaxValue / (MaxValue - MinValue) * 100:0.##}%");
+    private string GridLineStyle(decimal value) => string.Create(CultureInfo.InvariantCulture,
+        $"top:{(MaxValue - value) / (MaxValue - MinValue) * 100:0.##}%");
     private bool isLoading = true;
     private string? error;
-    private string PriceDescription(HourPriceDto price)
+    private string ValueDescription(HourPriceDto point)
     {
-        string source = price.IsPredicted ? "Predicted price" : "Published price";
-        string clipped = price.Price > MaxPrice ? ", above chart maximum" : price.Price < MinPrice ? ", below chart minimum" : "";
-        string schedules = string.Join(", ", GetSchedulesForHour(price.Hour).Select(plan => plan.planName).Distinct());
-        return $"{price.Hour:ddd d MMM yyyy HH:mm}, {price.Price:0.####} kr/kWh, {source}{clipped}{(schedules.Length > 0 ? $", schedules: {schedules}" : "")}";
+        if (GetValue(point) is not decimal value) return "CO₂ data unavailable";
+        string source = showCo2 ? "CO₂ forecast" : point.IsPredicted ? "Predicted price" : "Published price";
+        string clipped = value > MaxValue ? " · Above chart maximum" : value < MinValue ? " · Below chart minimum" : "";
+        return $"{value.ToString("0.####", CultureInfo.CurrentCulture)} {Unit} · {source}{clipped}";
+    }
+    private string PointDescription(HourPriceDto point)
+    {
+        string schedules = string.Join(", ", GetSchedulesForHour(point.Hour).Select(plan => plan.planName).Distinct());
+        return $"{point.Hour:ddd d MMM yyyy HH:mm}, {ValueDescription(point)}{(schedules.Length > 0 ? $", schedules: {schedules}" : "")}";
     }
 
     private record PlanRow(PlanDto Head, List<PlanDto> Segments);
@@ -263,9 +290,10 @@ protected override void OnParametersSet()
 
     private string BarStyle(HourPriceDto p)
     {
-        decimal height = Math.Abs(Math.Clamp(p.Price, MinPrice, MaxPrice)) / (MaxPrice - MinPrice) * 100;
+        if (GetValue(p) is not decimal value) return "display:none";
+        decimal height = Math.Abs(Math.Clamp(value, MinValue, MaxValue)) / (MaxValue - MinValue) * 100;
         string? style = string.Create(CultureInfo.InvariantCulture, $"height:{height:0.##}%");
-        if (p.Price == 0)
+        if (value == 0)
             style += ";min-height:0";
 
         List<PlanDto>? schedules = GetSchedulesForHour(p.Hour);
@@ -333,7 +361,61 @@ protected override void OnParametersSet()
         min-width: 0;
     }
 
-    .chart-title-group { min-width: 0; }
+    .chart-title-group {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.35rem 0.65rem;
+    }
+
+    .chart-metric-toggle {
+        position: relative;
+        display: inline-grid;
+        grid-template-columns: repeat(2, 1fr);
+        flex-shrink: 0;
+        width: 5.5rem;
+        height: 36px;
+        padding: 3px;
+        border: 1px solid #d7e4f2;
+        border-radius: 999px;
+        background: #eef4fa;
+        color: #465a70;
+        font: inherit;
+        cursor: pointer;
+        transition: background-color 180ms ease;
+    }
+
+    .chart-metric-indicator {
+        position: absolute;
+        top: 3px;
+        bottom: 3px;
+        left: 3px;
+        width: calc(50% - 3px);
+        border-radius: 999px;
+        background: #0a66c3;
+        box-shadow: 0 2px 5px rgba(10, 102, 195, 0.2);
+        transition: transform 220ms cubic-bezier(0.2, 0.7, 0.2, 1);
+        pointer-events: none;
+    }
+
+    .chart-metric-icon {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1rem;
+        transition: color 180ms ease;
+        pointer-events: none;
+    }
+
+    .chart-metric-toggle[aria-checked="true"] .chart-metric-indicator { transform: translateX(100%); }
+    .chart-metric-toggle[aria-checked="false"] .chart-metric-price,
+    .chart-metric-toggle[aria-checked="true"] .chart-metric-co2 { color: #fff; }
+    .chart-metric-toggle:hover { background: #dae9f7; }
+    .chart-metric-toggle:focus-visible { outline: 2px solid #0a66c3; outline-offset: 3px; }
+    .chart-unit, .chart-data-message { color: #6b6761; font-size: 0.75rem; }
+    .chart-data-message { margin: 0; }
 
     .chart-title {
         font-size: inherit;
@@ -793,6 +875,8 @@ protected override void OnParametersSet()
     }
 
     @@media (max-width: 640.98px), (max-width: 960px) and (max-height: 500px) and (pointer: coarse) {
+        .chart-metric-toggle { height: 44px; }
+
         .chart-card {
             height: auto;
             padding: 1rem;

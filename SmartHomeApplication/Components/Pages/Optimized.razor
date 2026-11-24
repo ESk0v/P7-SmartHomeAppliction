@@ -143,21 +143,21 @@
                     <div class="co2-comparison">
                         <div>
                             <span>Optimized plan</span>
-                            <strong>@FormatGrams(OptimizedCo2) CO<sub>2</sub></strong>
+                            <strong>@FormatKilograms(OptimizedCo2) CO<sub>2</sub></strong>
                         </div>
                         <div class="co2-bar" aria-hidden="true"><span class="co2-bar-fill co2-bar-optimized" style="@GetCo2BarStyle(OptimizedCo2)"></span></div>
                     </div>
                     <div class="co2-comparison">
                         <div>
                             <span>Unscheduled baseline</span>
-                            <strong>@FormatGrams(UnscheduledCo2) CO<sub>2</sub></strong>
+                            <strong>@FormatKilograms(UnscheduledCo2) CO<sub>2</sub></strong>
                         </div>
                         <div class="co2-bar" aria-hidden="true"><span class="co2-bar-fill co2-bar-baseline" style="@GetCo2BarStyle(UnscheduledCo2)"></span></div>
                     </div>
                     <div class="co2-total @Co2ReductionClass">
                         <span>@(Co2Reduction < 0 ? "Estimated increase" : "Estimated reduction")</span>
                         <strong class="@Co2ReductionClass">
-                            @FormatGrams(Co2Reduction) CO<sub>2</sub>
+                            @FormatKilograms(Co2Reduction) CO<sub>2</sub>
                             <small>@FormatPercentage(Co2ReductionPercentage)</small>
                         </strong>
                     </div>
@@ -233,8 +233,8 @@
     private string Co2ReductionClass =>
         Co2Reduction > 0 ? "co2-positive" : Co2Reduction < 0 ? "co2-negative" : string.Empty;
 
-    private static string FormatGrams(decimal grams) =>
-        $"{grams.ToString("0.##", CultureInfo.InvariantCulture)} g";
+    private static string FormatKilograms(decimal grams) =>
+        $"{(grams / 1000m).ToString("0.###", CultureInfo.InvariantCulture)} kg";
 
     private static string FormatPercentage(decimal percentage) =>
         $"({percentage.ToString("0.#", CultureInfo.InvariantCulture)}%)";
