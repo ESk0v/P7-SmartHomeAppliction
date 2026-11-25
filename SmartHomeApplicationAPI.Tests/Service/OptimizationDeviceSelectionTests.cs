@@ -68,8 +68,17 @@ public class OptimizationDeviceSelectionTests
         });
 
         var interval = Assert.Single(result);
-        Assert.Equal(solverStart.AddMinutes(15 * startStep), interval.StartTime);
-        Assert.Equal(cost, interval.EstimatedPrice);
+
+var copenhagenTimeZone =
+    TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen");
+
+var expectedStart = TimeZoneInfo.ConvertTimeToUtc(
+    solverStart.AddMinutes(15 * startStep),
+    copenhagenTimeZone);
+
+Assert.Equal(expectedStart, interval.StartTime);
+Assert.Equal(DateTimeKind.Utc, interval.StartTime.Kind);
+Assert.Equal(cost, interval.EstimatedPrice);
     }
 
     private sealed class SolverHandler(Func<HttpRequestMessage, Task<HttpResponseMessage>> send) : HttpMessageHandler
