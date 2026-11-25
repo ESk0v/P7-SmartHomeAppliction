@@ -57,13 +57,29 @@ public class CreatePlanService : ICreatePlanService
     public async Task<List<OptimizationResultDTO>> OptimizeAsync(OptimizationRequestDTO request)
     {
         #region Data Retrival
+        var copenhagenTimeZone =
+            TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen");
+
+        DateTime ToCopenhagenTime(DateTime time)
+        {
+            if (time.Kind == DateTimeKind.Unspecified)
+                return time;
+
+            return DateTime.SpecifyKind(
+                TimeZoneInfo.ConvertTimeFromUtc(
+                    time.ToUniversalTime(), copenhagenTimeZone),
+                DateTimeKind.Unspecified);
+        }
+
         var now = DateTime.UtcNow;
+        var localNow = ToCopenhagenTime(now);
+
         var quarter = TimeSpan.FromMinutes(15).Ticks;
         var start = new DateTime(
-            (now.Ticks + quarter - 1) / quarter * quarter,
-            DateTimeKind.Utc);
+            (localNow.Ticks + quarter - 1) / quarter * quarter,
+            DateTimeKind.Unspecified);
 
-        var end = request.EndWindow.ToUniversalTime();
+        var end = ToCopenhagenTime(request.EndWindow);
 
         var electricityPrices = await _repository.GetElectricityPricesAsync(
             request.Area, start, end);
@@ -107,10 +123,10 @@ public class CreatePlanService : ICreatePlanService
 
         int Step(DateTime t)
         {
-            var utc = t.Kind == DateTimeKind.Local
-                ? t.ToUniversalTime()
-                : DateTime.SpecifyKind(t, DateTimeKind.Utc);   // Unspecified is treated as UTC
-            return (int)Math.Floor((utc - start).TotalMinutes / 15.0);
+            var localTime = ToCopenhagenTime(t);
+
+            return (int)Math.Floor(
+                (localTime - start).TotalMinutes / 15.0);
         }
 
         var loads = new List<SolverLoadDTO>();
@@ -275,8 +291,12 @@ public class CreatePlanService : ICreatePlanService
             }
 
             results.Add(new OptimizationResultDTO(
-                item.GetProperty("start_time").GetDateTime().ToUniversalTime(),
-                item.GetProperty("end_time").GetDateTime().ToUniversalTime(),
+                TimeZoneInfo.ConvertTimeToUtc(
+                    start.AddMinutes(startStep * 15),
+                    copenhagenTimeZone),
+                TimeZoneInfo.ConvertTimeToUtc(
+                    start.AddMinutes(item.GetProperty("end_step").GetInt32() * 15),
+                    copenhagenTimeZone),
                 Math.Round(estimatedPrice, 2),
                 Math.Round(estimatedCo2, 2)
             ));
@@ -333,8 +353,12 @@ public class CreatePlanService : ICreatePlanService
                 }
 
                 results.Add(new OptimizationResultDTO(
-                    start.AddMinutes(from * 15),
-                    start.AddMinutes(to * 15),
+                    TimeZoneInfo.ConvertTimeToUtc(
+                        start.AddMinutes(from * 15),
+                        copenhagenTimeZone),
+                    TimeZoneInfo.ConvertTimeToUtc(
+                        start.AddMinutes(to * 15),
+                        copenhagenTimeZone),
                     Math.Round(intervalPrice, 2),
                     Math.Round(intervalCo2, 2)
                 ));

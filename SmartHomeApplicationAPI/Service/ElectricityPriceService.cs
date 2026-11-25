@@ -19,11 +19,18 @@ public class ElectricityPriceService : IElectricityPriceService
         var Result = await _repository.GetPricesForDateAsync(areaCode, updatedDate);
 
         return Result
-            .GroupBy(r => new DateTime(r.Hour.Year, r.Hour.Month, r.Hour.Day, r.Hour.Hour, 0, 0))
+            .GroupBy(r => new DateTime(
+                r.Hour.Year,
+                r.Hour.Month,
+                r.Hour.Day,
+                r.Hour.Hour,
+                0,
+                0))
             .Select(g => new HourPriceDto(
                 g.Key,
                 g.Average(r => r.Price),
-                g.Any(r => r.IsPredicted)))
+                g.Any(r => r.IsPredicted),
+                g.Average(r => r.Co2EmissionGramsPerKwh)))
             .OrderBy(r => r.Hour)
             .ToList();
     }
@@ -54,7 +61,6 @@ public class ElectricityPriceService : IElectricityPriceService
         return new UnscheduledEstimateResultDto(
             new UnscheduledEstimateDto(
                 request.EnergyInKwh * averagePrice,
-                // Temporary sentinel until CO2 forecast data is available for the full horizon.
                 request.EnergyInKwh * (averageCo2 ?? -1m)),
             null);
     }

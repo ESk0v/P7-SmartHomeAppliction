@@ -83,9 +83,9 @@ public class PlanService : IPlanService
                 throw new ValidationException("Plan blocks must be valid UTC intervals inside the scheduling window, without overlaps.");
         }
 
-        // Use stored device/preset values, with the same workload calculation for new and regenerated plans.
+        // Match the optimizer's current 20% starting charge when calculating the baseline workload.
         decimal energy = device!.category == "Interruptible"
-            ? (device.batteryCapacityInKwh ?? 0m) * request.ChargeStopPercentage!.Value / 100m
+            ? (device.batteryCapacityInKwh ?? 0m) * Math.Max(request.ChargeStopPercentage!.Value - 20, 0) / 100m
             : preset!.ConsumptionInKwh;
         if (energy <= 0) throw new ValidationException("A positive workload is required to calculate the unscheduled baseline.");
         long totalTicks = ordered.Sum(interval => (interval.EndTime - interval.StartTime).Ticks);

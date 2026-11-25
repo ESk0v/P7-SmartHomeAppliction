@@ -33,7 +33,7 @@ public class StatisticsService : IStatisticsService
         if (plans.Count == 0)
             return new StatisticsDto { Value = "--", Description = "No plans in this period" };
 
-        return new StatisticsDto { Value = $"{plans.Sum(p => p.EstimatedCo2Emissions)} g" };
+        return new StatisticsDto { Value = $"{(plans.Sum(p => p.EstimatedCo2Emissions) / 1000m).ToString("0.###", DanishCulture)} kg" };
     }
 
     public async Task<StatisticsDto> GetScheduleSavingCostAsync(string userID, DateTime from, DateTime to)
@@ -56,10 +56,10 @@ public class StatisticsService : IStatisticsService
         if (plans.Count == 0)
             return new StatisticsDto { Value = "--", Description = "No plans in this period" };
 
-        decimal planned = plans.Sum(p => p.EstimatedCo2Emissions);
-        decimal unscheduled = plans.Sum(p => p.EstimatedUnscheduledCo2Emissions);
+        decimal planned = plans.Sum(p => p.EstimatedCo2Emissions) / 1000m;
+        decimal unscheduled = plans.Sum(p => p.EstimatedUnscheduledCo2Emissions) / 1000m;
 
-        return BuildSavingDto(planned, unscheduled, "g", "less CO2", "more CO2");
+        return BuildSavingDto(planned, unscheduled, "kg", "less CO2", "more CO2");
     }
     #endregion
 
@@ -204,7 +204,9 @@ public class StatisticsService : IStatisticsService
         bool better = diff > 0;
         string arrow = better ? "\u2193" : "\u2191";
         string text = better ? betterText : worseText;
-        string value = $"{diff:0.##} {unit}";
+        string value = unit == "kg"
+            ? $"{diff.ToString("0.###", DanishCulture)} kg"
+            : $"{diff:0.##} {unit}";
 
         // Baseline is 0 (and plan is worse): percent is undefined, show absolute only
         if (unscheduled == 0)

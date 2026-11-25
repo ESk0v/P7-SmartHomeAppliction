@@ -4,6 +4,9 @@ namespace Shared.Dashboard;
 
 public static class ScheduleIcons
 {
+    public const string Price = "bi-cash";
+    public const string Co2 = "bi-cloud";
+
     private static readonly Dictionary<DeviceIcon, string> Icons = new()
     {
         [DeviceIcon.default_icon]   = "bi-plug-fill",
