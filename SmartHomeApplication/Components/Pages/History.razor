@@ -60,11 +60,11 @@
                 <DataDialog Title="@ChartTitle">
                     <table class="table">
                         <caption>@dateRange. Cost and CO₂ use separate scales in the chart.</caption>
-                        <thead><tr><th scope="col">Period</th><th scope="col">Cost (kr)</th><th scope="col">CO₂ (g)</th></tr></thead>
+                        <thead><tr><th scope="col">Period</th><th scope="col">Cost (kr)</th><th scope="col">CO₂ (kg)</th></tr></thead>
                         <tbody>
                             @foreach (ChartPoint point in chartPoints)
                             {
-                                <tr><th scope="row">@point.Tooltip.Split(':')[0]</th><td>@point.Price.ToString("0.00")</td><td>@point.Co2.ToString("0.##")</td></tr>
+                                <tr><th scope="row">@point.Tooltip.Split(':')[0]</th><td>@point.Price.ToString("0.00")</td><td>@((point.Co2 / 1000m).ToString("0.###"))</td></tr>
                             }
                         </tbody>
                     </table>
@@ -75,7 +75,7 @@
                     <span class="history-legend-dot" style="background-color:#a8750b"></span>Cost (kr)
                 </span>
                 <span class="history-legend-item">
-                    <span class="history-legend-dot" style="background-color:#237c55"></span>CO2 (g)
+                    <span class="history-legend-dot" style="background-color:#237c55"></span>CO2 (kg)
                 </span>
             </div>
         </div>
@@ -201,7 +201,7 @@
                     : d.Date.Day.ToString();
             }
 
-            string? tooltip = $"{d.Date.ToString("d MMM", CultureInfo.InvariantCulture)}: {d.Cost:0.00} kr, {d.Co2:0} g";
+            string? tooltip = $"{d.Date.ToString("d MMM", CultureInfo.InvariantCulture)}: {d.Cost:0.00} kr, {d.Co2 / 1000m:0.###} kg";
             return new ChartPoint(label, tooltip, d.Cost, d.Co2);
         }).ToList();
     }
@@ -216,7 +216,7 @@
                 decimal cost = g.Sum(d => d.Cost);
                 decimal co2 = g.Sum(d => d.Co2);
                 string? label = g.Key.ToString("MMM", CultureInfo.InvariantCulture);
-                string? tooltip = $"{g.Key.ToString("MMMM yyyy", CultureInfo.InvariantCulture)}: {cost:0.00} kr, {co2:0} g";
+                string? tooltip = $"{g.Key.ToString("MMMM yyyy", CultureInfo.InvariantCulture)}: {cost:0.00} kr, {co2 / 1000m:0.###} kg";
                 return new ChartPoint(label, tooltip, cost, co2);
             })
             .ToList();

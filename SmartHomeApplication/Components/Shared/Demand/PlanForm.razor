@@ -182,14 +182,14 @@ else if (isLoading)
                 <div class="summary-row">
                     <div><span>Estimated CO<sub>2</sub></span></div>
                     <strong class="@(hasPlan ? "summary-co2" : "summary-placeholder")">@(hasPlan
-                        ? $"{optimizedIntervals.Sum(x => x.EstimatedCo2Emissions):0.##} g CO₂" : "—")</strong>
+                        ? $"{optimizedIntervals.Sum(x => x.EstimatedCo2Emissions) / 1000m:0.###} kg CO₂" : "—")</strong>
                 </div>
                 <div class="mb-3 d-flex justify-content-end gap-2 save-plan-button">
                     @if (!IsEditMode)
                     {
                         <button type="button" class="btn btn-outline-secondary" @onclick="CancelGeneratedPlan" disabled="@(isSaving || !displayPlan)">Cancel</button>
                     }
-                    <button type="button" @onclick="SubmitPlan" class="btn btn-primary" disabled="@(isGenerating || isSaving || (IsEditMode ? !editLoaded : !displayPlan))">@(IsEditMode ? "Update Plan" : "Save Plan")</button>
+                    <button type="button" @onclick="SubmitPlan" class="btn btn-primary" disabled="@(isGenerating || isSaving || (IsEditMode ? (!editLoaded || editModeNoChanges) : !displayPlan))">@(IsEditMode ? "Update Plan" : "Save Plan")</button>
                 </div>
 
             </section>
@@ -206,6 +206,8 @@ else if (isLoading)
     private bool editLoaded;
     private bool isGenerating;
     private bool isSaving;
+    private bool editModeNoChanges;
+
 
     // Names can change without regenerating; scheduling inputs must still match the generated result.
     private SchedulingInputs? generatedFor;
@@ -373,6 +375,7 @@ else if (isLoading)
 
             if (IsEditMode)
                 await LoadExistingPlanAsync();
+                editModeNoChanges = true;
         }
         catch (Exception exception)
         {
@@ -625,6 +628,7 @@ else if (isLoading)
             optimizedIntervals = intervals.OrderBy(interval => interval.StartTime).ToList();
             generatedFor = demand.Inputs;
             ShowGeneratedPlanPreview(demand.Device, PlanName);
+            editModeNoChanges = false;
             NotificationService.SuccessNotification($"An optimized schedule for \"{PlanName}\" was successfully created.");
             Logger.LogInformation("Optimization worked. Received {Count} intervals.", optimizedIntervals.Count);
         }
@@ -743,14 +747,14 @@ else if (isLoading)
 
         if (isInterruptible)
         {
-            // Interruptible baseline workload is the selected charge-stop percentage of the battery capacity.
+            // Match the optimizer's current 20% starting charge for the baseline workload.
             if (selectedDevice.batteryCapacityInKwh is not decimal batteryCapacity ||
                 ScheduleForm.ChargeStopPercentage is not int chargeStopPercentage)
             {
                 return (null, "Battery capacity and charge-stop percentage are required.");
             }
 
-            energyInKwh = batteryCapacity * chargeStopPercentage / 100m;
+            energyInKwh = batteryCapacity * Math.Max(chargeStopPercentage - 20, 0) / 100m;
         }
         else if (ScheduleForm.Preset?.consumption is decimal presetConsumption)
         {

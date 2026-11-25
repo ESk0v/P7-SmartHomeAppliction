@@ -197,7 +197,7 @@ public class PlanFormTests
         Assert.NotNull(baseline);
         Assert.Equal(start, baseline.StartTime);
         Assert.Equal(start.AddMinutes(90), baseline.EndTime);
-        Assert.Equal(40m, baseline.EnergyInKwh);
+        Assert.Equal(24m, baseline.EnergyInKwh); // 80 kWh, charging from the assumed 20% to 50%.
         Assert.Equal(new int?[] { 10, 20 }, updated.Select(plan => plan.planId));
         Assert.Equal(new decimal?[] { 4m, 8m }, updated.Select(plan => plan.estimatedUnscheduledCost));
         Assert.Equal(new decimal?[] { 30m, 60m }, updated.Select(plan => plan.estimatedUnscheduledCo2Emissions));

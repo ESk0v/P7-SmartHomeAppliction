@@ -25,6 +25,8 @@ public class OptimizationDeviceSelectionTests
         repository.Setup(repo => repo.GetDevicesWithPresetsAsync(deviceId)).ReturnsAsync(rows);
         repository.Setup(repo => repo.GetElectricityPricesAsync("DK1", It.IsAny<DateTime>(), It.IsAny<DateTime>()))
             .ReturnsAsync(Enumerable.Repeat(1d, 8).ToList());
+        repository.Setup(repo => repo.GetCo2EmissionsAsync("DK1", It.IsAny<DateTime>(), It.IsAny<DateTime>()))
+            .ReturnsAsync(Enumerable.Repeat(200d, 8).ToList());
         repository.Setup(repo => repo.GetActivePlansAsync(It.IsAny<IReadOnlyCollection<int>>(), It.IsAny<DateTime>()))
             .ReturnsAsync(Enumerable.Range(1, 2).Select(id => new Plan
             {
@@ -56,13 +58,27 @@ public class OptimizationDeviceSelectionTests
 
         var result = await service.OptimizeAsync(new OptimizationRequestDTO
         {
-            Area = "DK1", UserDeviceId = deviceId, DevicePresetId = 9, ChargeStopPercentage = 80,
-            StartWindow = DateTime.UtcNow.AddHours(deviceId == 2 ? 1 : 0), EndWindow = DateTime.UtcNow.AddHours(2)
+            Area = "DK1",
+            UserDeviceId = deviceId,
+            DevicePresetId = 9,
+            ChargeStopPercentage = 80,
+            Priority = "Cheapest",
+            StartWindow = DateTime.UtcNow.AddHours(deviceId == 2 ? 1 : 0),
+            EndWindow = DateTime.UtcNow.AddHours(2)
         });
 
         var interval = Assert.Single(result);
-        Assert.Equal(solverStart.AddMinutes(15 * startStep), interval.StartTime);
-        Assert.Equal(cost, interval.EstimatedPrice);
+
+var copenhagenTimeZone =
+    TimeZoneInfo.FindSystemTimeZoneById("Europe/Copenhagen");
+
+var expectedStart = TimeZoneInfo.ConvertTimeToUtc(
+    solverStart.AddMinutes(15 * startStep),
+    copenhagenTimeZone);
+
+Assert.Equal(expectedStart, interval.StartTime);
+Assert.Equal(DateTimeKind.Utc, interval.StartTime.Kind);
+Assert.Equal(cost, interval.EstimatedPrice);
     }
 
     private sealed class SolverHandler(Func<HttpRequestMessage, Task<HttpResponseMessage>> send) : HttpMessageHandler

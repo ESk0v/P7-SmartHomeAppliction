@@ -20,6 +20,11 @@ public class OptimizationValidationTests
         var repo = new Mock<ICreatePlanRepository>();
         repo.Setup(value => value.GetElectricityPricesAsync("DK1", It.IsAny<DateTime>(), It.IsAny<DateTime>()))
             .ReturnsAsync(Enumerable.Repeat(1d, 8).ToList());
+        repo.Setup(value => value.GetCo2EmissionsAsync(
+                "DK1",
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>()))
+            .ReturnsAsync(Enumerable.Repeat(200d, 8).ToList());
         var device = new PlanUserDeviceDto(1, 1, "Dishwasher", "", "", "Non-Interruptible", "Dishwasher", null);
         var preset = new DevicePreset { Id = 9, DeviceId = 1, ConsumptionInKwh = 10m, DurationInMinutes = 15 };
         repo.Setup(value => value.GetDevicesWithPresetsAsync(1))
@@ -44,6 +49,11 @@ public class OptimizationValidationTests
         var repo = new Mock<ICreatePlanRepository>();
         repo.Setup(value => value.GetElectricityPricesAsync("DK1", It.IsAny<DateTime>(), It.IsAny<DateTime>()))
             .ReturnsAsync(Enumerable.Repeat(1d, 8).ToList());
+        repo.Setup(value => value.GetCo2EmissionsAsync(
+                "DK1",
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>()))
+            .ReturnsAsync(Enumerable.Repeat(200d, 8).ToList());
         repo.Setup(value => value.GetDevicesWithPresetsAsync(1)).ReturnsAsync(new List<(PlanUserDeviceDto, DevicePreset)>
         {
             (new(1, 1, "Car", "", "", "Interruptible", "Car", 80m),

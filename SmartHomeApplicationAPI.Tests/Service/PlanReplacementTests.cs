@@ -126,16 +126,21 @@ public class PlanReplacementTests
     }
 
     [Theory]
-    [InlineData(null)]
-    [InlineData(1)]
-    public async Task Save_UsesStoredEvCapacityAndCombinedDuration_DistributesBaselineAndLinksChronologically(int? originalId)
+    [InlineData(null, 50, 24)]
+    [InlineData(1, 50, 24)]
+    [InlineData(null, 80, 48)]
+    [InlineData(1, 80, 48)]
+    [InlineData(null, 100, 64)]
+    [InlineData(1, 100, 64)]
+    public async Task Save_UsesStoredEvCapacityAndCombinedDuration_DistributesBaselineAndLinksChronologically(
+        int? originalId, int chargeTarget, int expectedEnergy)
     {
         using var db = CreateDb();
         await Seed(db);
         var request = Request(originalId);
         request.AreaCode = "DK2";
         request.PlanName = " Replacement ";
-        request.ChargeStopPercentage = 50;
+        request.ChargeStopPercentage = chargeTarget;
         request.Intervals = new()
         {
             new(Now.AddHours(5), Now.AddHours(5).AddMinutes(45), 5m, 50m),
@@ -145,7 +150,7 @@ public class PlanReplacementTests
         var prices = new Mock<IElectricityPriceService>(MockBehavior.Strict);
         prices.Setup(value => value.GetUnscheduledEstimateAsync(It.Is<UnscheduledEstimateRequestDto>(baseline =>
                 baseline.AreaCode == "DK2" && baseline.StartTime == request.WindowStart &&
-                baseline.EndTime == request.WindowStart.AddMinutes(90) && baseline.EnergyInKwh == 40m)))
+                baseline.EndTime == request.WindowStart.AddMinutes(90) && baseline.EnergyInKwh == expectedEnergy)))
             .ReturnsAsync(new UnscheduledEstimateResultDto(new UnscheduledEstimateDto(10m, 100m), null));
 
         var saved = await Service(db, prices).SaveGeneratedPlanAsync("owner", request);
@@ -171,7 +176,7 @@ public class PlanReplacementTests
             Assert.Equal("Replacement", block.Name);
             Assert.Equal(request.WindowStart, block.WindowStartTime);
             Assert.Equal(request.WindowEnd, block.WindowEndTime);
-            Assert.Equal(50, block.ChargeStopPercentage);
+            Assert.Equal(chargeTarget, block.ChargeStopPercentage);
         });
     }
 

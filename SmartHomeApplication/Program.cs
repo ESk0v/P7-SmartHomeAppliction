@@ -14,6 +14,7 @@ builder.Services.AddHttpClient("Api", client =>
     client.BaseAddress = new Uri(apiBaseUrl);
 });
 builder.Services.AddScoped<OptimizedPlanState>();
+builder.Services.AddScoped<ChartMetricPreference>();
 
 builder.Services.AddScoped<IDeviceService, DeviceService>();
 

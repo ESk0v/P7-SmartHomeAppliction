@@ -18,7 +18,7 @@ public class ElectricityPriceRepository : IElectricityPriceRepository
         return await _db.Electricity
             .Where(p => p.Time >= date && p.PriceArea == areaCode)
             .OrderBy(p => p.Time)
-            .Select(p => new HourPriceDto(p.Time, p.PricePerKwh, p.IsPredicted))
+            .Select(p => new HourPriceDto(p.Time, p.PricePerKwh, p.IsPredicted, p.Co2EmissionGramsPerKwh))
             .ToListAsync();
     }
 

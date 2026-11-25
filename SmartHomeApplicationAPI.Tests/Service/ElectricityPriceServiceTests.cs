@@ -32,4 +32,27 @@ public class ElectricityPriceServiceTests
         Assert.Equal(new HourPriceDto(hour, 3m, expectedPredicted), prices[0]);
         Assert.Equal(new HourPriceDto(hour.AddHours(1), 5m, false), prices[1]);
     }
+
+    [Fact]
+    public async Task GetPricesForDateAsync_AveragesAvailableCo2_AndPreservesMissingHoursAndZero()
+    {
+        var hour = new DateTime(2026, 11, 20, 12, 0, 0);
+        var repository = new Mock<IElectricityPriceRepository>();
+        repository.Setup(r => r.GetPricesForDateAsync("DK2", It.IsAny<DateTime>()))
+            .ReturnsAsync(new List<HourPriceDto>
+            {
+                new(hour, 2m, false, 100m),
+                new(hour.AddMinutes(15), 4m, false, 200m),
+                new(hour.AddMinutes(30), 3m),
+                new(hour.AddHours(1), 5m, true),
+                new(hour.AddHours(2), 1m, false, 0m)
+            });
+
+        var result = await new ElectricityPriceService(repository.Object).GetPricesForDateAsync("DK2");
+
+        Assert.Equal(new[] { hour, hour.AddHours(1), hour.AddHours(2) }, result.Select(point => point.Hour));
+        Assert.Equal(new decimal?[] { 150m, null, 0m }, result.Select(point => point.Co2EmissionGramsPerKwh));
+        Assert.Equal(new[] { 3m, 5m, 1m }, result.Select(point => point.Price));
+        Assert.True(result[1].IsPredicted);
+    }
 }
